@@ -7,6 +7,6 @@ import jakarta.validation.constraints.NotNull;
 @lombok.AllArgsConstructor
 @lombok.NoArgsConstructor
 public class UpdateChatTypeRequest {
-    @NotNull(message = "groupType is required")
-    private ChatType groupType;
+    @NotNull(message = "chatType is required")
+    private ChatType chatType;
 }

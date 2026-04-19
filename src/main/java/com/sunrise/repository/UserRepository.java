@@ -73,14 +73,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("""
            SELECT
-               u.id,
-               u.username,
-               u.name,
-               u.profileUpdatedAt,
-               u.createdAt,
-               u.isEnabled,
-               u.deletedAt,
-               u.isDeleted
+               u.id as id,
+               u.username as username,
+               u.name as name,
+               u.profileUpdatedAt as profileUpdatedAt,
+               u.createdAt as createdAt,
+               u.isEnabled as isEnabled,
+               u.deletedAt as deletedAt,
+               u.isDeleted as isDeleted
            FROM User u
            WHERE u.isDeleted = false AND u.isEnabled = true
                AND (:filter = ''

@@ -15,7 +15,6 @@ public class ChatDTO {
     private ChatType chatType;
     private Long opponentId;
     private int membersCount;
-    private int deletedMembersCount;
     private LocalDateTime updatedAt;
     private LocalDateTime createdAt;
     private long createdBy;
@@ -23,10 +22,10 @@ public class ChatDTO {
     private boolean isDeleted;
 
     public static ChatDTO createGroup(long id, String name, String description, ChatType type, int membersCount, LocalDateTime createdAt, long createdBy){
-        return new ChatDTO(id, name, description, type, null, membersCount, 0, createdAt, createdAt, createdBy, null, false);
+        return new ChatDTO(id, name, description, type, null, membersCount, createdAt, createdAt, createdBy, null, false);
     }
     public static ChatDTO createPersonal(long id, long opponentId, LocalDateTime createdAt, long createdBy){
-        return new ChatDTO(id, null, null, ChatType.PERSONAL, opponentId, 2, 0, createdAt, createdAt, createdBy, null, false);
+        return new ChatDTO(id, null, null, ChatType.PERSONAL, opponentId, 2, createdAt, createdAt, createdBy, null, false);
     }
 
     @JsonIgnore
@@ -38,11 +37,7 @@ public class ChatDTO {
         return chatType.isPersonal();
     }
     @JsonIgnore
-    public boolean isChangeable() {
-        return chatType.isChangeable();
-    }
-    @JsonIgnore
     public boolean isActionsEnabled() {
-        return chatType.isActionsEnabled();
+        return chatType.isActionsEnabled(membersCount);
     }
 }

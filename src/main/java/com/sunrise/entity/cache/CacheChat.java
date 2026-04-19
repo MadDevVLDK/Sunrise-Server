@@ -15,7 +15,6 @@ public class CacheChat {
     private ChatType chatType;
     private Long opponentId;
     private int membersCount;
-    private int deletedMembersCount;
     private LocalDateTime updatedAt;
     private LocalDateTime createdAt;
     private long createdBy;
@@ -32,7 +31,6 @@ public class CacheChat {
     }
     public void onDeleteMember(){
         membersCount--;
-        deletedMembersCount++;
     }
 
     public void setChatType(ChatType chatType, LocalDateTime updatedAt) {
@@ -62,17 +60,18 @@ public class CacheChat {
         return chatType.isPersonal();
     }
     public boolean isNotPersonal(){
-        return !chatType.isPersonal();
+        return chatType.isNotPersonal();
     }
 
     public void updateFromCache(CacheChat cacheChat) {
         this.name = cacheChat.getName();
+        this.description = cacheChat.getDescription();
         this.chatType = cacheChat.getChatType();
         this.opponentId = cacheChat.getOpponentId();
-        this.deletedMembersCount = cacheChat.getDeletedMembersCount();
         this.membersCount = cacheChat.getMembersCount();
-        this.createdBy = cacheChat.getCreatedBy();
+        this.updatedAt = cacheChat.getUpdatedAt();
         this.createdAt = cacheChat.getCreatedAt();
+        this.createdBy = cacheChat.getCreatedBy();
         this.deletedAt = cacheChat.getDeletedAt();
         this.isDeleted = cacheChat.isDeleted();
     }
@@ -87,7 +86,6 @@ public class CacheChat {
             chat.getChatType(),
             chat.getOpponentId(),
             chat.getMembersCount(),
-            chat.getDeletedMembersCount(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy(),

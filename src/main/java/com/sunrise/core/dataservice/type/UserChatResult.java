@@ -9,24 +9,23 @@ public interface UserChatResult {
     String getChatType();
     Long getOpponentId();
     Integer getMembersCount();
-    Integer getDeletedMembersCount();
     LocalDateTime getUpdatedAt();
     LocalDateTime getCreatedAt();
     Long getCreatedBy();
     LocalDateTime getDeletedAt();
     Boolean getIsDeleted();
     Boolean getIsPinned();
-    Integer getUnreadMessagesCount();
+    Integer getUnreadCount();
 
-    Long getLastMessageId();
-    Long getLastMessageChatId();
-    Long getLastMessageSenderId();
-    LocalDateTime getLastMessageProfileUpdatedAt();
-    String getLastMessageText();
-    Long getLastMessageReadCount();
-    Boolean getLastMessageIsReadByUser();
-    LocalDateTime getLastMessageSentAt();
-    LocalDateTime getLastMessageUpdatedAt();
-    LocalDateTime getLastMessageDeletedAt();
-    Boolean getLastMessageIsDeleted();
+    Long getMsgId();
+    Long getMsgChatId();
+    Long getMsgSenderId();
+    LocalDateTime getMsgProfileUpdatedAt();
+    String getMsgText();
+    Long getMsgReadCount();
+    Boolean getMsgIsReadByUser();
+    LocalDateTime getMsgSentAt();
+    LocalDateTime getMsgUpdatedAt();
+    LocalDateTime getMsgDeletedAt();
+    Boolean getMsgIsDeleted();
 }

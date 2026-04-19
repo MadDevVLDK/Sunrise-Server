@@ -11,7 +11,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RestController
 public class HealthTestController {
-    private DataOrchestrator dataOrchestrator;
+
+    private final DataOrchestrator dataOrchestrator;
 
     @GetMapping("/ping")
     public Map<String, String> getStatus() {

@@ -128,15 +128,15 @@ public class EntityMapper {
         if (items == null) return resultMap;
 
         for (var item : items) {
-            resultMap.put(item.getUserId(), new UserProfileDTO(
-                    item.getUserId(),
-                    item.getUsername(),
-                    item.getName(),
-                    item.getProfileUpdatedAt(),
-                    item.getCreatedAt(),
-                    item.getIsEnabled(),
-                    item.getDeletedAt(),
-                    item.getIsDeleted()
+            resultMap.put(item.getId(), new UserProfileDTO(
+                item.getId(),
+                item.getUsername(),
+                item.getName(),
+                item.getProfileUpdatedAt(),
+                item.getCreatedAt(),
+                item.getIsEnabled(),
+                item.getDeletedAt(),
+                item.getIsDeleted()
             ));
         }
         return resultMap;
@@ -155,7 +155,6 @@ public class EntityMapper {
             chat.getChatType(),
             chat.getOpponentId(),
             chat.getMembersCount(),
-            chat.getDeletedMembersCount(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy(),
@@ -167,21 +166,20 @@ public class EntityMapper {
         if (chat == null) return null;
 
         return new CacheChat(
-                chat.getId(),
-                chat.getName(),
-                chat.getDescription(),
-                chat.getChatType(),
-                chat.getOpponentId(),
-                chat.getMembersCount(),
-                chat.getDeletedMembersCount(),
-                chat.getUpdatedAt(),
-                chat.getCreatedAt(),
-                chat.getCreatedBy(),
-                chat.getDeletedAt(),
-                chat.isDeleted()
+            chat.getId(),
+            chat.getName(),
+            chat.getDescription(),
+            chat.getChatType(),
+            chat.getOpponentId(),
+            chat.getMembersCount(),
+            chat.getUpdatedAt(),
+            chat.getCreatedAt(),
+            chat.getCreatedBy(),
+            chat.getDeletedAt(),
+            chat.isDeleted()
         );
     }
-    public static CacheChat toCache(UserChatDTO chat) {
+    public static CacheChat toCache(ChatUserDTO chat) {
         if (chat == null) return null;
 
         return new CacheChat(
@@ -191,7 +189,6 @@ public class EntityMapper {
             chat.getChatType(),
             chat.getOpponentId(),
             chat.getMembersCount(),
-            chat.getDeletedMembersCount(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy(),
@@ -209,7 +206,6 @@ public class EntityMapper {
             ChatType.valueOf(chat.getChatType()),
             chat.getOpponentId(),
             chat.getMembersCount(),
-            chat.getDeletedMembersCount(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy(),
@@ -217,11 +213,11 @@ public class EntityMapper {
             chat.getIsDeleted()
         );
     }
-    public static List<CacheChat> toCaches(Collection<UserChatDTO> items) {
+    public static List<CacheChat> toCaches(Collection<ChatUserDTO> items) {
         if (items == null) return Collections.emptyList();
 
         List<CacheChat> cached = new ArrayList<>();
-        for (UserChatDTO item : items) {
+        for (ChatUserDTO item : items) {
             cached.add(EntityMapper.toCache(item));
         }
         return cached;
@@ -237,7 +233,6 @@ public class EntityMapper {
             chat.getChatType(),
             chat.getOpponentId(),
             chat.getMembersCount(),
-            chat.getDeletedMembersCount(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy(),
@@ -256,7 +251,6 @@ public class EntityMapper {
             chat.getChatType(),
             chat.getOpponentId(),
             chat.getMembersCount(),
-            chat.getDeletedMembersCount(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy(),
@@ -274,7 +268,6 @@ public class EntityMapper {
             chat.getChatType(),
             chat.getOpponentId(),
             chat.getMembersCount(),
-            chat.getDeletedMembersCount(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy(),
@@ -283,68 +276,66 @@ public class EntityMapper {
         );
     }
 
-    public static UserChatDTO toFullDTO(UserChatResult chat) {
+    public static ChatUserDTO toFullDTO(UserChatResult chat) {
         if (chat == null) return null;
 
-        MessageDTO msg = new MessageDTO(
-                chat.getLastMessageId(),
-                chat.getLastMessageChatId(),
-                chat.getLastMessageSenderId(),
-                chat.getLastMessageProfileUpdatedAt(),
-                chat.getLastMessageText(),
-                chat.getLastMessageReadCount(),
-                chat.getLastMessageIsReadByUser(),
-                chat.getLastMessageSentAt(),
-                chat.getLastMessageUpdatedAt(),
-                chat.getLastMessageDeletedAt(),
-                chat.getLastMessageIsDeleted()
-        );
+        MessageDTO msg = chat.getMsgId() != null ? new MessageDTO(
+            chat.getMsgId(),
+            chat.getMsgChatId(),
+            chat.getMsgSenderId(),
+            chat.getMsgProfileUpdatedAt(),
+            chat.getMsgText(),
+            chat.getMsgReadCount(),
+            chat.getMsgIsReadByUser(),
+            chat.getMsgSentAt(),
+            chat.getMsgUpdatedAt(),
+            chat.getMsgDeletedAt(),
+            chat.getMsgIsDeleted()
+        ) : null;
 
-        return new UserChatDTO(
-                chat.getId(),
-                chat.getName(),
-                chat.getDescription(),
-                ChatType.valueOf(chat.getChatType()),
-                chat.getOpponentId(),
-                chat.getMembersCount(),
-                chat.getDeletedMembersCount(),
-                msg,
-                chat.getUnreadMessagesCount(),
-                chat.getUpdatedAt(),
-                chat.getCreatedAt(),
-                chat.getCreatedBy(),
-                chat.getDeletedAt(),
-                chat.getIsDeleted()
+        return new ChatUserDTO(
+            chat.getId(),
+            chat.getName(),
+            chat.getDescription(),
+            ChatType.valueOf(chat.getChatType()),
+            chat.getOpponentId(),
+            chat.getMembersCount(),
+            msg,
+            chat.getUnreadCount(),
+            chat.getUpdatedAt(),
+            chat.getCreatedAt(),
+            chat.getCreatedBy(),
+            chat.getDeletedAt(),
+            chat.getIsDeleted()
         );
     }
-    public static Map<Long, UserChatDTO> toFullDTOs(Collection<UserChatResult> chats, Map<Long, UserChatDTO> resultMap) {
+    public static Map<Long, ChatUserDTO> toFullDTOs(Collection<UserChatResult> chats, Map<Long, ChatUserDTO> resultMap) {
         if (chats == null) return null;
 
         for (UserChatResult chat : chats){
-            MessageDTO msg = new MessageDTO(
-                chat.getLastMessageId(),
-                chat.getLastMessageChatId(),
-                chat.getLastMessageSenderId(),
-                chat.getLastMessageProfileUpdatedAt(),
-                chat.getLastMessageText(),
-                chat.getLastMessageReadCount(),
-                chat.getLastMessageIsReadByUser(),
-                chat.getLastMessageSentAt(),
-                chat.getLastMessageUpdatedAt(),
-                chat.getLastMessageDeletedAt(),
-                chat.getLastMessageIsDeleted()
-            );
+            MessageDTO msg = chat.getMsgId() != null ? new MessageDTO(
+                chat.getMsgId(),
+                chat.getMsgChatId(),
+                chat.getMsgSenderId(),
+                chat.getMsgProfileUpdatedAt(),
+                chat.getMsgText(),
+                chat.getMsgReadCount(),
+                chat.getMsgIsReadByUser(),
+                chat.getMsgSentAt(),
+                chat.getMsgUpdatedAt(),
+                chat.getMsgDeletedAt(),
+                chat.getMsgIsDeleted()
+            ) : null;
 
-            resultMap.put(chat.getId(), new UserChatDTO(
+            resultMap.put(chat.getId(), new ChatUserDTO(
                 chat.getId(),
                 chat.getName(),
                 chat.getDescription(),
                 ChatType.valueOf(chat.getChatType()),
                 chat.getOpponentId(),
                 chat.getMembersCount(),
-                chat.getDeletedMembersCount(),
                 msg,
-                chat.getUnreadMessagesCount(),
+                chat.getUnreadCount(),
                 chat.getUpdatedAt(),
                 chat.getCreatedAt(),
                 chat.getCreatedBy(),

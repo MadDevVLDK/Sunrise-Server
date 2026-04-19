@@ -22,7 +22,6 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
 
     // ========== ОПЕРАЦИИ С ЧАТОМ ==========
 
-    @Modifying
     @Transactional
     @Query(value = "SELECT create_personal_chat_with_members(:chatId, :chatType, :user1Id, :user2Id, :createdAt)", nativeQuery = true)
     void savePersonalChatAndMembers(@Param("chatId") long chatId, @Param("chatType") String chatType,
@@ -30,12 +29,10 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                                     @Param("createdAt") LocalDateTime createdAt);
 
 
-    @Modifying
     @Transactional
-    @Query(value = "SELECT create_group_chat_with_members(:chatId, :name, :description, :chatType, :memberIds, :isAdminFlags, :creatorId, :createdAt)", nativeQuery = true)
+    @Query(value = "SELECT create_group_chat_with_members(:chatId, :name, :description, :chatType, :memberIds, :creatorId, :createdAt)", nativeQuery = true)
     void saveGroupChatAndMembers(@Param("chatId") long chatId, @Param("name") String name, @Param("description") String description,
-                                 @Param("chatType") String chatType,
-                                 @Param("memberIds") Long[] memberIds, @Param("isAdminFlags") Boolean[] isAdminFlags,
+                                 @Param("chatType") String chatType, @Param("memberIds") Long[] memberIds,
                                  @Param("creatorId") long creatorId, @Param("createdAt") LocalDateTime createdAt);
 
     @Modifying
@@ -72,13 +69,13 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     Optional<Chat> getPersonalChat(@Param("userId1") long userId1, @Param("userId2") long userId2, @Param("chatType") ChatType chatType);
 
     @Query("""
-           SELECT c FROM Chat c
+           SELECT c.id FROM Chat c
            INNER JOIN ChatMember cm ON cm.id.chatId = c.id AND cm.id.userId = :userId AND cm.isDeleted = false
            WHERE c.isDeleted = false
            """)
     List<Long> getUserChatIds(@Param("userId") long userId);
 
-    @Query(value = "SELECT * FROM get_user_chats_page(:user_id, :isPinnedCursor, :lastMsgIdCursor, :chatIdCursor, , :limit)", nativeQuery = true)
+    @Query(value = "SELECT * FROM get_user_chats_page(:user_id, :isPinnedCursor, :lastMsgIdCursor, :chatIdCursor, :limit)", nativeQuery = true)
     List<UserChatResult> getUserChatsPage(@Param("user_id") long userId, @Param("isPinnedCursor") Boolean isPinnedCursor, @Param("lastMsgIdCursor") Long lastMsgIdCursor, @Param("chatIdCursor") Long chatIdCursor, @Param("limit") int limit);
 
     @Query(value = "SELECT * FROM get_chat_by_id(:chatId, :userId)", nativeQuery = true)

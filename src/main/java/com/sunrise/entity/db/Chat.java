@@ -43,10 +43,6 @@ public class Chat {
     @Column(name = "members_count", nullable = false)
     protected int membersCount;
 
-    @Min(0)
-    @Column(name = "deleted_members_count", nullable = false)
-    protected int deletedMembersCount;
-
     @Column(name = "updated_at", nullable = false)
     protected LocalDateTime updatedAt = LocalDateTime.now();
 

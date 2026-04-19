@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -35,11 +35,7 @@ public class ChatMemberService {
 
     public ResultNoArgs addOrRestoreChatMember(long chatId, long inviterId, long opponentId) {
         try {
-            if (inviterId == opponentId) {
-                throw new ValidationException("Cannot add yourself to the chat");
-            }
-
-            validator.validateAddChatMember(chatId, inviterId, opponentId);
+            validator.validateCanAddChatMember(chatId, inviterId, opponentId);
 
             var chatMember = ChatMemberDTO.create(chatId, opponentId, LocalDateTime.now(), false);
 
@@ -60,21 +56,17 @@ public class ChatMemberService {
             return ResultNoArgs.error("AddGroupMember failed due to server error");
         }
     }
-    public ResultNoArgs addOrRestoreChatMembers(long chatId, long inviterId, @NotNull Map<Long, Boolean> usersToAdd) {
+    public ResultNoArgs addOrRestoreChatMembers(long chatId, long inviterId, @NotNull Set<Long> usersToAdd) {
         try {
-            if (usersToAdd.containsKey(inviterId)) {
-                throw new ValidationException("Cannot add yourself to the chat");
-            }
-
-            validator.validateAddChatMembers(chatId, inviterId, usersToAdd.keySet());
+            validator.validateCanAddChatMembers(chatId, inviterId, usersToAdd);
 
             LocalDateTime createdAt = LocalDateTime.now();
 
             List<ChatMemberDTO> members = new ArrayList<>(usersToAdd.size() + 1);
             members.add(ChatMemberDTO.create(chatId, inviterId, createdAt, true));
 
-            for (Map.Entry<Long, Boolean> entry : usersToAdd.entrySet()){
-                members.add(ChatMemberDTO.create(chatId, entry.getKey(), createdAt, entry.getValue()));
+            for (long userId : usersToAdd){
+                members.add(ChatMemberDTO.create(chatId, userId, createdAt, false));
             }
 
             dataOrchestrator.saveOrRestoreChatMembers(chatId, members);
@@ -95,9 +87,9 @@ public class ChatMemberService {
         }
     }
 
-    public ResultNoArgs updateChatMemberInfo(long chatId, long adminId, long userToUpdateId, String tag) {
+    public ResultNoArgs updateChatMemberInfo(long chatId, long adminId, long userToUpdateId, @NotNull String tag) {
         try {
-            validator.validateActiveUsersInActiveChatAndOneIsAdmin(chatId, adminId, userToUpdateId);
+            validator.validateCanUpdateChatMemberInfo(chatId, adminId, userToUpdateId);
 
             LocalDateTime updatedAt = LocalDateTime.now();
             dataOrchestrator.updateChatMemberInfo(chatId, adminId, tag, updatedAt);
@@ -119,11 +111,7 @@ public class ChatMemberService {
     }
     public ResultNoArgs updateChatMemberAdminRight(long chatId, long adminId, long userToUpdateId, boolean isAdmin) {
         try {
-            if (adminId == userToUpdateId) {
-                throw new ValidationException("Cannot update rights of yourself");
-            }
-
-            validator.validateActiveUsersInActiveChatAndOneIsAdmin(chatId, adminId, userToUpdateId);
+            validator.validateCanUpdateChatMemberRights(chatId, adminId, userToUpdateId);
 
             LocalDateTime updatedAt = LocalDateTime.now();
             dataOrchestrator.updateChatMemberAdminRights(chatId, userToUpdateId, isAdmin, updatedAt);
@@ -165,17 +153,14 @@ public class ChatMemberService {
             return ResultNoArgs.error("updateChatMemberInfo failed due to server error");
         }
     }
+
     public ResultNoArgs kickChatMember(long chatId, long adminId, long userToKickId) {
         try {
-            if (adminId == userToKickId) {
-                throw new ValidationException("Cannot update rights of yourself");
-            }
-
             if (!lockManager.tryLockLeaveChatOperation(chatId)) {
                 throw new ValidationException("Try again later");
             }
 
-            validator.validateActiveUsersInActiveChatAndOneIsAdmin(chatId, adminId, userToKickId);
+            validator.validateCanKickChatMember(chatId, adminId, userToKickId);
 
             LocalDateTime updatedAt = LocalDateTime.now();
             dataOrchestrator.removeUserFromChat(chatId, userToKickId, updatedAt);
@@ -198,11 +183,10 @@ public class ChatMemberService {
             lockManager.unLockLeaveChatOperation(chatId);
         }
     }
-
     public ResultNoArgs leaveChat(long chatId, long userId) {
         try {
             if (!lockManager.tryLockLeaveChatOperation(chatId)) {
-                return ResultNoArgs.error("Try again later");
+                throw new ValidationException("Try again later");
             }
 
             ChatDTO chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);

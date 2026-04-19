@@ -37,17 +37,19 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public ResultOneArg<String> registerUser(String username, String name, String email, String password) {
-
-        // пытаемся заблокировать регистрацию
-        if (!lockManager.tryLockRegistration(username, email))
-            return ResultOneArg.error("Try again later");
-
         try {
-            if (dataOrchestrator.existsUserByUsername(username.trim()))
-                throw new ValidationException("Username already exists");
+            // пытаемся заблокировать регистрацию
+            if (!lockManager.tryLockRegistration(username, email)) {
+                throw new ValidationException("Try again later");
+            }
 
-            if (dataOrchestrator.existsUserByEmail(email.toLowerCase()))
+            if (dataOrchestrator.existsUserByUsername(username.trim())) {
+                throw new ValidationException("Username already exists");
+            }
+
+            if (dataOrchestrator.existsUserByEmail(email.toLowerCase())) {
                 throw new ValidationException("Email already exists");
+            }
 
             LocalDateTime createdAt = LocalDateTime.now();
 
@@ -84,16 +86,15 @@ public class AuthService {
     } // TODO: ПРОБЛЕМА С ВЫЗОВОМ НЕСКОЛЬКИХ ФУНКЦИЙ ПО СОХРАНЕНИЮ В БД И КЕШ
     public ResultOneArg<UserLoginResult> authenticateUser(String username, String password, HttpServletRequest httpRequest) {
         try {
-            Optional<UserDTO> userOpt = dataOrchestrator.getUserByUsername(username);
-            if (userOpt.isEmpty())
-                throw new ValidationException("Invalid username or password");
+            UserDTO user = dataOrchestrator.getUserByUsername(username)
+                    .orElseThrow(() -> new ValidationException("Invalid username or password"));
 
-            UserDTO user = userOpt.get();
-            if (!user.isEnabled())
+            if (!user.isEnabled()) {
                 throw new ValidationException("Please verify your email first");
-
-            if(!passwordEncoder.matches(password, user.getHashPassword()))
+            }
+            if (!passwordEncoder.matches(password, user.getHashPassword())) {
                 throw new ValidationException("Invalid username or password");
+            }
 
             LocalDateTime updatedAt = LocalDateTime.now();
             dataOrchestrator.updateLastLogin(username, updatedAt);
@@ -119,14 +120,10 @@ public class AuthService {
         }
     }
 
-    public ResultNoArgs requestEmailUpdate(long userId, String newEmail) {
+    public ResultNoArgs requestEmailUpdate(long userId) {
         try {
             UserDTO user = dataOrchestrator.getUser(userId)
                     .orElseThrow(() -> new ValidationException("User not found"));
-
-            if (dataOrchestrator.existsUserByEmail(newEmail)){
-                throw new ValidationException("Email already taken");
-            }
 
             // Генерация токена
             String token = generate64CharString();
@@ -150,10 +147,10 @@ public class AuthService {
             return ResultNoArgs.error("requestEmailUpdate failed due to server error");
         }
     }
-    public ResultNoArgs requestPasswordUpdate(String username) {
+    public ResultNoArgs requestPasswordUpdate(String email) {
         try {
-            UserDTO user = dataOrchestrator.getUserByUsername(username)
-                    .orElseThrow(() -> new ValidationException("Email already exists"));
+            UserDTO user = dataOrchestrator.getUserByEmail(email)
+                    .orElseThrow(() -> new ValidationException("User with such email does not exist"));
 
             // Генерация токена
             String token = generate64CharString();

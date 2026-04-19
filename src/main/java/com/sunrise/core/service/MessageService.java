@@ -139,7 +139,6 @@ public class MessageService {
     public ResultNoArgs markMessagesUpToRead(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
-            validator.validateActiveMessageInChat(chatId, messageId);
 
             LocalDateTime readAt = LocalDateTime.now();
             dataOrchestrator.markMessagesUpToRead(chatId, userId, messageId, readAt);

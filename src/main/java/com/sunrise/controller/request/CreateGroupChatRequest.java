@@ -4,7 +4,9 @@ import com.sunrise.config.annotation.ValidId;
 import com.sunrise.core.dataservice.type.ChatType;
 import jakarta.validation.constraints.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @lombok.Getter
 @lombok.AllArgsConstructor
@@ -26,11 +28,10 @@ public class CreateGroupChatRequest {
     private String chatDescription;
 
     @NotNull(message = "groupType is required")
+//    @Pattern(regexp = "PERSONAL|SMALL_GROUP|BIG_GROUP", message = "groupType must be PERSONAL, SMALL_GROUP, or BIG_GROUP")
     private ChatType groupType;
 
     @NotNull(message = "members is required")
     @Size(max = 100, message = "Group cannot have more than 100 members")
-    private Map<@NotNull(message = "User ID cannot be null")
-                    @Min(value = 1, message = "User ID must be positive") Long,
-                        @NotNull(message = "Admin flag cannot be null") Boolean> members;
+    private Set<@ValidId Long> members;
 }

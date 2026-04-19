@@ -90,11 +90,10 @@ public class DBService {
 
 
     // Основные методы
-    public void saveGroupChat(Chat chat, Long[] memberIds, Boolean[] isAdminFlags) {
+    public void saveGroupChat(Chat chat, Long[] membersWithoutCreatorIds) {
         chatRepository.saveGroupChatAndMembers(
             chat.getId(), chat.getName(), chat.getDescription(),
-            chat.getChatType().name(),
-            memberIds, isAdminFlags,
+            chat.getChatType().name(), membersWithoutCreatorIds,
             chat.getCreatedBy(), chat.getCreatedAt()
         );
     }
@@ -147,8 +146,8 @@ public class DBService {
     public void upsertChatMember(ChatMember chatMember) {
         chatMemberRepository.saveOrRestore(chatMember.getChatId(), chatMember.getUserId(), chatMember.isAdmin(), chatMember.getJoinedAt());
     }
-    public void upsertChatMembers(long chatId, Long[] memberIds, LocalDateTime joinedAt, Boolean[] isAdminFlags) {
-        chatMemberRepository.saveOrRestoreBatch(chatId, memberIds, joinedAt, isAdminFlags);
+    public void upsertChatMembers(long chatId, Long[] memberIds, LocalDateTime joinedAt) {
+        chatMemberRepository.saveOrRestoreBatch(chatId, memberIds, joinedAt);
     }
     public int updateChatMemberInfo(long chatId, long userId, String tag, LocalDateTime updatedAt) {
         return chatMemberRepository.updateInfo(chatId, userId, tag, updatedAt);

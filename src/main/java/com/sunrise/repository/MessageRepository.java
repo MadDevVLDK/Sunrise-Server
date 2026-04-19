@@ -114,7 +114,6 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<UserMessageDBResult> getMessagePageAfter(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
 
 
-    @Modifying
     @Transactional
     @Query(value = "SELECT mark_messages_up_to_read(:chatId, :userId, :messageId, :readAt, CAST(:interval AS INTERVAL))", nativeQuery = true)
     void markMessagesUpToRead(@Param("chatId") long chatId, @Param("userId") long userId, @Param("messageId") long messageId,

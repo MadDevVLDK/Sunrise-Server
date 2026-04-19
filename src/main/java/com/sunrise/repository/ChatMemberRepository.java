@@ -17,16 +17,13 @@ import java.util.Optional;
 @Repository
 public interface ChatMemberRepository extends JpaRepository<ChatMember, ChatMemberId> {
 
-    @Modifying
     @Transactional
     @Query(value = "SELECT add_or_restore_chat_member(:chatId, :userId, :isAdmin, :joinedAt, TRUE)", nativeQuery = true)
     void saveOrRestore(@Param("chatId") long chatId, @Param("userId") long userId, @Param("isAdmin") boolean isAdmin, @Param("joinedAt") LocalDateTime joinedAt);
 
-    @Modifying
     @Transactional
-    @Query(value = "SELECT add_or_restore_chat_member(:chatId, user_id, is_admin, :joinedAt, TRUE) " +
-                    "FROM unnest(:userIds, :isAdminFlags) AS t(user_id, is_admin)", nativeQuery = true)
-    void saveOrRestoreBatch(@Param("chatId") long chatId, @Param("userIds") Long[] userIds, @Param("joinedAt") LocalDateTime joinedAt, @Param("isAdminFlags") Boolean[] isAdminFlags);
+    @Query(value = "SELECT add_or_restore_chat_members_batch(:chatId, :userIds, :joinedAt)", nativeQuery = true)
+    void saveOrRestoreBatch(@Param("chatId") long chatId, @Param("userIds") Long[] userIds, @Param("joinedAt") LocalDateTime joinedAt);
 
     @Modifying
     @Transactional
@@ -52,7 +49,6 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, ChatMemb
            WHERE cm.id.chatId = :chatId AND cm.id.userId = :userId""")
     int updateSettings(@Param("chatId") long chatId, @Param("userId") long userId, @Param("isPinned") boolean isPinned, @Param("updatedAt") LocalDateTime updatedAt);
 
-    @Modifying
     @Transactional
     @Query(value = "SELECT remove_chat_member(:chatId, :userId, :updatedAt)", nativeQuery = true)
     boolean remove(@Param("chatId") long chatId, @Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt); // удален или нет

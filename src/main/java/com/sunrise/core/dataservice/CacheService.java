@@ -6,6 +6,7 @@ import com.sunrise.entity.cache.*;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+import com.sunrise.entity.dto.ChatMemberDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -183,6 +184,17 @@ public class CacheService {
         }
         return user;
     }
+    public Optional<CacheUser> getUserByEmail(String email) {
+        String key = email.toLowerCase();
+        Long userId = emailIndex.getIfPresent(key);
+        if (userId == null) return Optional.empty();
+
+        Optional<CacheUser> user = getUser(userId);
+        if (user.isEmpty()) {
+            emailIndex.invalidate(key);
+        }
+        return user;
+    }
     public Optional<CacheUser> getUser(long userId) {
         return Optional.ofNullable(CacheUser.copy(userCache.getIfPresent(userId)));
     }
@@ -288,13 +300,6 @@ public class CacheService {
     }
     private Optional<CacheChat> getChatLink(long chatId) {
         return Optional.ofNullable(chatInfoCache.getIfPresent(chatId));
-    }
-
-    public Optional<Boolean> isActiveChat(long chatId) {
-        return getChatLink(chatId).map(CacheChat::isActive);
-    }
-    public Optional<Boolean> isActiveGroupChat(long chatId) {
-        return getChatLink(chatId).filter(CacheChat::isActive).map(CacheChat::isNotPersonal);
     }
 
 

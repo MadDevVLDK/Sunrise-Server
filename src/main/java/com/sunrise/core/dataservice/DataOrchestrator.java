@@ -151,6 +151,19 @@ public class DataOrchestrator {
         });
         return dbUser.map(EntityMapper::toFullDTO);
     }
+    public Optional<UserDTO> getUserByEmail(String email) {
+        // пробуем кеш
+        Optional<CacheUser> cached = cacheService.getUserByEmail(email);
+        if (cached.isPresent())
+            return cached.map(EntityMapper::toFullDTO);
+
+        //грузим из бд
+        Optional<User> dbUser = dbService.getUserByEmail(email);
+        dbUser.ifPresent(user -> {
+            cacheService.saveUser(EntityMapper.toCache(user)); // восстанавливаем кеш
+        });
+        return dbUser.map(EntityMapper::toFullDTO);
+    }
     public Optional<UserProfileDTO> getUserProfile(long userId) {
         // пробуем кеш
         Optional<UserDTO> user = getUser(userId);
@@ -222,7 +235,7 @@ public class DataOrchestrator {
             List<UserResult> pageRows = hasMore ? rows.subList(0, limit) : rows;
 
             users = EntityMapper.toUserProfileDTOs(pageRows, users);
-            nextCursor = hasMore ? pageRows.getLast().getUserId() : null;
+            nextCursor = hasMore ? pageRows.getLast().getId() : null;
         }
 
         return new UsersPageDTO(users, nextCursor);
@@ -252,23 +265,23 @@ public class DataOrchestrator {
             List.of(EntityMapper.toCache(creator), EntityMapper.toCache(opponent))
         );
     }
-    public void saveGroupChatAndAddMembers(ChatDTO chat, List<ChatMemberDTO> chatMembers) {
+    public void saveGroupChatAndAddMembers(ChatDTO chat, ChatMemberDTO creator, List<ChatMemberDTO> chatMembers) {
         // конвертируем
-        Long[] memberIds = new Long[chatMembers.size()];
-        Boolean[] isAdminFlags = new Boolean[chatMembers.size()];
+        List<CacheChatMember> membersWithCreator = new ArrayList<>(chatMembers.size() + 1);
+        membersWithCreator.add(EntityMapper.toCache(creator));
+
+        Long[] membersWithoutCreatorIds = new Long[chatMembers.size()];
         for (int i = 0; i < chatMembers.size(); i++) {
-            ChatMemberDTO member = chatMembers.get(i);
-            memberIds[i] = member.getUserId();
-            isAdminFlags[i] = member.isAdmin();
+            membersWithCreator.add(EntityMapper.toCache(chatMembers.get(i)));
+            membersWithoutCreatorIds[i] = chatMembers.get(i).getUserId();
         }
 
         // синхронно в бд
-        dbService.saveGroupChat(EntityMapper.toEntity(chat), memberIds, isAdminFlags);
+        dbService.saveGroupChat(EntityMapper.toEntity(chat), membersWithoutCreatorIds);
 
         // сохраняем в кеш
         cacheService.saveChatAndAddMembers(
-            EntityMapper.toCache(chat),
-            chatMembers.stream().map(EntityMapper::toCache).toList()
+            EntityMapper.toCache(chat), membersWithCreator
         );
     }
     public void updateChatInfo(long chatId, String newName, String newDescription, LocalDateTime updatedAt) {
@@ -317,9 +330,9 @@ public class DataOrchestrator {
 
     public boolean isActiveChat(long chatId) {
         // пробуем кеш
-        Optional<Boolean> isActive = cacheService.isActiveChat(chatId);
-        if (isActive.isPresent())
-            return isActive.get();
+        Optional<CacheChat> cacheChat = cacheService.getChat(chatId);
+        if (cacheChat.isPresent())
+            return cacheChat.filter(CacheChat::isActive).isPresent();
 
         // грузим из бд
         Optional<Chat> dbChat = dbService.getChat(chatId);
@@ -328,18 +341,18 @@ public class DataOrchestrator {
         });
         return dbChat.filter(Chat::isActive).isPresent();
     }
-    public Optional<Boolean> isGroupChat(long chatId) {
+    public Optional<Boolean> isActiveGroupChat(long chatId) {
         // пробуем кеш
-        Optional<Boolean> isGroup = cacheService.isActiveGroupChat(chatId);
-        if (isGroup.isPresent())
-            return isGroup;
+        Optional<CacheChat> cacheChat = cacheService.getChat(chatId);
+        if (cacheChat.isPresent())
+            return cacheChat.filter(CacheChat::isActive).map(CacheChat::isNotPersonal);
 
         // грузим из бд
         Optional<Chat> dbChat = dbService.getChat(chatId);
         dbChat.ifPresent(chat -> {
             cacheService.saveChat(EntityMapper.toCache(chat)); // восстанавливаем в кеш
         });
-        return dbChat.map(Chat::isNotPersonal);
+        return dbChat.filter(Chat::isActive).map(Chat::isNotPersonal);
     }
 
     public UserChatsPageDTO getUserChatsPage(long userId, Boolean isPinnedCursor, Long lastMsgIdCursor, Long chatIdCursor, int limit) {
@@ -349,7 +362,7 @@ public class DataOrchestrator {
             return new UserChatsPageDTO(Collections.emptyMap(), null);
         }
 
-        Map<Long, UserChatDTO> chats = new HashMap<>(rows.size());
+        Map<Long, ChatUserDTO> chats = new HashMap<>(rows.size());
         boolean hasMore = rows.size() > limit;
 
         List<UserChatResult> pageRows = hasMore ? rows.subList(0, limit) : rows;
@@ -360,7 +373,7 @@ public class DataOrchestrator {
         cacheService.saveChats(EntityMapper.toCaches(chats.values()));
         return new UserChatsPageDTO(chats, nextCursor);
     }
-    public Optional<UserChatDTO> getUserChat(long chatId, long userId) {
+    public Optional<ChatUserDTO> getUserChat(long chatId, long userId) {
         // загружаем с бд
         Optional<UserChatResult> dbChat = dbService.getUserChat(chatId, userId);
 
@@ -386,15 +399,12 @@ public class DataOrchestrator {
     public void saveOrRestoreChatMembers(long chatId, List<ChatMemberDTO> chatMembers) {
         // конвертируем
         LocalDateTime joinedAt = chatMembers.getFirst().getJoinedAt();
-        Long[] ids = new Long[chatMembers.size()];
-        Boolean[] isAdminFlags = new Boolean[chatMembers.size()];
+        Long[] memberIds = new Long[chatMembers.size()];
         for (int i = 0; i < chatMembers.size(); i++) {
-            ChatMemberDTO member = chatMembers.get(i);
-            ids[i] = member.getUserId();
-            isAdminFlags[i] = member.isAdmin();
+            memberIds[i] = chatMembers.get(i).getUserId();
         }
 
-        dbService.upsertChatMembers(chatId, ids, joinedAt, isAdminFlags); // синхронно в бд
+        dbService.upsertChatMembers(chatId, memberIds, joinedAt); // синхронно в бд
         cacheService.saveChatMembers(chatId, EntityMapper.toCacheLightChatMembers(chatMembers)); // сохраняем в кеш
     }
     public void updateChatMemberInfo(long chatId, long userId, String tag, LocalDateTime updatedAt) {
@@ -560,6 +570,19 @@ public class DataOrchestrator {
 
 
     // Вспомогательные методы
+    public boolean isMessageInChat(long chatId, long messageId) {
+        // пробуем кеш
+        Optional<CacheMessage> cacheMessage = cacheService.getMessage(messageId);
+        if (cacheMessage.isPresent())
+            return cacheMessage.filter(msg -> msg.getChatId() == chatId).isPresent();
+
+        // грузим из бд
+        Optional<Message> dbMessage = dbService.getMessage(messageId);
+        dbMessage.ifPresent(msg -> {
+            cacheService.saveMessage(EntityMapper.toCache(msg)); // восстанавливаем в кеш
+        });
+        return dbMessage.filter(msg -> msg.getChatId() == chatId).isPresent();
+    }
     public boolean isActiveMessageInChat(long chatId, long messageId) {
         // пробуем кеш
         Optional<CacheMessage> cacheMessage = cacheService.getMessage(messageId);

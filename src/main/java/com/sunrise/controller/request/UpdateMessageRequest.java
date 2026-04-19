@@ -1,6 +1,5 @@
 package com.sunrise.controller.request;
 
-import com.sunrise.config.annotation.ValidId;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -8,14 +7,8 @@ import jakarta.validation.constraints.Size;
 @lombok.Setter
 @lombok.NoArgsConstructor
 @lombok.AllArgsConstructor
-public class PrivateMessageRequest {
-    @ValidId
-    private Long tempId;
-
+public class UpdateMessageRequest {
     @NotBlank
     @Size(max = 10000)
     private String text;
-
-    @ValidId
-    private Long userToSendId;
 }

@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class ProfileController {
     private final UserService userService;
 
-    @PostMapping
+    @PutMapping
     public ResponseEntity<?> updateProfile(@RequestBody @Valid ProfileUpdateRequest request, @CurrentUserId long userId) {
         ResultNoArgs result = userService.updateProfile(userId, request.getUsername(), request.getName());
 

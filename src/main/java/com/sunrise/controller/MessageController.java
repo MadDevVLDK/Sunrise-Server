@@ -6,6 +6,7 @@ import com.sunrise.config.annotation.ValidId;
 import com.sunrise.controller.request.PaginationRequest;
 import com.sunrise.controller.request.PrivateMessageRequest;
 import com.sunrise.controller.request.PublicMessageRequest;
+import com.sunrise.controller.request.UpdateMessageRequest;
 import com.sunrise.core.service.result.*;
 
 import com.sunrise.core.dataservice.type.Direction;
@@ -58,30 +59,32 @@ public class MessageController {
         }
     }
 
-    @GetMapping
-    public ResponseEntity<?> getMessagesPage(@PathVariable @ValidId long chatId, @Valid PaginationRequest pagination,
-                                             @RequestParam(defaultValue = "BACKWARD") @NotNull Direction direction, @CurrentUserId long userId) {
 
-        ResultOneArg<MessagesPageDTO> result = messageService.getMessagePagination(chatId, userId, pagination.getCursor(), pagination.getLimit(), direction);
+    @PutMapping("/{messageId}")
+    public ResponseEntity<?> updateMessage(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId,
+                                           @RequestBody @Valid UpdateMessageRequest request, @CurrentUserId long userId) {
+
+        ResultNoArgs result = messageService.updateMessage(chatId, userId, messageId, request.getText().trim());
 
         if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
+            return ResponseEntity.ok(result.getOperationText());
         } else {
             return ResponseEntity.badRequest().body(result.getError());
         }
     }
 
-    @PostMapping("/{messageId}/mark-up-to-read")
+    @PutMapping("/{messageId}/mark-up-to-read")
     public ResponseEntity<?> markMessagesUpToRead(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
 
         ResultNoArgs result = messageService.markMessagesUpToRead(chatId, userId, messageId);
 
         if (result.isSuccess()) {
-            return ResponseEntity.ok("Marked message(s) as read");
+            return ResponseEntity.ok(result.getOperationText());
         } else {
             return ResponseEntity.badRequest().body(result.getError());
         }
     }
+
 
     @DeleteMapping("/{messageId}")
     public ResponseEntity<?> deleteMessage(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
@@ -89,7 +92,20 @@ public class MessageController {
         ResultNoArgs result = messageService.deleteMessage(chatId, userId, messageId);
 
         if (result.isSuccess()) {
-            return ResponseEntity.ok("Message is deleted");
+            return ResponseEntity.ok(result.getOperationText());
+        } else {
+            return ResponseEntity.badRequest().body(result.getError());
+        }
+    }
+
+
+    @GetMapping("/{messageId}/reads")
+    public ResponseEntity<?> getMessageReads(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
+
+        ResultOneArg<Map<Long, MessageReadStatusDTO>> result = messageService.getMessageReads(chatId, userId, messageId);
+
+        if (result.isSuccess()) {
+            return ResponseEntity.ok(result.getResult());
         } else {
             return ResponseEntity.badRequest().body(result.getError());
         }
@@ -107,10 +123,11 @@ public class MessageController {
         }
     }
 
-    @GetMapping("/{messageId}/reads")
-    public ResponseEntity<?> getMessageReads(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
+    @GetMapping
+    public ResponseEntity<?> getMessagesPage(@PathVariable @ValidId long chatId, @Valid PaginationRequest pagination,
+                                             @RequestParam(defaultValue = "BACKWARD") @NotNull Direction direction, @CurrentUserId long userId) {
 
-        ResultOneArg<Map<Long, MessageReadStatusDTO>> result = messageService.getMessageReads(chatId, userId, messageId);
+        ResultOneArg<MessagesPageDTO> result = messageService.getMessagePagination(chatId, userId, pagination.getCursor(), pagination.getLimit(), direction);
 
         if (result.isSuccess()) {
             return ResponseEntity.ok(result.getResult());

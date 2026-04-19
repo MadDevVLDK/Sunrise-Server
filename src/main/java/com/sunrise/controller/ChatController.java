@@ -6,7 +6,7 @@ import com.sunrise.core.service.result.*;
 import com.sunrise.core.service.ChatService;
 import com.sunrise.config.annotation.ValidId;
 
-import com.sunrise.entity.dto.UserChatDTO;
+import com.sunrise.entity.dto.ChatUserDTO;
 import com.sunrise.entity.pagination.UserChatsPageDTO;
 import jakarta.validation.Valid;
 
@@ -55,25 +55,11 @@ public class ChatController {
         }
     }
 
-    @PostMapping("/{chatId}/info")
+    @PutMapping("/{chatId}/info")
     public ResponseEntity<?> updateChatInfo(@PathVariable @ValidId long chatId, @RequestBody @Valid UpdateChatInfoRequest request, @CurrentUserId long userId) {
 
         ResultNoArgs result = chatService.updateChatInfo(
             chatId, userId, request.getChatName(), request.getChatDescription()
-        );
-
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
-    }
-
-    @PostMapping("/{chatId}/chat-type")
-    public ResponseEntity<?> updateChatType(@PathVariable @ValidId long chatId, @RequestBody @Valid UpdateChatTypeRequest request, @CurrentUserId long userId) {
-
-        ResultNoArgs result = chatService.updateChatType(
-            chatId, userId, request.getGroupType()
         );
 
         if (result.isSuccess()) {
@@ -119,7 +105,7 @@ public class ChatController {
     @GetMapping("/{chatId}")
     public ResponseEntity<?> getUserChat(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
 
-        ResultOneArg<UserChatDTO> result = chatService.getUserChat(chatId, userId);
+        ResultOneArg<ChatUserDTO> result = chatService.getUserChat(chatId, userId);
 
         if (result.isSuccess()) {
             return ResponseEntity.ok(result.getResult());

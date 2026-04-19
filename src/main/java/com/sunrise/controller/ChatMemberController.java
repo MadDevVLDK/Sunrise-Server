@@ -19,12 +19,12 @@ import org.springframework.web.bind.annotation.*;
 @Validated
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/chats/{chatId}")
+@RequestMapping("/chats/{chatId}/members")
 public class ChatMemberController {
 
     private final ChatMemberService chatMemberService;
 
-    @PostMapping("/add-member")
+    @PostMapping("/add")
     public ResponseEntity<?> addGroupMember(@PathVariable @ValidId long chatId, @RequestBody @Valid AddGroupMemberRequest request, @CurrentUserId long userId) {
 
         ResultNoArgs result = chatMemberService.addOrRestoreChatMember(chatId, userId, request.getNewUserId());
@@ -36,7 +36,7 @@ public class ChatMemberController {
         }
     }
 
-    @PostMapping("/add-members")
+    @PostMapping("/add-many")
     public ResponseEntity<?> addGroupMembers(@PathVariable @ValidId long chatId, @RequestBody @Valid AddGroupMembersRequest request, @CurrentUserId long userId) {
 
         ResultNoArgs result = chatMemberService.addOrRestoreChatMembers(chatId, userId, request.getMembers());
@@ -48,7 +48,7 @@ public class ChatMemberController {
         }
     }
 
-    @PostMapping("/members/info/{otherUserId}")
+    @PutMapping("/{otherUserId}/info")
     public ResponseEntity<?> updateChatMemberInfo(@PathVariable @ValidId long chatId, @PathVariable @ValidId long otherUserId, @RequestBody @Valid UpdateChatMemberInfoRequest request, @CurrentUserId long userId) {
         ResultNoArgs result = chatMemberService.updateChatMemberInfo(
             chatId, userId, otherUserId, request.getTag()
@@ -61,7 +61,7 @@ public class ChatMemberController {
         }
     }
 
-    @PostMapping("/members/admin-rights/{otherUserId}")
+    @PutMapping("/{otherUserId}/admin-rights")
     public ResponseEntity<?> updateAdminRights(@PathVariable @ValidId long chatId, @PathVariable @ValidId long otherUserId, @RequestBody @Valid UpdateAdminRightsRequest request, @CurrentUserId long userId) {
         ResultNoArgs result = chatMemberService.updateChatMemberAdminRight(
                 chatId, userId, otherUserId, request.getIsAdmin()
@@ -74,7 +74,7 @@ public class ChatMemberController {
         }
     }
 
-    @PostMapping("/members/self-settings")
+    @PutMapping("/self")
     public ResponseEntity<?> updateSelfChatSettings(@PathVariable @ValidId long chatId, @RequestBody @Valid UpdateSelfChatSettingsRequest request, @CurrentUserId long userId) {
         ResultNoArgs result = chatMemberService.updateSelfChatSettings(
             chatId, userId, request.getIsPinned()
@@ -87,8 +87,8 @@ public class ChatMemberController {
         }
     }
 
-    @PostMapping("/members/kick/{otherUserId}")
-    public ResponseEntity<?> updateChatMemberInfo(@PathVariable @ValidId long chatId, @PathVariable @ValidId long otherUserId, @CurrentUserId long userId) {
+    @DeleteMapping("/{otherUserId}/kick")
+    public ResponseEntity<?> kickChatMember(@PathVariable @ValidId long chatId, @PathVariable @ValidId long otherUserId, @CurrentUserId long userId) {
         ResultNoArgs result = chatMemberService.kickChatMember(chatId, userId, otherUserId);
 
         if (result.isSuccess()) {
@@ -98,7 +98,7 @@ public class ChatMemberController {
         }
     }
 
-    @PostMapping("/leave")
+    @DeleteMapping("/leave")
     public ResponseEntity<?> leaveChat(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
 
         ResultNoArgs result = chatMemberService.leaveChat(chatId, userId);
@@ -110,7 +110,7 @@ public class ChatMemberController {
         }
     }
 
-    @GetMapping("/members")
+    @GetMapping
     public ResponseEntity<?> getChatMembersPage(@PathVariable @ValidId long chatId, @Valid PaginationRequest request, @CurrentUserId long userId) {
 
         ResultOneArg<ChatMembersPageDTO> result = chatMemberService.getChatMembersPage(chatId, userId, request.getCursor(), request.getLimit());

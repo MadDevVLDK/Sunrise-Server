@@ -3,7 +3,7 @@ package com.sunrise.core.dataservice.type;
 import java.time.LocalDateTime;
 
 public interface UserResult {
-    Long getUserId();
+    Long getId();
     String getUsername();
     String getName();
     LocalDateTime getProfileUpdatedAt();
