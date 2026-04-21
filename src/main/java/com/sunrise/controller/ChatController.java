@@ -2,11 +2,12 @@ package com.sunrise.controller;
 
 import com.sunrise.config.annotation.CurrentUserId;
 import com.sunrise.controller.request.*;
+import com.sunrise.core.dataservice.dbresult.ChatStatsResult;
 import com.sunrise.core.service.result.*;
 import com.sunrise.core.service.ChatService;
 import com.sunrise.config.annotation.ValidId;
 
-import com.sunrise.entity.dto.ChatUserDTO;
+import com.sunrise.entity.dto.ChatProfileDTO;
 import com.sunrise.entity.pagination.UserChatsPageDTO;
 import jakarta.validation.Valid;
 
@@ -105,7 +106,7 @@ public class ChatController {
     @GetMapping("/{chatId}")
     public ResponseEntity<?> getUserChat(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
 
-        ResultOneArg<ChatUserDTO> result = chatService.getUserChat(chatId, userId);
+        ResultOneArg<ChatProfileDTO> result = chatService.getUserChat(chatId, userId);
 
         if (result.isSuccess()) {
             return ResponseEntity.ok(result.getResult());

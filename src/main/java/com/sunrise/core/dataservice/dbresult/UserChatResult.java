@@ -1,4 +1,4 @@
-package com.sunrise.core.dataservice.type;
+package com.sunrise.core.dataservice.dbresult;
 
 import java.time.LocalDateTime;
 
@@ -20,6 +20,7 @@ public interface UserChatResult {
     Long getMsgId();
     Long getMsgChatId();
     Long getMsgSenderId();
+    String getMsgMessageType();
     LocalDateTime getMsgProfileUpdatedAt();
     String getMsgText();
     Long getMsgReadCount();
@@ -28,4 +29,9 @@ public interface UserChatResult {
     LocalDateTime getMsgUpdatedAt();
     LocalDateTime getMsgDeletedAt();
     Boolean getMsgIsDeleted();
+
+    Long getAvatarId();
+    String getAvatarHash();
+    String getAvatarPrHash();
+    LocalDateTime getAvatarCreatedAt();
 }

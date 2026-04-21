@@ -1,7 +1,7 @@
 package com.sunrise.repository;
 
-import com.sunrise.core.dataservice.type.MessageReadStatusResult;
-import com.sunrise.core.dataservice.type.UserMessageDBResult;
+import com.sunrise.core.dataservice.dbresult.MessageReadStatusResult;
+import com.sunrise.core.dataservice.dbresult.UserMessageResult;
 import com.sunrise.entity.db.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,6 +26,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                m.chatId AS chatId,
                m.senderId AS senderId,
                u.profileUpdatedAt AS profileUpdatedAt,
+               m.messageType AS messageType,
                m.text AS text,
                m.readCount AS readCount,
                (ucrs.lastReadMessageId IS NOT NULL AND m.id <= ucrs.lastReadMessageId) AS isReadByUser,
@@ -41,7 +42,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                AND ucrs.id.chatId = m.chatId
            WHERE m.id = :messageId
            """)
-    Optional<UserMessageDBResult> getMessageById(@Param("userId") long userId, @Param("messageId") long messageId);
+    Optional<UserMessageResult> getMessageById(@Param("userId") long userId, @Param("messageId") long messageId);
 
     @Query("""
            SELECT
@@ -49,6 +50,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                m.chatId AS chatId,
                m.senderId AS senderId,
                u.profileUpdatedAt AS profileUpdatedAt,
+               m.messageType AS messageType,
                m.text AS text,
                m.readCount AS readCount,
                (ucrs.lastReadMessageId IS NOT NULL AND m.id <= ucrs.lastReadMessageId) AS isReadByUser,
@@ -65,7 +67,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            WHERE m.chatId = :chatId
            ORDER BY m.id DESC
            """)
-    List<UserMessageDBResult> getFirstMessagePage(@Param("chatId") long chatId, @Param("userId") long userId, Pageable pageable);
+    List<UserMessageResult> getFirstMessagePage(@Param("chatId") long chatId, @Param("userId") long userId, Pageable pageable);
 
     @Query("""
            SELECT
@@ -73,6 +75,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                m.chatId AS chatId,
                m.senderId AS senderId,
                u.profileUpdatedAt AS profileUpdatedAt,
+               m.messageType AS messageType,
                m.text AS text,
                m.readCount AS readCount,
                (ucrs.lastReadMessageId IS NOT NULL AND m.id <= ucrs.lastReadMessageId) AS isReadByUser,
@@ -88,7 +91,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            WHERE m.chatId = :chatId AND m.id < :cursor
            ORDER BY m.id DESC
            """)
-    List<UserMessageDBResult> getMessagePageBefore(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
+    List<UserMessageResult> getMessagePageBefore(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
 
     @Query("""
            SELECT
@@ -96,6 +99,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                m.chatId AS chatId,
                m.senderId AS senderId,
                u.profileUpdatedAt AS profileUpdatedAt,
+               m.messageType AS messageType,
                m.text AS text,
                m.readCount AS readCount,
                (ucrs.lastReadMessageId IS NOT NULL AND m.id <= ucrs.lastReadMessageId) AS isReadByUser,
@@ -111,7 +115,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            WHERE m.chatId = :chatId AND m.id > :cursor
            ORDER BY m.id ASC
            """)
-    List<UserMessageDBResult> getMessagePageAfter(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
+    List<UserMessageResult> getMessagePageAfter(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
 
 
     @Transactional

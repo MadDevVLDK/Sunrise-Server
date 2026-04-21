@@ -12,7 +12,7 @@ import com.sunrise.core.service.result.*;
 import com.sunrise.core.dataservice.type.Direction;
 import com.sunrise.core.service.MessageService;
 
-import com.sunrise.entity.dto.MessageDTO;
+import com.sunrise.entity.dto.UserMessageDTO;
 import com.sunrise.entity.dto.MessageReadStatusDTO;
 import com.sunrise.entity.pagination.MessagesPageDTO;
 import jakarta.validation.Valid;
@@ -114,7 +114,7 @@ public class MessageController {
     @GetMapping("/{messageId}")
     public ResponseEntity<?> getMessage(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
 
-        ResultOneArg<MessageDTO> result = messageService.getMessage(chatId, userId, messageId);
+        ResultOneArg<UserMessageDTO> result = messageService.getMessage(chatId, userId, messageId);
 
         if (result.isSuccess()) {
             return ResponseEntity.ok(result.getResult());

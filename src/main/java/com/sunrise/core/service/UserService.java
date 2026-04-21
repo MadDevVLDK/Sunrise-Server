@@ -7,8 +7,8 @@ import com.sunrise.entity.pagination.UsersPageDTO;
 import com.sunrise.core.dataservice.DataOrchestrator;
 import com.sunrise.core.dataservice.DataValidator;
 
-import com.sunrise.entity.dto.UserDTO;
-import com.sunrise.entity.dto.UserProfileDTO;
+import com.sunrise.entity.dto.UserSecurityDTO;
+import com.sunrise.entity.dto.UserProfileLightDTO;
 import com.sunrise.helpclass.ValidationException;
 
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class UserService {
         try {
             validator.validateActiveUser(userId);
 
-            UserDTO user = dataOrchestrator.getUser(userId)
+            UserSecurityDTO user = dataOrchestrator.getUserSecurity(userId)
                     .orElseThrow(() -> new ValidationException("User not found"));
 
             boolean usernameNotChanged = user.getUsername().equals(newUsername);
@@ -92,11 +92,11 @@ public class UserService {
         }
     }
 
-    public ResultOneArg<UserProfileDTO> getMyProfile(long userId) {
+    public ResultOneArg<UserProfileLightDTO> getMyProfile(long userId) {
         try {
             validator.validateActiveUser(userId);
 
-            UserProfileDTO profile = dataOrchestrator.getUserProfile(userId)
+            UserProfileLightDTO profile = dataOrchestrator.getUserProfile(userId)
                     .orElseThrow(() -> new ValidationException("User not found or is deleted"));
 
             log.debug("[🔧] ✅ Loaded profile for user {}", userId);
@@ -111,12 +111,12 @@ public class UserService {
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
-    public ResultOneArg<UserProfileDTO> getOtherProfile(long currentUserId, long otherUserId) {
+    public ResultOneArg<UserProfileLightDTO> getOtherProfile(long currentUserId, long otherUserId) {
         try {
             validator.validateActiveUser(currentUserId);
             validator.validateActiveUser(otherUserId);
 
-            UserProfileDTO profile = dataOrchestrator.getUserProfile(otherUserId)
+            UserProfileLightDTO profile = dataOrchestrator.getUserProfile(otherUserId)
                     .orElseThrow(() -> new ValidationException("User not found or is deleted"));
 
             log.debug("[🔧] ✅ User {} retrieved profile of user {}", currentUserId, otherUserId);

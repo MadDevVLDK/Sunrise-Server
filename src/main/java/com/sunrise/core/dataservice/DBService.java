@@ -1,5 +1,6 @@
 package com.sunrise.core.dataservice;
 
+import com.sunrise.core.dataservice.dbresult.*;
 import com.sunrise.core.dataservice.type.*;
 import com.sunrise.core.dataservice.type.Direction;
 import com.sunrise.entity.db.*;
@@ -47,41 +48,44 @@ public class DBService {
     public int updateUserProfile(long userId, String username, String name, LocalDateTime updatedAt) {
         return userRepository.updateProfile(userId, username, name, updatedAt);
     }
-    public int updateUserEmailAndGetJwtVersion(long userId, String email, LocalDateTime updatedAt) {
-        return userRepository.updateUserEmailAndGetJwtVersion(userId, email, updatedAt);
+    public int updateUserEmail(long userId, String email, LocalDateTime updatedAt) {
+        return userRepository.updateUserEmail(userId, email, updatedAt);
     }
-    public int updateUserPasswordAndGetJwtVersion(long userId, String password, LocalDateTime updatedAt) {
-        return userRepository.updateUserPasswordAndGetJwtVersion(userId, password, updatedAt);
+    public int updateUserPassword(long userId, String password, LocalDateTime updatedAt) {
+        return userRepository.updateUserPassword(userId, password, updatedAt);
     }
-    public int enableUserAndGetJwtVersion(long userId, LocalDateTime updatedAt) {
-        return userRepository.enableUserAndGetJwtVersion(userId, updatedAt);
+    public int enableUser(long userId, LocalDateTime updatedAt) {
+        return userRepository.enableUser(userId, updatedAt);
     }
-    public int disableUserAndGetJwtVersion(long userId, LocalDateTime updatedAt) {
-        return userRepository.disableUserAndGetJwtVersion(userId, updatedAt);
+    public int disableUser(long userId, LocalDateTime updatedAt) {
+        return userRepository.disableUser(userId, updatedAt);
     }
-    public int deleteUserAndGetJwtVersion(long userId, LocalDateTime updatedAt) {
-        return userRepository.deleteUserAndGetJwtVersion(userId, updatedAt);
+    public int deleteUser(long userId, LocalDateTime updatedAt) {
+        return userRepository.deleteUser(userId, updatedAt);
     }
-    public int restoreUserAndGetJwtVersion(long userId, LocalDateTime updatedAt) {
-        return userRepository.restoreUserAndGetJwtVersion(userId, updatedAt);
+    public int restoreUser(long userId, LocalDateTime updatedAt) {
+        return userRepository.restoreUser(userId, updatedAt);
     }
 
 
     // Вспомогательные методы
-    public Optional<User> getUser(long userId) {
+    public Optional<UserSecurityResult> getUserSecurity(long userId) {
         return userRepository.findById(userId);
     }
-    public Optional<User> getUserByUsername(String username) {
+    public Optional<UserSecurityResult> getUserSecurityByUsername(String username) {
         return userRepository.getByUsername(username);
     }
-    public Optional<User> getUserByEmail(String email) {
+    public Optional<UserSecurityResult> getUserSecurityByEmail(String email) {
         return userRepository.getByEmail(email);
     }
 
-    public List<User> getActiveUserByIds(List<Long> missingIds) {
+    public Optional<UserProfileResult> getUserProfile(long userId) {
+        return userRepository.findById(userId);
+    }
+    public List<UserProfileResult> getActiveUserProfileByIds(List<Long> missingIds) {
         return userRepository.getActiveUserByIds(missingIds);
     }
-    public List<UserResult> getActiveUsersPage(String filter, Long cursor, int limit) {
+    public List<UserProfileResult> getActiveUsersPage(String filter, Long cursor, int limit) {
         return userRepository.getActiveUsersPage(filter, cursor, Pageable.ofSize(limit));
     }
 
@@ -109,9 +113,6 @@ public class DBService {
     public int updateChatInfo(long chatId, String newName, String newDescription, LocalDateTime updatedAt) {
         return chatRepository.updateChatInfo(chatId, newName, newDescription, updatedAt);
     }
-    public int updateChatType(long chatId, ChatType newType, LocalDateTime updatedAt) {
-        return chatRepository.updateChatType(chatId, newType.name(), updatedAt);
-    }
 
     public int restoreChat(long chatId, LocalDateTime updatedAt) {
         return chatRepository.restoreChat(chatId, updatedAt);
@@ -122,10 +123,10 @@ public class DBService {
 
 
     // Вспомогательные методы
-    public Optional<Chat> getChat(long chatId) {
+    public Optional<ChatProfileResult> getChat(long chatId) {
         return chatRepository.findById(chatId);
     }
-    public Optional<Chat> getPersonalChat(long userId1, long userId2) {
+    public Optional<ChatProfileResult> getPersonalChat(long userId1, long userId2) {
         return chatRepository.getPersonalChat(userId1, userId2, ChatType.PERSONAL);
     }
     public List<UserChatResult> getUserChatsPage(long userId, Boolean isPinnedCursor, Long lastMsgIdCursor, Long chatIdCursor, int limit) {
@@ -230,7 +231,7 @@ public class DBService {
     }
 
     // Вспомогательные методы
-    public List<UserMessageDBResult> getMessagePage(long chatId, long userId, Long cursor, int limit, Direction direction) {
+    public List<UserMessageResult> getMessagePage(long chatId, long userId, Long cursor, int limit, Direction direction) {
         if (cursor == null) {
             return messageRepository.getFirstMessagePage(chatId, userId, PageRequest.of(0, limit));
         }
@@ -241,14 +242,14 @@ public class DBService {
         return messageRepository.getMessagePageBefore(chatId, userId, cursor, PageRequest.of(0, limit));
     }
 
-    public ChatStatsDBResult getChatMessagesDeletedStats(long chatId, long userId) {
+    public ChatStatsResult getChatMessagesDeletedStats(long chatId, long userId) {
         return chatRepository.getChatClearStats(chatId, userId);
     }
 
     public Optional<Message> getMessage(long messageId) {
         return messageRepository.findById(messageId);
     }
-    public Optional<UserMessageDBResult> getMessageWithReadStatus(long userId, long messageId) {
+    public Optional<UserMessageResult> getMessageWithReadStatus(long userId, long messageId) {
         return messageRepository.getMessageById(userId, messageId);
     }
     public List<MessageReadStatusResult> getMessageReaders(long messageId){

@@ -1,5 +1,6 @@
 package com.sunrise.entity.db;
 
+import com.sunrise.core.dataservice.type.MessageType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import java.time.LocalDateTime;
@@ -18,10 +19,14 @@ public class Message {
     @Column(name = "chat_id", nullable = false)
     private long chatId;
 
-    @Column(name = "sender_id", nullable = false)
+    @Column(name = "sender_id")
     private long senderId;
 
-    @Column(name = "text", nullable = false)
+    @Column(name = "message_type", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private MessageType messageType;
+
+    @Column(name = "text")
     private String text;
 
     @Min(0)

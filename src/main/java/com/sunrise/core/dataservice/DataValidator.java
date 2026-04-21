@@ -1,7 +1,8 @@
 package com.sunrise.core.dataservice;
 
 import com.sunrise.core.dataservice.type.ChatType;
-import com.sunrise.entity.dto.ChatDTO;
+import com.sunrise.entity.dto.ChatSecurityDTO;
+import com.sunrise.entity.dto.UserSecurityDTO;
 import com.sunrise.helpclass.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -64,8 +65,8 @@ public class DataValidator {
             throw new ValidationException("Chat is a personal chat: " + chatId);
         }
     }
-    private ChatDTO validateActiveChatAndGet(long chatId) {
-        Optional<ChatDTO> chatOpt = dataOrchestrator.getActiveChat(chatId);
+    private ChatSecurityDTO validateActiveChatAndGet(long chatId) {
+        Optional<ChatSecurityDTO> chatOpt = dataOrchestrator.getActiveChat(chatId);
         if (chatOpt.isEmpty()) {
             throw new ValidationException("Chat does not exist or is deleted -> " + chatId);
         }
@@ -107,8 +108,8 @@ public class DataValidator {
     }
     public void validateCanUpdateChatInfo(long chatId, long userId) {
         validateActiveUser(userId);
-        ChatDTO chat = validateActiveChatAndGet(chatId);
-        if (chat.isPersonal()) {
+        ChatSecurityDTO chat = validateActiveChatAndGet(chatId);
+        if (chat.getChatType().isPersonal()) {
             throw new ValidationException("Chat info is not changeable for private chat");
         }
         validateActiveChatMemberIsAdmin(chatId, userId);
@@ -187,9 +188,16 @@ public class DataValidator {
         validateActiveChat(chatId);
         validateActiveChatMember(chatId, userId);
     }
-    public ChatDTO validateActiveUserInActiveChatAndGetChat(long chatId, long userId) {
+    public void validateActiveChatMemberInActiveChatAndGet(long chatId, long userId) {
+        dataOrchestrator.getUserSecurity(userId).filter(us -> !us.isDeleted() && !us.isEnabled())
+                .orElseThrow(() -> new ValidationException("User is not active -> " + userId));
+
+        validateActiveChat(chatId);
+        validateActiveChatMember(chatId, userId);
+    }
+    public ChatSecurityDTO validateActiveUserInActiveChatAndGetChat(long chatId, long userId) {
         validateActiveUser(userId);
-        ChatDTO chat = validateActiveChatAndGet(chatId);
+        ChatSecurityDTO chat = validateActiveChatAndGet(chatId);
         validateActiveChatMember(chatId, userId);
         return chat;
     }

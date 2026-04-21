@@ -1,15 +1,17 @@
 package com.sunrise.core.service;
 
-import com.sunrise.entity.dto.ChatUserDTO;
+import com.sunrise.entity.creation.CreateChatMemberDTO;
+import com.sunrise.entity.creation.CreateGroupChatDTO;
+import com.sunrise.entity.creation.CreatePersonalChatDTO;
+import com.sunrise.entity.dto.ChatProfileDTO;
 import com.sunrise.entity.pagination.UserChatsPageDTO;
-import com.sunrise.entity.dto.ChatDTO;
-import com.sunrise.entity.dto.ChatMemberDTO;
+import com.sunrise.entity.dto.ChatSecurityDTO;
 
 import com.sunrise.core.dataservice.DataOrchestrator;
 import com.sunrise.core.dataservice.DataValidator;
 import com.sunrise.core.dataservice.LockManager;
 import com.sunrise.core.dataservice.type.ChatType;
-import com.sunrise.core.dataservice.type.ChatStatsDBResult;
+import com.sunrise.core.dataservice.dbresult.ChatStatsResult;
 import com.sunrise.core.notifier.WebSocketNotifier;
 import com.sunrise.core.service.result.*;
 
@@ -45,9 +47,9 @@ public class ChatService {
             validator.validateActiveUsers(creatorId, opponentId);
 
             LocalDateTime createdAt = LocalDateTime.now();
-            Optional<ChatDTO> optChat = dataOrchestrator.getPersonalChat(creatorId, opponentId);
+            Optional<ChatSecurityDTO> optChat = dataOrchestrator.getPersonalChat(creatorId, opponentId);
             if (optChat.isPresent()){
-                ChatDTO chat = optChat.get();
+                ChatSecurityDTO chat = optChat.get();
                 long chatId = chat.getId();
                 if (chat.isDeleted()) {
                     dataOrchestrator.restoreChat(chatId, createdAt);
@@ -58,15 +60,15 @@ public class ChatService {
 
             long chatId = SimpleSnowflakeId.nextId();
 
-            ChatDTO chat = ChatDTO.createPersonal(chatId, opponentId, createdAt, creatorId);
+            CreatePersonalChatDTO chat = new CreatePersonalChatDTO(chatId, opponentId, createdAt, creatorId);
 
-            var creator = ChatMemberDTO.create(chatId, creatorId, createdAt, false);
-            var opponent = ChatMemberDTO.create(chatId, opponentId, createdAt, false);
+            CreateChatMemberDTO creator = new CreateChatMemberDTO(chatId, creatorId, createdAt, false);
+            CreateChatMemberDTO opponent = new CreateChatMemberDTO(chatId, opponentId, createdAt, false);
 
             dataOrchestrator.savePersonalChatAndAddMembers(chat, creator, opponent);
 
             // уведомить надо
-            wsNotify.notifyChatNew(tempId, chat, Set.of(creatorId, opponentId));
+            wsNotify.notifyPersonalChatNew(tempId, chat, Set.of(creatorId, opponentId));
 
             log.info("[🔧] ✅ Created personal chat {} between users {} and {}", chatId, creatorId, opponentId);
             return ResultOneArg.success(chatId);
@@ -91,13 +93,13 @@ public class ChatService {
             long chatId = SimpleSnowflakeId.nextId();
             LocalDateTime createdAt = LocalDateTime.now();
 
-            ChatDTO chat = ChatDTO.createGroup(chatId, chatName, chatDescription, chatType, membersCount, createdAt, creatorId);
+            CreateGroupChatDTO chat = new CreateGroupChatDTO(chatId, chatName, chatDescription, membersCount, createdAt, creatorId);
 
-            ChatMemberDTO creator = ChatMemberDTO.create(chatId, creatorId, createdAt, true);  // creator с правами админа
+            CreateChatMemberDTO creator = new CreateChatMemberDTO(chatId, creatorId, createdAt, true);  // creator с правами админа
 
-            List<ChatMemberDTO> chatMembers = new ArrayList<>(membersCount);
+            List<CreateChatMemberDTO> chatMembers = new ArrayList<>(membersCount);
             for (long userId : usersToAddIds){
-                chatMembers.add(ChatMemberDTO.create(chatId, userId, createdAt, false)); // остальные без прав
+                chatMembers.add(new CreateChatMemberDTO(chatId, userId, createdAt, false)); // остальные без прав
             }
 
             dataOrchestrator.saveGroupChatAndAddMembers(chat, creator, chatMembers);
@@ -105,7 +107,7 @@ public class ChatService {
             // уведомить надо
             var usersToNotify = new HashSet<>(usersToAddIds);
             usersToNotify.add(creatorId);
-            wsNotify.notifyChatNew(tempId, chat, usersToNotify);
+            wsNotify.notifyGroupChatNew(tempId, chat, usersToNotify);
 
             log.info("[🔧] ✅ Created group chat {} '{}' with {} members by creator {}", chatId, chatName, usersToAddIds.size(), creatorId);
             return ResultOneArg.success(chatId);
@@ -182,11 +184,11 @@ public class ChatService {
             return ResultOneArg.error("getUserChat failed due to server error");
         }
     }
-    public ResultOneArg<ChatUserDTO> getUserChat(long chatId, long userId) {
+    public ResultOneArg<ChatProfileDTO> getUserChat(long chatId, long userId) {
         try {
             validator.validateActiveUser(userId);
 
-            ChatUserDTO chat = dataOrchestrator.getUserChat(chatId, userId)
+            ChatProfileDTO chat = dataOrchestrator.getUserChat(chatId, userId)
                     .orElseThrow(() -> new ValidationException("Chat is deleted or not found"));
 
             log.debug("[🔧] ✅ User {} got chat {}", userId, chatId);
@@ -223,16 +225,10 @@ public class ChatService {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            ChatStatsDBResult result = dataOrchestrator.getChatClearStats(chatId, userId);
+            ChatStatsResult result = dataOrchestrator.getChatClearStats(chatId, userId);
 
             log.debug("[🔧] ✅ User {} viewed stats for chat {}", userId, chatId);
-            return ResultOneArg.success(
-                new ChatStatsResult(
-                    result.getTotalMessages(),
-                    result.getDeletedForAll(),
-                    result.getCanDeleteForAll()
-                )
-            );
+            return ResultOneArg.success(result);
         }
         catch (ValidationException e) {
             log.warn("[🔧] ☝️ Failed to get chat {} stats: {}", chatId, e.getMessage());
@@ -245,7 +241,7 @@ public class ChatService {
     }
     public ResultOneArg<Boolean> isActionsEnabledForChat(long chatId, long userId) {
         try {
-            ChatDTO chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);
+            ChatSecurityDTO chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);
             return ResultOneArg.success(chat.isActionsEnabled());
         } catch (ValidationException e) {
             log.warn("[🔧] ☝️ Failed to get enabled actions for chat {}: {}", chatId, e.getMessage());

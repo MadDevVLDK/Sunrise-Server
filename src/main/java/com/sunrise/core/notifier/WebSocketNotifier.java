@@ -1,9 +1,10 @@
 package com.sunrise.core.notifier;
 
 import com.sunrise.core.dataservice.type.ChatType;
-import com.sunrise.entity.dto.ChatDTO;
-import com.sunrise.entity.dto.ChatMemberDTO;
-import com.sunrise.entity.dto.MessageDTO;
+import com.sunrise.entity.creation.CreateChatMemberDTO;
+import com.sunrise.entity.creation.CreateGroupChatDTO;
+import com.sunrise.entity.creation.CreateMessageDTO;
+import com.sunrise.entity.creation.CreatePersonalChatDTO;
 import com.sunrise.websocket.WsRequests;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -23,17 +24,17 @@ public class WebSocketNotifier { // TODO: Добавить @Async если бо�
 
 
     // ======================= MESSAGE ============================
-    public void notifyMessageNew(long tempId, MessageDTO message) {
+    public void notifyMessageNew(long tempId, CreateMessageDTO message, LocalDateTime senderProfileUpdatedAt) {
         sendToChatTopic(message.getChatId(), new WsRequests.MessageNewResponse(
             tempId, message.getId(), message.getChatId(), message.getSenderId(),
-            message.getText(), message.getReadCount(), message.getSentAt(),
-            message.getUpdatedAt(), message.getDeletedAt(), message.isDeleted()
+            senderProfileUpdatedAt, message.getText(), message.getReadCount(),
+            message.getSentAt(), message.getUpdatedAt(), message.getDeletedAt(), message.isDeleted()
         ));
     }
-    public void notifyMessagePrivateNew(long tempId, MessageDTO message, long receiverId) {
+    public void notifyMessagePrivateNew(long tempId, CreateMessageDTO message, LocalDateTime senderProfileUpdatedAt, long receiverId) {
         var response = new WsRequests.MessagePrivateNewResponse(
             tempId, message.getId(), message.getChatId(), message.getSenderId(),
-            message.getText(), message.getSentAt()
+            senderProfileUpdatedAt, message.getText(), message.getSentAt()
         );
         for (long userId : List.of(message.getSenderId(), receiverId)) {
             sendToUserSessions(userId, "/private-messages", response);
@@ -53,7 +54,17 @@ public class WebSocketNotifier { // TODO: Добавить @Async если бо�
 
 
     // ========================= CHAT =============================
-    public void notifyChatNew(long tempId, ChatDTO chat, Set<Long> userIdsToNotify) {
+    public void notifyGroupChatNew(long tempId, CreateGroupChatDTO chat, Set<Long> userIdsToNotify) {
+        var response = new WsRequests.ChatNewResponse(
+            tempId, chat.getId(), chat.getName(), chat.getDescription(),
+            chat.getChatType(), chat.getOpponentId(), chat.getMembersCount(),
+            chat.getUpdatedAt(), chat.getCreatedAt(), chat.getCreatedBy()
+        );
+        for (long userId : userIdsToNotify){
+            sendToUserSessions(userId, "/chats", response);
+        }
+    }
+    public void notifyPersonalChatNew(long tempId, CreatePersonalChatDTO chat, Set<Long> userIdsToNotify) {
         var response = new WsRequests.ChatNewResponse(
             tempId, chat.getId(), chat.getName(), chat.getDescription(),
             chat.getChatType(), chat.getOpponentId(), chat.getMembersCount(),
@@ -80,19 +91,17 @@ public class WebSocketNotifier { // TODO: Добавить @Async если бо�
 
 
     // ===================== CHAT-MEMBER ===========================
-    public void notifyChatMemberNew(ChatMemberDTO chatMember) {
+    public void notifyChatMemberNew(CreateChatMemberDTO chatMember) {
         sendToChatTopic(chatMember.getChatId(), new WsRequests.ChatMemberNewResponse(
             chatMember.getChatId(), chatMember.getUserId(),
-            chatMember.getUpdatedAt(), chatMember.getJoinedAt(),
-            chatMember.isAdmin(), chatMember.getDeletedAt(), chatMember.isDeleted()
+            chatMember.getUpdatedAt(), chatMember.getJoinedAt(), chatMember.isAdmin()
         ));
     }
-    public void notifyChatMembersNew(Collection<ChatMemberDTO> chatMembers) {
-        for (ChatMemberDTO chatMember : chatMembers) {
+    public void notifyChatMembersNew(Collection<CreateChatMemberDTO> chatMembers) {
+        for (CreateChatMemberDTO chatMember : chatMembers) {
             sendToChatTopic(chatMember.getChatId(), new WsRequests.ChatMemberNewResponse(
                 chatMember.getChatId(), chatMember.getUserId(),
-                chatMember.getUpdatedAt(), chatMember.getJoinedAt(),
-                chatMember.isAdmin(), chatMember.getDeletedAt(), chatMember.isDeleted()
+                chatMember.getUpdatedAt(), chatMember.getJoinedAt(), chatMember.isAdmin()
             ));
         }
     }

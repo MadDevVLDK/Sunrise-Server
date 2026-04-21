@@ -1,7 +1,9 @@
 package com.sunrise.entity;
 
+import com.sunrise.core.dataservice.dbresult.*;
 import com.sunrise.core.dataservice.type.*;
 import com.sunrise.entity.cache.*;
+import com.sunrise.entity.creation.*;
 import com.sunrise.entity.db.*;
 import com.sunrise.entity.dto.*;
 
@@ -12,57 +14,80 @@ public class EntityMapper {
 
     // ========== USER ==========
 
-    public static CacheUser toCache(User user) {
+    public static CacheUserProfile toUserProfileCache(CreateUserDTO user) {
         if (user == null) return null;
 
-        return new CacheUser(
+        return new CacheUserProfile(
             user.getId(),
             user.getUsername(),
             user.getName(),
+            user.getProfileUpdatedAt(),
+            user.getCreatedAt(),
+            user.getDeletedAt(),
+            user.isDeleted(),
+            null, null, null, null
+        );
+    }
+    public static CacheUserProfile toUserProfileCache(UserProfileResult user) {
+        if (user == null) return null;
+
+        return new CacheUserProfile(
+            user.getId(),
+            user.getUsername(),
+            user.getName(),
+            user.getCreatedAt(),
+            user.getCreatedAt(),
+            user.getCreatedAt(),
+            user.getIsDeleted(),
+
+            user.getAvatarId(),
+            user.getAvatarHash(),
+            user.getAvatarPrHash(),
+            user.getAvatarCreatedAt()
+        );
+    }
+
+    public static CacheUserSecurity toUserSecurityCache(CreateUserDTO user) {
+        if (user == null) return null;
+
+        return new CacheUserSecurity(
+            user.getId(),
             user.getEmail(),
             user.getHashPassword(),
-            user.getLastLogin(),
-            user.getProfileUpdatedAt(),
-            user.getUpdatedAt(),
-            user.getCreatedAt(),
             user.getJwtVersion(),
             user.isEnabled(),
             user.getDeletedAt(),
             user.isDeleted()
         );
     }
-    public static CacheUser toCache(UserDTO user) {
+    public static CacheUserSecurity toUserSecurityCache(UserSecurityResult user) {
         if (user == null) return null;
 
-        return new CacheUser(
+        return new CacheUserSecurity(
             user.getId(),
-            user.getUsername(),
-            user.getName(),
             user.getEmail(),
             user.getHashPassword(),
-            user.getLastLogin(),
-            user.getProfileUpdatedAt(),
-            user.getUpdatedAt(),
-            user.getCreatedAt(),
             user.getJwtVersion(),
-            user.isEnabled(),
+            user.getIsEnabled(),
             user.getDeletedAt(),
-            user.isDeleted()
+            user.getIsDeleted()
         );
     }
 
-    public static User toEntity(UserDTO user) {
+    public static User toUserEntity(CreateUserDTO user) {
         if (user == null) return null;
 
         return new User(
             user.getId(),
+            null,
+            null,
             user.getUsername(),
             user.getName(),
             user.getEmail(),
             user.getHashPassword(),
             user.getLastLogin(),
-            user.getProfileUpdatedAt(),
-            user.getUpdatedAt(),
+            user.getCreatedAt(),
+            user.getCreatedAt(),
             user.getCreatedAt(),
             user.getJwtVersion(),
             user.isEnabled(),
@@ -71,38 +96,26 @@ public class EntityMapper {
         );
     }
 
-    public static UserDTO toFullDTO(User user) {
+    public static UserSecurityDTO toUserSecurityDTO(UserSecurityResult user) {
         if (user == null) return null;
 
-        return new UserDTO(
+        return new UserSecurityDTO(
             user.getId(),
-            user.getUsername(),
-            user.getName(),
             user.getEmail(),
             user.getHashPassword(),
-            user.getLastLogin(),
-            user.getProfileUpdatedAt(),
-            user.getUpdatedAt(),
-            user.getCreatedAt(),
             user.getJwtVersion(),
-            user.isEnabled(),
+            user.getIsEnabled(),
             user.getDeletedAt(),
-            user.isDeleted()
+            user.getIsDeleted()
         );
     }
-    public static UserDTO toFullDTO(CacheUser user) {
+    public static UserSecurityDTO toUserSecurityDTO(CacheUserSecurity user) {
         if (user == null) return null;
 
-        return new UserDTO(
+        return new UserSecurityDTO(
             user.getId(),
-            user.getUsername(),
-            user.getName(),
             user.getEmail(),
             user.getHashPassword(),
-            user.getLastLogin(),
-            user.getProfileUpdatedAt(),
-            user.getUpdatedAt(),
-            user.getCreatedAt(),
             user.getJwtVersion(),
             user.isEnabled(),
             user.getDeletedAt(),
@@ -110,42 +123,70 @@ public class EntityMapper {
         );
     }
 
-    public static UserProfileDTO toUserProfileDTO(UserDTO user) {
+    public static UserProfileLightDTO toUserProfileDTO(CacheUserProfile user) {
         if (user == null) return null;
 
-        return new UserProfileDTO(
+        return new UserProfileLightDTO(
             user.getId(),
+            toDtoUserAvatar(user),
             user.getUsername(),
             user.getName(),
             user.getProfileUpdatedAt(),
-            user.getCreatedAt(),
-            user.isEnabled(),
-            user.getDeletedAt(),
-            user.isDeleted()
+            user.getCreatedAt()
         );
     }
-    public static Map<Long, UserProfileDTO> toUserProfileDTOs(Collection<UserResult> items, Map<Long, UserProfileDTO> resultMap) {
-        if (items == null) return resultMap;
+    public static UserProfileLightDTO toUserProfileDTO(UserProfileResult user) {
+        if (user == null) return null;
 
-        for (var item : items) {
-            resultMap.put(item.getId(), new UserProfileDTO(
-                item.getId(),
-                item.getUsername(),
-                item.getName(),
-                item.getProfileUpdatedAt(),
-                item.getCreatedAt(),
-                item.getIsEnabled(),
-                item.getDeletedAt(),
-                item.getIsDeleted()
-            ));
+        return new UserProfileLightDTO(
+            user.getId(),
+            toDtoUserAvatar(user),
+            user.getUsername(),
+            user.getName(),
+            user.getProfileUpdatedAt(),
+            user.getCreatedAt()
+        );
+    }
+
+    public static Map<Long, UserProfileLightDTO> toDtoUserProfiles(Collection<UserProfileResult> users, Map<Long, UserProfileLightDTO> resultMap) {
+        if (users == null) return resultMap;
+
+        for (UserProfileResult user : users) {
+            resultMap.put(user.getId(), toUserProfileDTO(user));
         }
         return resultMap;
     }
 
 
+    // ========== USER AVATAR ==========
+
+    public static UserAvatarDTO toDtoUserAvatar(UserProfileResult user) {
+        if (user == null || user.getAvatarId() == null) return null;
+
+        return new UserAvatarDTO(
+            user.getAvatarId(),
+            user.getAvatarHash(),
+            user.getAvatarPrHash(),
+            true,
+            user.getAvatarCreatedAt()
+        );
+    }
+    public static UserAvatarDTO toDtoUserAvatar(CacheUserProfile user) {
+        if (user == null || user.getAvatarId() == null) return null;
+
+        return new UserAvatarDTO(
+            user.getAvatarId(),
+            user.getAvatarHash(),
+            user.getAvatarPreviewHash(),
+            true,
+            user.getAvatarCreatedAt()
+        );
+    }
+
+
     // ========== CHAT ==========
 
-    public static CacheChat toCache(Chat chat) {
+    public static CacheChat toChatCache(CreateGroupChatDTO chat) {
         if (chat == null) return null;
 
         return new CacheChat(
@@ -159,10 +200,11 @@ public class EntityMapper {
             chat.getCreatedAt(),
             chat.getCreatedBy(),
             chat.getDeletedAt(),
-            chat.isDeleted()
+            chat.isDeleted(),
+            null, null, null, null
         );
     }
-    public static CacheChat toCache(ChatDTO chat) {
+    public static CacheChat toChatCache(CreatePersonalChatDTO chat) {
         if (chat == null) return null;
 
         return new CacheChat(
@@ -176,27 +218,11 @@ public class EntityMapper {
             chat.getCreatedAt(),
             chat.getCreatedBy(),
             chat.getDeletedAt(),
-            chat.isDeleted()
+            chat.isDeleted(),
+            null, null, null, null
         );
     }
-    public static CacheChat toCache(ChatUserDTO chat) {
-        if (chat == null) return null;
-
-        return new CacheChat(
-            chat.getId(),
-            chat.getName(),
-            chat.getDescription(),
-            chat.getChatType(),
-            chat.getOpponentId(),
-            chat.getMembersCount(),
-            chat.getUpdatedAt(),
-            chat.getCreatedAt(),
-            chat.getCreatedBy(),
-            chat.getDeletedAt(),
-            chat.isDeleted()
-        );
-    }
-    public static CacheChat toCache(UserChatResult chat) {
+    public static CacheChat toChatCache(ChatProfileResult chat) {
         if (chat == null) return null;
 
         return new CacheChat(
@@ -210,146 +236,159 @@ public class EntityMapper {
             chat.getCreatedAt(),
             chat.getCreatedBy(),
             chat.getDeletedAt(),
-            chat.getIsDeleted()
+            chat.getIsDeleted(),
+
+            chat.getAvatarId(),
+            chat.getAvatarHash(),
+            chat.getAvatarPrHash(),
+            chat.getAvatarCreatedAt()
         );
     }
-    public static List<CacheChat> toCaches(Collection<ChatUserDTO> items) {
-        if (items == null) return Collections.emptyList();
-
-        List<CacheChat> cached = new ArrayList<>();
-        for (ChatUserDTO item : items) {
-            cached.add(EntityMapper.toCache(item));
-        }
-        return cached;
-    }
-
-    public static Chat toEntity(ChatDTO chat) {
+    public static CacheChat toChatCache(UserChatResult chat) {
         if (chat == null) return null;
 
-        return new Chat(
-            chat.getId(),
-            chat.getName(),
-            chat.getDescription(),
-            chat.getChatType(),
-            chat.getOpponentId(),
-            chat.getMembersCount(),
-            chat.getUpdatedAt(),
-            chat.getCreatedAt(),
-            chat.getCreatedBy(),
-            chat.getDeletedAt(),
-            chat.isDeleted()
-        );
-    }
-
-    public static ChatDTO toDTO(Chat chat) {
-        if (chat == null) return null;
-
-        return new ChatDTO(
-            chat.getId(),
-            chat.getName(),
-            chat.getDescription(),
-            chat.getChatType(),
-            chat.getOpponentId(),
-            chat.getMembersCount(),
-            chat.getUpdatedAt(),
-            chat.getCreatedAt(),
-            chat.getCreatedBy(),
-            chat.getDeletedAt(),
-            chat.isDeleted()
-        );
-    }
-    public static ChatDTO toDTO(CacheChat chat) {
-        if (chat == null) return null;
-
-        return new ChatDTO(
-            chat.getId(),
-            chat.getName(),
-            chat.getDescription(),
-            chat.getChatType(),
-            chat.getOpponentId(),
-            chat.getMembersCount(),
-            chat.getUpdatedAt(),
-            chat.getCreatedAt(),
-            chat.getCreatedBy(),
-            chat.getDeletedAt(),
-            chat.isDeleted()
-        );
-    }
-
-    public static ChatUserDTO toFullDTO(UserChatResult chat) {
-        if (chat == null) return null;
-
-        MessageDTO msg = chat.getMsgId() != null ? new MessageDTO(
-            chat.getMsgId(),
-            chat.getMsgChatId(),
-            chat.getMsgSenderId(),
-            chat.getMsgProfileUpdatedAt(),
-            chat.getMsgText(),
-            chat.getMsgReadCount(),
-            chat.getMsgIsReadByUser(),
-            chat.getMsgSentAt(),
-            chat.getMsgUpdatedAt(),
-            chat.getMsgDeletedAt(),
-            chat.getMsgIsDeleted()
-        ) : null;
-
-        return new ChatUserDTO(
-            chat.getId(),
-            chat.getName(),
-            chat.getDescription(),
-            ChatType.valueOf(chat.getChatType()),
-            chat.getOpponentId(),
-            chat.getMembersCount(),
-            msg,
-            chat.getUnreadCount(),
-            chat.getUpdatedAt(),
-            chat.getCreatedAt(),
-            chat.getCreatedBy(),
-            chat.getDeletedAt(),
-            chat.getIsDeleted()
-        );
-    }
-    public static Map<Long, ChatUserDTO> toFullDTOs(Collection<UserChatResult> chats, Map<Long, ChatUserDTO> resultMap) {
-        if (chats == null) return null;
-
-        for (UserChatResult chat : chats){
-            MessageDTO msg = chat.getMsgId() != null ? new MessageDTO(
-                chat.getMsgId(),
-                chat.getMsgChatId(),
-                chat.getMsgSenderId(),
-                chat.getMsgProfileUpdatedAt(),
-                chat.getMsgText(),
-                chat.getMsgReadCount(),
-                chat.getMsgIsReadByUser(),
-                chat.getMsgSentAt(),
-                chat.getMsgUpdatedAt(),
-                chat.getMsgDeletedAt(),
-                chat.getMsgIsDeleted()
-            ) : null;
-
-            resultMap.put(chat.getId(), new ChatUserDTO(
+        return new CacheChat(
                 chat.getId(),
                 chat.getName(),
                 chat.getDescription(),
                 ChatType.valueOf(chat.getChatType()),
                 chat.getOpponentId(),
                 chat.getMembersCount(),
-                msg,
-                chat.getUnreadCount(),
                 chat.getUpdatedAt(),
                 chat.getCreatedAt(),
                 chat.getCreatedBy(),
                 chat.getDeletedAt(),
-                chat.getIsDeleted()
-            ));
+                chat.getIsDeleted(),
+
+                chat.getAvatarId(),
+                chat.getAvatarHash(),
+                chat.getAvatarPrHash(),
+                chat.getAvatarCreatedAt()
+        );
+    }
+    public static List<CacheChat> toChatsCache(Collection<UserChatResult> items) {
+        if (items == null) return Collections.emptyList();
+
+        List<CacheChat> cached = new ArrayList<>(items.size());
+        for (UserChatResult item : items) {
+            cached.add(EntityMapper.toChatCache(item));
+        }
+        return cached;
+    }
+
+    public static Chat toChatEntity(CreateGroupChatDTO chat) {
+        if (chat == null) return null;
+
+        return new Chat(
+            chat.getId(),
+            chat.getAvatarFileId(),
+            chat.getAvatarPreviewFileId(),
+            chat.getName(),
+            chat.getDescription(),
+            chat.getChatType(),
+            chat.getOpponentId(),
+            chat.getMembersCount(),
+            chat.getUpdatedAt(),
+            chat.getCreatedAt(),
+            chat.getCreatedBy(),
+            chat.getDeletedAt(),
+            chat.isDeleted()
+        );
+    }
+    public static Chat toChatEntity(CreatePersonalChatDTO chat) {
+        if (chat == null) return null;
+
+        return new Chat(
+            chat.getId(),
+            chat.getAvatarFileId(),
+            chat.getAvatarPreviewFileId(),
+            chat.getName(),
+            chat.getDescription(),
+            chat.getChatType(),
+            chat.getOpponentId(),
+            chat.getMembersCount(),
+            chat.getUpdatedAt(),
+            chat.getCreatedAt(),
+            chat.getCreatedBy(),
+            chat.getDeletedAt(),
+            chat.isDeleted()
+        );
+    }
+
+    public static ChatSecurityDTO toChatSecurityDTO(ChatProfileResult chat) {
+        if (chat == null) return null;
+
+        return new ChatSecurityDTO(
+            chat.getId(),
+            ChatType.valueOf(chat.getChatType()),
+            chat.getMembersCount(),
+            chat.getCreatedAt(),
+            chat.getCreatedBy(),
+            chat.getDeletedAt(),
+            chat.getIsDeleted()
+        );
+    }
+    public static ChatSecurityDTO toChatSecurityDTO(CacheChat chat) {
+        if (chat == null) return null;
+
+        return new ChatSecurityDTO(
+            chat.getId(),
+            chat.getChatType(),
+            chat.getMembersCount(),
+            chat.getCreatedAt(),
+            chat.getCreatedBy(),
+            chat.getDeletedAt(),
+            chat.isDeleted()
+        );
+    }
+
+    public static ChatProfileDTO toChatProfileDTO(UserChatResult chat) {
+        if (chat == null) return null;
+
+        return new ChatProfileDTO(
+            chat.getId(),
+            toChatAvatarDTO(chat),
+            chat.getName(),
+            chat.getDescription(),
+            ChatType.valueOf(chat.getChatType()),
+            chat.getOpponentId(),
+            chat.getMembersCount(),
+            toUserMessageDTO(chat),
+            chat.getUnreadCount(),
+            chat.getUpdatedAt(),
+            chat.getCreatedAt(),
+            chat.getCreatedBy()
+        );
+    }
+    public static Map<Long, ChatProfileDTO> toChatProfileDTOs(Collection<UserChatResult> chats) {
+        if (chats == null) return null;
+        Map<Long, ChatProfileDTO> resultMap = new HashMap<>(chats.size());
+
+        for (UserChatResult chat : chats) {
+            resultMap.put(chat.getId(), toChatProfileDTO(chat));
         }
         return resultMap;
     }
 
 
+    // ========== CHAT AVATAR ==========
+
+    public static ChatAvatarDTO toChatAvatarDTO(UserChatResult chat) {
+        if (chat == null || chat.getAvatarId() == null) return null;
+
+        return new ChatAvatarDTO(
+            chat.getAvatarId(),
+            chat.getAvatarHash(),
+            chat.getAvatarPrHash(),
+            true,
+            chat.getAvatarCreatedAt()
+        );
+    }
+
+
     // ========== CHAT MEMBER ==========
 
-    public static CacheChatMember toCache(ChatMember member) {
+    public static CacheChatMember toChatMemberCache(CreateChatMemberDTO member) {
         if (member == null) return null;
 
         return new CacheChatMember(
@@ -365,7 +404,7 @@ public class EntityMapper {
             member.isDeleted()
         );
     }
-    public static CacheChatMember toCache(ChatMemberDTO member) {
+    public static CacheChatMember toChatMemberCache(ChatMember member) {
         if (member == null) return null;
 
         return new CacheChatMember(
@@ -381,8 +420,17 @@ public class EntityMapper {
             member.isDeleted()
         );
     }
+    public static List<CacheChatMember> toChatMemberCaches(Collection<CreateChatMemberDTO> items) {
+        if (items == null) return Collections.emptyList();
 
-    public static ChatMember toEntity(ChatMemberDTO member) {
+        List<CacheChatMember> cached = new ArrayList<>();
+        for (CreateChatMemberDTO item : items) {
+            cached.add(EntityMapper.toChatMemberCache(item));
+        }
+        return cached;
+    }
+
+    public static ChatMember toChatMemberEntity(CreateChatMemberDTO member) {
         if (member == null) return null;
 
         return new ChatMember(
@@ -398,10 +446,10 @@ public class EntityMapper {
         );
     }
 
-    public static ChatMemberDTO toDTO(ChatMember member) {
+    public static ChatMemberFullDTO toChatMemberFullDTO(ChatMember member) {
         if (member == null) return null;
 
-        return new ChatMemberDTO(
+        return new ChatMemberFullDTO(
             member.getChatId(),
             member.getUserId(),
             member.getTag(),
@@ -409,15 +457,13 @@ public class EntityMapper {
             member.getUpdatedAt(),
             member.getJoinedAt(),
             member.isPinned(),
-            member.isAdmin(),
-            member.getDeletedAt(),
-            member.isDeleted()
+            member.isAdmin()
         );
     }
-    public static ChatMemberDTO toDTO(CacheChatMember member) {
+    public static ChatMemberFullDTO toChatMemberFullDTO(CacheChatMember member) {
         if (member == null) return null;
 
-        return new ChatMemberDTO(
+        return new ChatMemberFullDTO(
             member.getChatId(),
             member.getUserId(),
             member.getTag(),
@@ -425,85 +471,81 @@ public class EntityMapper {
             member.getUpdatedAt(),
             member.getJoinedAt(),
             member.isPinned(),
-            member.isAdmin(),
-            member.getDeletedAt(),
-            member.isDeleted()
+            member.isAdmin()
         );
     }
-    public static List<CacheChatMember> toCacheLightChatMembers(Collection<ChatMemberDTO> items) {
-        if (items == null) return Collections.emptyList();
-
-        List<CacheChatMember> cached = new ArrayList<>();
-        for (ChatMemberDTO item : items) {
-            cached.add(EntityMapper.toCache(item));
-        }
-        return cached;
-    }
-
-    public static ChatMemberProfileDTO toFullDTO(UserDTO user, ChatMemberDTO member) {
-        if (user == null || member == null) return null;
+    public static ChatMemberProfileDTO toChatMemberProfileDTO(CacheChatMember member) {
+        if (member == null) return null;
 
         return new ChatMemberProfileDTO(
             member.getChatId(),
             member.getUserId(),
-            user.getUsername(),
-            user.getName(),
             member.getTag(),
             member.getUpdatedAt(),
             member.getJoinedAt(),
-            member.isAdmin(),
-            member.isDeleted(),
-            user.isDeleted()
+            member.isAdmin()
+        );
+    }
+    public static ChatMemberProfileFullDTO toChatMemberProfileFullDTO(UserProfileLightDTO user, ChatMemberProfileDTO member) {
+        if (user == null || member == null) return null;
+
+        return new ChatMemberProfileFullDTO(
+            user,
+            member
         );
     }
 
 
     // ========== MESSAGE ==========
 
-    public static CacheMessage toCache(Message message) {
+    public static CacheMessageSecurity toMessageSecurityCache(CreateMessageDTO message) {
         if (message == null) return null;
 
-        return new CacheMessage(
+        return new CacheMessageSecurity(
             message.getId(),
             message.getChatId(),
             message.getSenderId(),
+            message.getMessageType(),
             message.getSentAt(),
             message.getDeletedAt(),
             message.isDeleted()
         );
     }
-    public static CacheMessage toCache(UserMessageDBResult message) {
+    public static CacheMessageSecurity toMessageSecurityCache(UserMessageResult message) {
         if (message == null) return null;
 
-        return new CacheMessage(
+        return new CacheMessageSecurity(
             message.getId(),
             message.getChatId(),
             message.getSenderId(),
+            MessageType.valueOf(message.getMessageType()),
             message.getSentAt(),
             message.getDeletedAt(),
             message.getIsDeleted()
         );
     }
-    public static CacheMessage toCache(MessageDTO message) {
+    public static CacheMessageSecurity toMessageSecurityCache(Message message) {
         if (message == null) return null;
 
-        return new CacheMessage(
+        return new CacheMessageSecurity(
             message.getId(),
             message.getChatId(),
             message.getSenderId(),
+            message.getMessageType(),
             message.getSentAt(),
             message.getDeletedAt(),
             message.isDeleted()
         );
     }
 
-    public static Message toEntity(MessageDTO message) {
+    public static Message toMessageEntity(CreateMessageDTO message) {
         if (message == null) return null;
 
         return new Message(
             message.getId(),
             message.getChatId(),
             message.getSenderId(),
+            message.getMessageType(),
             message.getText(),
             message.getReadCount(),
             message.getSentAt(),
@@ -513,15 +555,16 @@ public class EntityMapper {
         );
     }
 
-    public static MessageDTO toDTO(UserMessageDBResult message) {
+    public static UserMessageDTO toUserMessageDTO(UserMessageResult message, boolean isCensored) {
         if (message == null) return null;
 
-        return new MessageDTO(
+        return new UserMessageDTO(
             message.getId(),
             message.getChatId(),
             message.getSenderId(),
+            MessageType.valueOf(message.getMessageType()),
             message.getProfileUpdatedAt(),
-            message.getText(),
+            isCensored ? null : message.getText(),
             message.getReadCount(),
             message.getIsReadByUser() != null && message.getIsReadByUser(),
             message.getSentAt(),
@@ -530,17 +573,36 @@ public class EntityMapper {
             message.getIsDeleted()
         );
     }
+    public static UserMessageDTO toUserMessageDTO(UserChatResult chat) {
+        if (chat == null || chat.getMsgId() == null) return null;
+
+        return new UserMessageDTO(
+            chat.getMsgId(),
+            chat.getMsgChatId(),
+            chat.getMsgSenderId(),
+            MessageType.valueOf(chat.getMsgMessageType()),
+            chat.getMsgProfileUpdatedAt(),
+            chat.getMsgText(),
+            chat.getMsgReadCount(),
+            chat.getMsgIsReadByUser(),
+            chat.getMsgSentAt(),
+            chat.getMsgUpdatedAt(),
+            chat.getMsgDeletedAt(),
+            chat.getMsgIsDeleted()
+        );
+    }
 
 
     // ========== MESSAGE READ STATUS ==========
 
-    public static Map<Long, MessageReadStatusDTO> toMessageReadDTOs(Collection<MessageReadStatusResult> items, Map<Long, MessageReadStatusDTO> resultMap) {
-        if (items == null) return resultMap;
+    public static Map<Long, MessageReadStatusDTO> toMessageReadDTOs(Collection<MessageReadStatusResult> items) {
+        if (items == null) return null;
 
-        for (var item : items) {
+        Map<Long, MessageReadStatusDTO> resultMap = new HashMap<>(items.size());
+        for (MessageReadStatusResult item : items) {
             resultMap.put(item.getUserId(), new MessageReadStatusDTO(
-                    item.getUserId(),
-                    item.getReadAt()
+                item.getUserId(),
+                item.getReadAt()
             ));
         }
         return resultMap;
@@ -549,7 +611,7 @@ public class EntityMapper {
 
     // ========== VERIFICATION_TOKEN ==========
 
-    public static CacheVerificationToken toCache(VerificationToken verificationToken) {
+    public static CacheVerificationToken toVerificationTokenCache(CreateVerificationTokenDTO verificationToken) {
         if (verificationToken == null) return null;
 
         return new CacheVerificationToken(
@@ -561,7 +623,7 @@ public class EntityMapper {
             verificationToken.getCreatedAt()
         );
     }
-    public static CacheVerificationToken toCache(VerificationTokenDTO verificationToken) {
+    public static CacheVerificationToken toVerificationTokenCache(VerificationToken verificationToken) {
         if (verificationToken == null) return null;
 
         return new CacheVerificationToken(
@@ -574,7 +636,7 @@ public class EntityMapper {
         );
     }
 
-    public static VerificationToken toEntity(VerificationTokenDTO verificationToken) {
+    public static VerificationToken toVerificationTokenEntity(CreateVerificationTokenDTO verificationToken) {
         if (verificationToken == null) return null;
 
         return new VerificationToken(
@@ -587,7 +649,7 @@ public class EntityMapper {
         );
     }
 
-    public static VerificationTokenDTO toDTO(VerificationToken verificationToken) {
+    public static VerificationTokenDTO toVerificationTokenDTO(VerificationToken verificationToken) {
         if (verificationToken == null) return null;
 
         return new VerificationTokenDTO(
@@ -599,7 +661,7 @@ public class EntityMapper {
             verificationToken.getCreatedAt()
         );
     }
-    public static VerificationTokenDTO toDTO(CacheVerificationToken verificationToken) {
+    public static VerificationTokenDTO toVerificationTokenDTO(CacheVerificationToken verificationToken) {
         if (verificationToken == null) return null;
 
         return new VerificationTokenDTO(
@@ -615,7 +677,7 @@ public class EntityMapper {
 
     // ========== LOGIN HISTORY ==========
 
-    public static LoginHistory toEntity(LoginHistoryDTO loginHistory) {
+    public static LoginHistory toLoginHistoryEntity(CreateLoginHistoryDTO loginHistory) {
         if (loginHistory == null) return null;
 
         return new LoginHistory(

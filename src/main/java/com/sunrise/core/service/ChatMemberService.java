@@ -6,9 +6,9 @@ import com.sunrise.core.dataservice.LockManager;
 import com.sunrise.core.notifier.WebSocketNotifier;
 import com.sunrise.core.service.result.ResultNoArgs;
 import com.sunrise.core.service.result.ResultOneArg;
+import com.sunrise.entity.creation.CreateChatMemberDTO;
 import com.sunrise.entity.pagination.ChatMembersPageDTO;
-import com.sunrise.entity.dto.ChatDTO;
-import com.sunrise.entity.dto.ChatMemberDTO;
+import com.sunrise.entity.dto.ChatSecurityDTO;
 import com.sunrise.helpclass.ValidationException;
 
 import jakarta.validation.constraints.NotNull;
@@ -37,12 +37,12 @@ public class ChatMemberService {
         try {
             validator.validateCanAddChatMember(chatId, inviterId, opponentId);
 
-            var chatMember = ChatMemberDTO.create(chatId, opponentId, LocalDateTime.now(), false);
+            CreateChatMemberDTO members = new CreateChatMemberDTO(chatId, opponentId, LocalDateTime.now(), false);
 
-            dataOrchestrator.saveOrRestoreChatMember(chatMember);
+            dataOrchestrator.saveOrRestoreChatMember(members);
 
             // уведомить всех надо об этом
-            wsNotify.notifyChatMemberNew(chatMember);
+            wsNotify.notifyChatMemberNew(members);
 
             log.info("[🔧] ✅ User {} added user {} to group chat {}", inviterId, opponentId, chatId);
             return ResultNoArgs.success();
@@ -62,11 +62,9 @@ public class ChatMemberService {
 
             LocalDateTime createdAt = LocalDateTime.now();
 
-            List<ChatMemberDTO> members = new ArrayList<>(usersToAdd.size() + 1);
-            members.add(ChatMemberDTO.create(chatId, inviterId, createdAt, true));
-
+            List<CreateChatMemberDTO> members = new ArrayList<>(usersToAdd.size() + 1);
             for (long userId : usersToAdd){
-                members.add(ChatMemberDTO.create(chatId, userId, createdAt, false));
+                members.add(new CreateChatMemberDTO(chatId, userId, createdAt, false));
             }
 
             dataOrchestrator.saveOrRestoreChatMembers(chatId, members);
@@ -189,10 +187,10 @@ public class ChatMemberService {
                 throw new ValidationException("Try again later");
             }
 
-            ChatDTO chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);
+            ChatSecurityDTO chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);
             LocalDateTime updatedAt = LocalDateTime.now();
             if (chat.getChatType().isPersonal()) {
-                if (chat.isMoreThenOneMember()) {
+                if (chat.getMembersCount() > 1) {
                     dataOrchestrator.removeUserFromChat(chatId, userId, updatedAt);
                     log.info("[🔧] ✅ {} {} left group chat {}", (userId == chat.getCreatedBy()) ? "Creator" : "User", userId, chatId);
 

@@ -1,6 +1,6 @@
 package com.sunrise.core.dataservice.type;
 
-public enum AttachmentsType {
+public enum AttachmentType {
     IMAGE,
     GIF,
     VIDEO,

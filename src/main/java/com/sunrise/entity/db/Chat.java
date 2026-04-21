@@ -20,6 +20,12 @@ public class Chat {
     @Id
     protected Long id;
 
+    @Column(name = "avatar_file_id")
+    private Long avatarFileId;
+
+    @Column(name = "avatar_preview_file_id")
+    private Long avatarPreviewFileId;
+
     @Column(name = "name", length = 50)
     @Size(min = 4, max = 50)
     @Pattern(

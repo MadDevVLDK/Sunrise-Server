@@ -1,6 +1,6 @@
-package com.sunrise.core.dataservice.type;
+package com.sunrise.core.dataservice.dbresult;
 
-public interface ChatStatsDBResult {
+public interface ChatStatsResult {
     Integer getTotalMessages();
     Integer getDeletedForAll();
     Boolean getCanDeleteForAll();

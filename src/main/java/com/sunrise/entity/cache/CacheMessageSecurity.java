@@ -1,38 +1,36 @@
 package com.sunrise.entity.cache;
 
+import com.sunrise.core.dataservice.type.MessageType;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 import java.time.LocalDateTime;
 
-@lombok.Getter
-@lombok.Setter
-@lombok.AllArgsConstructor
-public class CacheMessage {
+@Getter
+@AllArgsConstructor
+public class CacheMessageSecurity {
     private long id;
     private long chatId;
     private long senderId;
+    private MessageType messageType;
     private LocalDateTime sentAt;
     private LocalDateTime deletedAt;
     private boolean isDeleted;
 
-    public void delete(LocalDateTime updatedAt) {
-        this.isDeleted = true;
-        this.deletedAt = updatedAt;
-    }
-    public void restore() {
-        this.isDeleted = false;
-        this.deletedAt = null;
-    }
+    private final LocalDateTime cachedAt = LocalDateTime.now();
 
     public boolean isActive() {
         return !isDeleted;
     }
 
-    public static CacheMessage copy(CacheMessage message) {
+    public static CacheMessageSecurity copy(CacheMessageSecurity message) {
         if (message == null) return null;
 
-        return new CacheMessage(
+        return new CacheMessageSecurity(
             message.getId(),
             message.getChatId(),
             message.getSenderId(),
+            message.getMessageType(),
             message.getSentAt(),
             message.getDeletedAt(),
             message.isDeleted()

@@ -15,10 +15,11 @@ public final class WsRequests {
 
 
     // ---------- Server -> Client ----------
-    public record MessageNewResponse(long tempId, long messageId, long chatId, long senderId, String text, long readCount, LocalDateTime sentAt, LocalDateTime updatedAt, LocalDateTime deletedAt, boolean isDeleted) {}
-    public record MessagePrivateNewResponse(long tempId, long messageId, long chatId, long senderId, String text, LocalDateTime sentAt) {}
+    public record MessageNewResponse(long tempId, long messageId, long chatId, long senderId, LocalDateTime senderProfileUpdatedAt, String text, long readCount, LocalDateTime sentAt, LocalDateTime updatedAt, LocalDateTime deletedAt, boolean isDeleted) {}
+    public record MessagePrivateNewResponse(long tempId, long messageId, long chatId, long senderId, LocalDateTime senderProfileUpdatedAt, String text, LocalDateTime sentAt) {}
     public record MessageUpdateResponse(long messageId, long chatId, String newText, LocalDateTime updatedAt) {}
     public record MessageDeleteResponse(long messageId, long chatId, LocalDateTime deletedAt) {}
+
     public record MessagesReadUpToResponse(long userId, long chatId, long upToMessageId, LocalDateTime readAt) {}
 
     public record ChatNewResponse(long tempId, long chatId, String name, String description, ChatType chatType, Long opponentId, int membersCount, LocalDateTime updatedAt, LocalDateTime createdAt, long createdBy) {}
@@ -26,7 +27,7 @@ public final class WsRequests {
     public record ChatTypeUpdateResponse(long chatId, ChatType newType, LocalDateTime updatedAt) {}
     public record ChatDeleteResponse(long chatId, LocalDateTime deletedAt) {}
 
-    public record ChatMemberNewResponse(long chatId, long userId, LocalDateTime updatedAt, LocalDateTime joinedAt, boolean isAdmin, LocalDateTime deletedAt, boolean isDeleted) {}
+    public record ChatMemberNewResponse(long chatId, long userId, LocalDateTime updatedAt, LocalDateTime joinedAt, boolean isAdmin) {}
     public record ChatMemberInfoUpdateResponse(long chatId, long userId, String tag, LocalDateTime updatedAt) {}
     public record ChatMemberAdminRightsUpdateResponse(long chatId, long userId, boolean isAdmin, LocalDateTime updatedAt) {}
     public record SelfChatSettingsUpdateResponse(long chatId, boolean isPinned, LocalDateTime updatedAt) {}

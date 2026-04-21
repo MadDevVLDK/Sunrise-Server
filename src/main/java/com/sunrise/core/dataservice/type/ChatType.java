@@ -2,7 +2,7 @@ package com.sunrise.core.dataservice.type;
 
 public enum ChatType {
     PERSONAL(2, 2),
-    BIG_GROUP(1, 1000);
+    GROUP(1, 1000);
 
     private final int minMemberCount;
     private final int maxMemberCount;

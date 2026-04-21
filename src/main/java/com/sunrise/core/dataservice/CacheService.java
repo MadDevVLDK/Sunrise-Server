@@ -1,12 +1,10 @@
 package com.sunrise.core.dataservice;
 
-import com.sunrise.core.dataservice.type.ChatType;
 import com.sunrise.entity.cache.*;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
-import com.sunrise.entity.dto.ChatMemberDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -24,7 +21,13 @@ import java.util.concurrent.TimeUnit;
 public class CacheService {
 
     // кэш пользователей
-    private final Cache<Long, CacheUser> userCache = Caffeine.newBuilder()  // userId -> CacheUser (пользователи)
+    private final Cache<Long, CacheUserSecurity> userSecurityCache = Caffeine.newBuilder()  // userId -> CacheUserProfile (пользователи)
+            .maximumSize(100_000)
+            .expireAfterAccess(1, TimeUnit.HOURS) // 1 h
+            .recordStats()
+            .build();
+
+    private final Cache<Long, CacheUserProfile> userProfileCache = Caffeine.newBuilder()  // userId -> CacheUserProfile (пользователи)
             .maximumSize(100_000)
             .expireAfterAccess(1, TimeUnit.HOURS) // 1 h
             .recordStats()
@@ -65,7 +68,7 @@ public class CacheService {
             .recordStats()
             .build();
 
-    private final Cache<Long, CacheMessage> messageCache = Caffeine.newBuilder() // messageId -> CacheMessage (сообщения)
+    private final Cache<Long, CacheMessageSecurity> messageCache = Caffeine.newBuilder() // messageId -> CacheMessageSecurity (сообщения)
             .maximumSize(200_000)
             .expireAfterAccess(1, TimeUnit.HOURS)
             .recordStats()
@@ -84,87 +87,38 @@ public class CacheService {
 
 
     // Основные методы
-    public void saveUsers(Collection<CacheUser> users) {
-        for (CacheUser user : users){
-            userCache.put(user.getId(), CacheUser.copy(user));
+    public void saveUsersProfile(Collection<CacheUserProfile> users) {
+        for (CacheUserProfile user : users){
+            userProfileCache.put(user.getId(), CacheUserProfile.copy(user));
             usernameIndex.put(user.getUsername().toLowerCase(), user.getId());
-            emailIndex.put(user.getEmail().toLowerCase(), user.getId());
         }
         log.debug("[⚡] Batch saved {} users to cache and updated indexes || saveUsers", users.size());
     }
-    public void saveUser(CacheUser user) {
-        userCache.put(user.getId(), CacheUser.copy(user));
-        usernameIndex.put(user.getUsername().toLowerCase(), user.getId());
+    public void saveUserSecurity(CacheUserSecurity user) {
+        userSecurityCache.put(user.getId(), CacheUserSecurity.copy(user));
         emailIndex.put(user.getEmail().toLowerCase(), user.getId());
-        log.debug("[⚡] Saved user {} in cache and updated indexes || saveUser", user.getId());
+        log.debug("[⚡] Saved user security {} in cache and updated indexes || saveUserSecurity", user.getId());
     }
-    public void updateUserLastLogin(String username, LocalDateTime lastLogin) {
-        String key = username.toLowerCase();
-        Long userId = usernameIndex.getIfPresent(key);
-        if (userId == null) return;
+    public void saveUserProfile(CacheUserProfile user) {
+        userProfileCache.put(user.getId(), CacheUserProfile.copy(user));
+        usernameIndex.put(user.getUsername().toLowerCase(), user.getId());
+        log.debug("[⚡] Saved user profile {} in cache and updated indexes || saveUserProfile", user.getId());
+    }
+    public void invalidateUserSecurity(long userId) {
+        userSecurityCache.invalidate(userId);
+        log.debug("[⚡] Invalidated user security {} in cache || invalidateUserSecurity", userId);
+    }
+    public void invalidateUserProfile(long userId) {
+        userProfileCache.invalidate(userId);
+        log.debug("[⚡] Invalidated user profile {} in cache || invalidateUserProfile", userId);
+    }
 
-        getUserLink(userId).ifPresent(user -> {
-            user.setLastLogin(lastLogin);
-            log.debug("[⚡] Updated last login for user {} to {} || updateUserLastLogin", user.getId(), lastLogin);
-        });
-    }
-    public void updateUserProfile(long userId, String username, String name, LocalDateTime updatedAt) {
-        getUserLink(userId).ifPresent(user -> {
-            // Обновляем username в индексе
-            String oldUsername = user.getUsername();
-            if (!oldUsername.equals(username)) {
-                usernameIndex.invalidate(oldUsername.toLowerCase());
-                usernameIndex.put(username.toLowerCase(), userId);
-                log.debug("[⚡] Updated username index: {} -> {} for user {}", oldUsername, username, userId);
-            }
-
-            // Обновляем данные пользователя
-            user.setUsernameAndName(username, name, updatedAt);
-            log.debug("[⚡] Updated profile for user {}: username={}, name={} || updateUserProfile", userId, username, name);
-        });
-    }
-    public void updateUserEmail(long userId, String email, int newVersion, LocalDateTime updatedAt) {
-        getUserLink(userId).ifPresent(user -> {
-            user.setEmail(email, newVersion, updatedAt);
-            log.debug("[⚡] Updated email for user {} || updateUserEmailAndJwtVersion", userId);
-        });
-    }
-    public void updateUserPassword(long userId, String password, int newVersion, LocalDateTime updatedAt) {
-        getUserLink(userId).ifPresent(user -> {
-            user.setPassword(password, newVersion, updatedAt);
-            log.debug("[⚡] Updated password for user {} || updateUserEmailAndJwtVersion", userId);
-        });
-    }
-    public void enableUser(long userId, int newVersion, LocalDateTime updatedAt) {
-        getUserLink(userId).ifPresent(cacheUser -> {
-            cacheUser.enable(newVersion, updatedAt);
-            log.debug("[⚡] Enabled user {} in cache || enableUser", userId);
-        });
-    }
-    public void disableUser(long userId, int newVersion, LocalDateTime updatedAt) {
-        getUserLink(userId).ifPresent(cacheUser -> {
-            cacheUser.disable(newVersion, updatedAt);
-            log.debug("[⚡] Disabled user  {} in cache || disableUser", userId);
-        });
-    }
-    public void deleteUser(long userId, int newVersion, LocalDateTime updatedAt) {
-        getUserLink(userId).ifPresent(cacheUser -> {
-            cacheUser.delete(newVersion, updatedAt);
-            log.debug("[⚡] Marked user {} as deleted in cache || deleteUser", userId);
-        });
-    }
-    public void restoreUser(long userId, int newVersion, LocalDateTime updatedAt) {
-        getUserLink(userId).ifPresent(cacheUser -> {
-            cacheUser.restore(newVersion, updatedAt);
-            log.debug("[⚡] Restored user {} in cache || restoreUser", userId);
-        });
-    }
 
     // Вспомогательные методы
-    public Map<Long, CacheUser> getCacheUsersByIds(Collection<Long> userIds, Collection<Long> missingIds) {
-        Map<Long, CacheUser> result = new HashMap<>(userIds.size());
+    public Map<Long, CacheUserProfile> getCacheUsersByIds(Collection<Long> userIds, Collection<Long> missingIds) {
+        Map<Long, CacheUserProfile> result = new HashMap<>(userIds.size());
         for (Long userId : userIds) {
-            Optional<CacheUser> user = getUser(userId);
+            Optional<CacheUserProfile> user = getUserProfile(userId);
             if (user.isPresent()) {
                 result.put(userId, user.get());
             } else if (missingIds != null) {
@@ -173,33 +127,34 @@ public class CacheService {
         }
         return result;
     }
-    public Optional<CacheUser> getUserByUsername(String username) {
+    public Optional<CacheUserSecurity> getUserSecurityByUsername(String username) {
         String key = username.toLowerCase();
         Long userId = usernameIndex.getIfPresent(key);
         if (userId == null) return Optional.empty();
 
-        Optional<CacheUser> user = getUser(userId);
+        Optional<CacheUserSecurity> user = getUserSecurity(userId);
         if (user.isEmpty()) {
             usernameIndex.invalidate(key);
         }
         return user;
     }
-    public Optional<CacheUser> getUserByEmail(String email) {
+    public Optional<CacheUserSecurity> getUserSecurityByEmail(String email) {
         String key = email.toLowerCase();
         Long userId = emailIndex.getIfPresent(key);
         if (userId == null) return Optional.empty();
 
-        Optional<CacheUser> user = getUser(userId);
+        Optional<CacheUserSecurity> user = getUserSecurity(userId);
         if (user.isEmpty()) {
             emailIndex.invalidate(key);
         }
         return user;
     }
-    public Optional<CacheUser> getUser(long userId) {
-        return Optional.ofNullable(CacheUser.copy(userCache.getIfPresent(userId)));
+    public Optional<CacheUserSecurity> getUserSecurity(long userId) {
+        return Optional.ofNullable(CacheUserSecurity.copy(userSecurityCache.getIfPresent(userId)));
     }
-    private Optional<CacheUser> getUserLink(long userId) {
-        return Optional.ofNullable(userCache.getIfPresent(userId));
+
+    public Optional<CacheUserProfile> getUserProfile(long userId) {
+        return Optional.ofNullable(CacheUserProfile.copy(userProfileCache.getIfPresent(userId)));
     }
 
     public boolean existsUserByUsername(String username) {
@@ -216,27 +171,17 @@ public class CacheService {
     // Основные методы
     public void saveChats(Collection<CacheChat> newChats) {
         for (CacheChat newChat : newChats){
-            Optional<CacheChat> oldChat = getChatLink(newChat.getId());
-            if (oldChat.isPresent()) {
-                oldChat.get().updateFromCache(newChat);
-            } else {
-                chatInfoCache.put(newChat.getId(), CacheChat.copy(newChat));
-                if (newChat.isPersonal()) {
-                    savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
-                }
+            chatInfoCache.put(newChat.getId(), CacheChat.copy(newChat));
+            if (newChat.isPersonal()) {
+                savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
             }
         }
         log.debug("[⚡] Batch saved {} chats to cache and updated indexes || saveChats", newChats.size());
     }
     public void saveChat(CacheChat newChat) {
-        Optional<CacheChat> oldChat = getChatLink(newChat.getId());
-        if (oldChat.isPresent()) {
-            oldChat.get().updateFromCache(newChat);
-        } else {
-            chatInfoCache.put(newChat.getId(), CacheChat.copy(newChat));
-            if (newChat.isPersonal()) {
-                savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
-            }
+        chatInfoCache.put(newChat.getId(), CacheChat.copy(newChat));
+        if (newChat.isPersonal()) {
+            savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
         }
         log.debug("[⚡] Saved chat {} in cache and updated indexes || saveChat", newChat.getId());
     }
@@ -244,14 +189,9 @@ public class CacheService {
         long chatId = newChat.getId();
 
         // добавляем чат
-        Optional<CacheChat> oldChat = getChatLink(newChat.getId());
-        if (oldChat.isPresent()) {
-            oldChat.get().updateFromCache(newChat);
-        } else {
-            chatInfoCache.put(newChat.getId(), CacheChat.copy(newChat));
-            if (newChat.isPersonal()) {
-                savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
-            }
+        chatInfoCache.put(newChat.getId(), CacheChat.copy(newChat));
+        if (newChat.isPersonal()) {
+            savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
         }
         log.debug("[⚡] Saved chat {} in cache and updated indexes || saveChatAndAddMembers", newChat.getId());
 
@@ -259,29 +199,9 @@ public class CacheService {
         getOrCreateChatMembersContainer(chatId).addBatch(members);
         log.debug("[⚡] Batch saved {} chat members in chat {} || saveChatAndAddMembers", members.size(), chatId);
     }
-    public void updateChatInfo(long chatId, String newName, String newDescription, LocalDateTime updatedAt) {
-        getChatLink(chatId).ifPresent(chat -> {
-            chat.setChatInfo(newName, newDescription, updatedAt);
-            log.debug("[⚡] Updated chatName {} and chatDescription {} on chat {} || updateChatInfo", newName, newDescription, chatId);
-        });
-    }
-    public void updateChatType(long chatId, ChatType newType, LocalDateTime updatedAt) {
-        getChatLink(chatId).ifPresent(chat -> {
-            chat.setChatType(newType, updatedAt);
-            log.debug("[⚡] Updated chatType {} on chat {} || updateChatCreator", newType, chatId);
-        });
-    }
-    public void deleteChat(long chatId, LocalDateTime updatedAt) {
-        getChatLink(chatId).ifPresent(chat -> {
-            chat.delete(updatedAt);
-            log.debug("[⚡] Marked chat {} as deleted in cache || deleteChat", chatId);
-        });
-    }
-    public void restoreChat(long chatId, LocalDateTime updatedAt) {
-        getChatLink(chatId).ifPresent(chat -> {
-            chat.restore(updatedAt);
-            log.debug("[⚡] Restored chat {} in cache || restoreChat", chatId);
-        });
+    public void invalidateChat(long chatId) {
+        chatInfoCache.invalidate(chatId);
+        log.debug("[⚡] Invalidated chat {} in cache || invalidateChat", chatId);
     }
 
 
@@ -339,39 +259,15 @@ public class CacheService {
         getChatLink(chatId).ifPresent(CacheChat::onAddMember);
         log.debug("[⚡] Saved chat member {} in chat {} || saveChatMember", userId, chatId);
     }
-    public void updateChatMemberInfo(long chatId, long userId, String tag, LocalDateTime updatedAt) {
-        getChatMembersContainer(chatId).ifPresent(cont -> {
-            cont.updateInfo(userId, tag, updatedAt);
-            log.debug("[⚡] Updated info for member {} in chat {} || updateAdminRights", userId, chatId);
-        });
-    }
-    public void updateChatMemberAdminRights(long chatId, long userId, boolean isAdmin, LocalDateTime updatedAt) {
-        getChatMembersContainer(chatId).ifPresent(cont -> {
-            cont.updateAdminRights(userId, isAdmin, updatedAt);
-            log.debug("[⚡] Updated admin rights for member {} in chat {} || updateAdminRights", userId, chatId);
-        });
-    }
-    public void updateChatMemberSettings(long chatId, long userId, boolean isPinned, LocalDateTime updatedAt) {
-        getChatMembersContainer(chatId).ifPresent(cont -> {
-            cont.updateSettings(userId, isPinned, updatedAt);
-            log.debug("[⚡] Updated settings for member {} in chat {} || updateAdminRights", userId, chatId);
-        });
-    }
-    public void removeChatMember(long userId, long chatId, LocalDateTime updatedAt) {
-        // Обновляем контейнер
+    public void invalidateChatMember(long chatId, long userId) {
         getChatMembersContainer(chatId).ifPresent(c -> {
-            c.markMemberAsDeleted(userId, updatedAt);
-            log.debug("[⚡] Marked member {} as deleted in chat {} || removeChatMember", userId, chatId);
+            c.invalidateMember(userId);
+            log.debug("[⚡] Invalidated member {} in chat {} in cache || invalidateChatMember", userId, chatId);
         });
-        getChatLink(chatId).ifPresent(CacheChat::onDeleteMember);
     }
-    public void restoreChatMember(long userId, long chatId, boolean isAdmin, LocalDateTime updatedAt) {
-        // Обновляем контейнер
-        getChatMembersContainer(chatId).ifPresent(c -> {
-            c.restoreMember(userId, isAdmin, updatedAt);
-            log.debug("[⚡] Restored member {} in chat {} (isAdmin={}) || restoreChatMember", userId, chatId, isAdmin);
-        });
-        getChatLink(chatId).ifPresent(CacheChat::onAddMember);
+    public void invalidateChatMembersContainer(long chatId) {
+        chatMembersCache.invalidate(chatId);
+        log.debug("[⚡] Invalidated chat members container {} in cache || invalidateChatMembersContainer", chatId);
     }
 
 
@@ -422,7 +318,7 @@ public class CacheService {
         verificationTokenCache.put(cache.getToken(), CacheVerificationToken.copy(cache));
         log.debug("[⚡] Saved verification token for user {} (token={}) || saveVerificationToken", cache.getUserId(), cache.getToken());
     }
-    public void deleteVerificationToken(String token) {
+    public void invalidateVerificationToken(String token) {
         verificationTokenCache.invalidate(token);
         log.debug("[⚡] Deleted verification token {} || deleteVerificationToken", token);
     }
@@ -438,36 +334,26 @@ public class CacheService {
 
 
     // Основные методы
-    public void saveMessage(CacheMessage message) {
-        CacheMessage copy = CacheMessage.copy(message);
+    public void saveMessage(CacheMessageSecurity message) {
+        CacheMessageSecurity copy = CacheMessageSecurity.copy(message);
         messageCache.put(copy.getId(), copy);
         log.debug("[⚡] Saved message {} in cache (chat={}, sender={}) || saveMessage", copy.getId(), copy.getChatId(), copy.getSenderId());
     }
-    public void saveMessages(List<CacheMessage> messages) {
-        for (CacheMessage message : messages) {
-            messageCache.put(message.getId(), CacheMessage.copy(message));
+    public void saveMessages(List<CacheMessageSecurity> messages) {
+        for (CacheMessageSecurity message : messages) {
+            messageCache.put(message.getId(), CacheMessageSecurity.copy(message));
         }
         log.debug("[⚡] Batch saved {} messages to cache || saveMessages", messages.size());
     }
-    public void restoreMessage(long messageId) {
-        getMessageLink(messageId).ifPresent(message -> {
-            message.restore();
-            log.debug("[⚡] Restored message {} in cache || restoreMessage", messageId);
-        });
-    }
-    public void deleteMessage(long messageId, LocalDateTime deletedAt) {
-        getMessageLink(messageId).ifPresent(message -> {
-            message.delete(deletedAt);
-            log.debug("[⚡] Deleted message {} in cache || deleteMessage", messageId);
-        });
+    public void invalidateMessage(long messageId) {
+        messageCache.invalidate(messageId);
+        log.debug("[⚡] Invalidated message {} in cache || invalidateMessage", messageId);
     }
 
+
     // Вспомогательные методы
-    public Optional<CacheMessage> getMessage(long messageId) {
-        return Optional.ofNullable(CacheMessage.copy(messageCache.getIfPresent(messageId)));
-    }
-    private Optional<CacheMessage> getMessageLink(long messageId) {
-        return Optional.ofNullable(messageCache.getIfPresent(messageId));
+    public Optional<CacheMessageSecurity> getMessage(long messageId) {
+        return Optional.ofNullable(CacheMessageSecurity.copy(messageCache.getIfPresent(messageId)));
     }
 
 
@@ -489,7 +375,7 @@ public class CacheService {
     }
 
     public CacheStats getCacheStatus() {
-        Map<Long, CacheUser> userCacheSnapshot = userCache.asMap();
+        Map<Long, CacheUserSecurity> userCacheSnapshot = userSecurityCache.asMap();
         Map<Long, CacheChat> chatInfoCacheSnapshot = chatInfoCache.asMap();
         Map<Long, CacheChatMembersContainer> containersSnapshot = chatMembersCache.asMap();
 
@@ -535,8 +421,8 @@ public class CacheService {
         Map<String, Object> stats = new HashMap<>();
 
         // статистика кеша пользователей
-        var userStats = userCache.stats();
-        stats.put("userCache.estimatedSize", userCache.estimatedSize());
+        var userStats = userSecurityCache.stats();
+        stats.put("userCache.estimatedSize", userSecurityCache.estimatedSize());
         stats.put("userCache.hitRate", userStats.hitRate());
         stats.put("userCache.missRate", userStats.missRate());
         stats.put("userCache.evictionCount", userStats.evictionCount());

@@ -5,7 +5,7 @@ import com.sunrise.config.annotation.ValidId;
 import com.sunrise.core.service.UserService;
 import com.sunrise.controller.request.ProfileUpdateRequest;
 import com.sunrise.core.service.result.*;
-import com.sunrise.entity.dto.UserProfileDTO;
+import com.sunrise.entity.dto.UserProfileLightDTO;
 
 import jakarta.validation.Valid;
 
@@ -44,7 +44,7 @@ public class ProfileController {
 
     @GetMapping
     public ResponseEntity<?> getMyProfile(@CurrentUserId long userId) {
-        ResultOneArg<UserProfileDTO> result = userService.getMyProfile(userId);
+        ResultOneArg<UserProfileLightDTO> result = userService.getMyProfile(userId);
 
         if (result.isSuccess()) {
             return ResponseEntity.ok(result.getResult());
@@ -55,7 +55,7 @@ public class ProfileController {
 
     @GetMapping("/{otherUserId}")
     public ResponseEntity<?> getOtherProfile(@PathVariable @ValidId long otherUserId, @CurrentUserId long userId) {
-        ResultOneArg<UserProfileDTO> result = userService.getOtherProfile(userId, otherUserId);
+        ResultOneArg<UserProfileLightDTO> result = userService.getOtherProfile(userId, otherUserId);
 
         if (result.isSuccess()) {
             return ResponseEntity.ok(result.getResult());

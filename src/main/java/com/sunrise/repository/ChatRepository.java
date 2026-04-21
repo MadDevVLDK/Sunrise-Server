@@ -1,8 +1,8 @@
 package com.sunrise.repository;
 
-import com.sunrise.core.dataservice.type.ChatStatsDBResult;
+import com.sunrise.core.dataservice.dbresult.ChatStatsResult;
 import com.sunrise.core.dataservice.type.ChatType;
-import com.sunrise.core.dataservice.type.UserChatResult;
+import com.sunrise.core.dataservice.dbresult.UserChatResult;
 import com.sunrise.entity.db.Chat;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -39,11 +39,6 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     @Transactional
     @Query("UPDATE Chat c SET c.name = :name, c.description = :description, c.updatedAt = :updatedAt WHERE c.id = :chatId")
     int updateChatInfo(@Param("chatId") long chatId, @Param("name") String chatName, @Param("description") String chatDescription, @Param("updatedAt") LocalDateTime updatedAt);
-
-    @Modifying
-    @Transactional
-    @Query("UPDATE Chat c SET c.chatType = :chatType, c.updatedAt = :updatedAt WHERE c.id = :chatId")
-    int updateChatType(@Param("chatId") long chatId, @Param("chatType") String chatType, @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying
     @Transactional
@@ -87,5 +82,5 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
 
     // Статистика
     @Query(value = "SELECT * FROM get_chat_clear_stats(:chatId, :userId)", nativeQuery = true)
-    ChatStatsDBResult getChatClearStats(@Param("chatId") long chatId, @Param("userId") long userId);
+    ChatStatsResult getChatClearStats(@Param("chatId") long chatId, @Param("userId") long userId);
 }

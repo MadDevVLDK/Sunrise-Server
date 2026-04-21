@@ -1,7 +1,7 @@
 package com.sunrise.entity.pagination;
 
-import com.sunrise.entity.dto.ChatUserDTO;
+import com.sunrise.entity.dto.ChatProfileDTO;
 
 import java.util.Map;
 
-public record UserChatsPageDTO(Map<Long, ChatUserDTO> chats, Long nextCursor) { }
+public record UserChatsPageDTO(Map<Long, ChatProfileDTO> chats, Long nextCursor) { }

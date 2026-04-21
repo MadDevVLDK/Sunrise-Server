@@ -1,8 +1,8 @@
-package com.sunrise.core.dataservice.type;
+package com.sunrise.core.dataservice.dbresult;
 
 import java.time.LocalDateTime;
 
-public interface UserResult {
+public interface UserProfileResult {
     Long getId();
     String getUsername();
     String getName();
@@ -11,4 +11,9 @@ public interface UserResult {
     Boolean getIsEnabled();
     LocalDateTime getDeletedAt();
     Boolean getIsDeleted();
+
+    Long getAvatarId();
+    String getAvatarHash();
+    String getAvatarPrHash();
+    LocalDateTime getAvatarCreatedAt();
 }

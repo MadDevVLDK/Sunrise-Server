@@ -1,10 +1,13 @@
 package com.sunrise.core.service;
 
+import com.sunrise.core.dataservice.type.MessageType;
 import com.sunrise.core.notifier.WebSocketNotifier;
 import com.sunrise.core.service.result.*;
 import com.sunrise.entity.dto.MessageReadStatusDTO;
+import com.sunrise.entity.dto.UserProfileLightDTO;
+import com.sunrise.entity.creation.CreateMessageDTO;
 import com.sunrise.entity.pagination.MessagesPageDTO;
-import com.sunrise.entity.dto.MessageDTO;
+import com.sunrise.entity.dto.UserMessageDTO;
 import com.sunrise.core.dataservice.DataOrchestrator;
 import com.sunrise.core.dataservice.type.Direction;
 import com.sunrise.core.dataservice.DataValidator;
@@ -31,8 +34,6 @@ public class MessageService {
 
     public ResultOneArg<Long> makePublicMessage(long tempId, long chatId, long senderId, String text) {
         try {
-            validator.validateActiveChatMemberInActiveChat(chatId, senderId);
-
             if (text == null || text.trim().isEmpty()) {
                 throw new ValidationException("Message text cannot be empty");
             }
@@ -41,12 +42,18 @@ public class MessageService {
                 throw new ValidationException("Message text is too long");
             }
 
-            MessageDTO message = MessageDTO.create(SimpleSnowflakeId.nextId(), chatId, senderId, text, LocalDateTime.now());
+            validator.validateActiveChatMemberInActiveChatAndGet(chatId, senderId);
+            UserProfileLightDTO user = dataOrchestrator.getUserProfile(senderId)
+                    .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
 
+            CreateMessageDTO message = new CreateMessageDTO(
+                SimpleSnowflakeId.nextId(), chatId, senderId,
+                MessageType.COMMON, text, LocalDateTime.now()
+            );
             dataOrchestrator.saveMessage(message);
 
             // уведомить всех надо об этом
-            wsNotify.notifyMessageNew(tempId, message);
+            wsNotify.notifyMessageNew(tempId, message, user.getProfileUpdatedAt());
 
             log.info("[🔧] ✅ User {} send public message {} in chat {}", senderId, message.getId(), chatId);
             return ResultOneArg.success(message.getId());
@@ -62,8 +69,6 @@ public class MessageService {
     }
     public ResultOneArg<Long> makePrivateMessage(long tempId, long chatId, long senderId, long userToSend, String text) {
         try {
-            validator.validateCanSendPrivateMessage(chatId, senderId, userToSend);
-
             // Валидация текста сообщения
             if (text == null || text.trim().isEmpty()) {
                 throw new ValidationException("Message text cannot be empty");
@@ -73,10 +78,17 @@ public class MessageService {
                 throw new ValidationException("Message text is too long");
             }
 
-            MessageDTO message = MessageDTO.create(SimpleSnowflakeId.nextId(), chatId, senderId, text, LocalDateTime.now());
+            validator.validateActiveChatMemberInActiveChatAndGet(chatId, senderId);
+            UserProfileLightDTO user = dataOrchestrator.getUserProfile(senderId)
+                    .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
+
+            CreateMessageDTO message = new CreateMessageDTO(
+                SimpleSnowflakeId.nextId(), chatId, senderId,
+                MessageType.COMMON, text, LocalDateTime.now()
+            );
 
             // уведомить всех надо об этом
-            wsNotify.notifyMessagePrivateNew(tempId, message, userToSend);
+            wsNotify.notifyMessagePrivateNew(tempId, message, user.getProfileUpdatedAt(), userToSend);
 
             log.info("[🔧] ✅ User {} send private message {} to user {} in chat {}", senderId, message.getId(), userToSend, chatId);
             return ResultOneArg.success(message.getId());
@@ -177,11 +189,11 @@ public class MessageService {
             return ResultOneArg.error("getChatMessagesAfter failed due to server error");
         }
     }
-    public ResultOneArg<MessageDTO> getMessage(long chatId, long userId, long messageId) {
+    public ResultOneArg<UserMessageDTO> getMessage(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            Optional<MessageDTO> message = dataOrchestrator.getActiveMessageWithReadStatusInChat(chatId, userId, messageId);
+            Optional<UserMessageDTO> message = dataOrchestrator.getActiveMessageWithReadStatusInChat(chatId, userId, messageId);
             if (message.isEmpty()) {
                 throw new ValidationException("Message not found");
             }

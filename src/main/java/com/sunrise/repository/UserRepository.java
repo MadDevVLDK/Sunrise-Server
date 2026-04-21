@@ -1,6 +1,6 @@
 package com.sunrise.repository;
 
-import com.sunrise.core.dataservice.type.UserResult;
+import com.sunrise.core.dataservice.dbresult.UserProfileResult;
 import com.sunrise.entity.db.User;
 
 import org.springframework.data.domain.Pageable;
@@ -27,38 +27,38 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Modifying
     @Transactional
-    @Query("UPDATE User u SET u.username = :username, u.name = :name, u.profileUpdatedAt = :updatedAt, u.updatedAt = :updatedAt WHERE u.id = :userId")
+    @Query("UPDATE User SET username = :username, name = :name, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
     int updateProfile(@Param("userId") long userId, @Param("username") String username, @Param("name") String name, @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE users SET email = :email, jwt_version = jwt_version + 1, updated_at = :updatedAt WHERE id = :userId RETURNING jwt_version", nativeQuery = true)
-    int updateUserEmailAndGetJwtVersion(@Param("userId") long userId, @Param("email") String email, @Param("updatedAt") LocalDateTime updatedAt);
+    @Query(value = "UPDATE User SET email = :email, jwtVersion = jwtVersion + 1, updatedAt = :updatedAt WHERE id = :userId")
+    int updateUserEmail(@Param("userId") long userId, @Param("email") String email, @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE users SET hash_password = :password, jwt_version = jwt_version + 1, updated_at = :updatedAt WHERE id = :userId RETURNING jwt_version", nativeQuery = true)
-    int updateUserPasswordAndGetJwtVersion(@Param("userId") long userId, @Param("password") String password, @Param("updatedAt") LocalDateTime updatedAt);
+    @Query("UPDATE User SET hashPassword = :password, jwtVersion = jwtVersion + 1, updatedAt = :updatedAt WHERE id = :userId")
+    int updateUserPassword(@Param("userId") long userId, @Param("password") String password, @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE users SET is_enabled = true, jwt_version = jwt_version + 1, profile_updated_at = :updatedAt, updated_at = :updatedAt WHERE id = :userId RETURNING jwt_version", nativeQuery = true)
-    int enableUserAndGetJwtVersion(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
+    @Query("UPDATE User SET isEnabled = true, jwtVersion = jwtVersion + 1, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
+    int enableUser(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE users SET is_enabled = false, jwt_version = jwt_version + 1, profile_updated_at = :updatedAt, updated_at = :updatedAt WHERE id = :userId RETURNING jwt_version", nativeQuery = true)
-    int disableUserAndGetJwtVersion(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
+    @Query("UPDATE User SET isEnabled = false, jwtVersion = jwtVersion + 1, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
+    int disableUser(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE users SET is_deleted = true, jwt_version = jwt_version + 1, profile_updated_at = :updatedAt, updated_at = :updatedAt WHERE id = :userId RETURNING jwt_version", nativeQuery = true)
-    int deleteUserAndGetJwtVersion(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
+    @Query("UPDATE User SET isDeleted = true, jwtVersion = jwtVersion + 1, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
+    int deleteUser(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE users SET is_deleted = false, jwt_version = jwt_version + 1, profile_updated_at = :updatedAt, updated_at = :updatedAt WHERE id = :userId RETURNING jwt_version", nativeQuery = true)
-    int restoreUserAndGetJwtVersion(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
+    @Query("UPDATE User SET isDeleted = false, jwtVersion = jwtVersion + 1, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
+    int restoreUser(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
 
 
     // ========== ПОИСК ==========
@@ -74,6 +74,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
            SELECT
                u.id as id,
+               u.avatarUrl as avatarUrl,
+               u.avatarPreviewUrl as avatarPreviewUrl,
                u.username as username,
                u.name as name,
                u.profileUpdatedAt as profileUpdatedAt,
@@ -89,5 +91,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
                AND (:cursor IS NULL OR u.id < :cursor)
            ORDER BY u.id DESC
            """)
-    List<UserResult> getActiveUsersPage(@Param("filter") String filter, @Param("cursor") Long cursor, Pageable pageable);
+    List<UserProfileResult> getActiveUsersPage(@Param("filter") String filter, @Param("cursor") Long cursor, Pageable pageable);
 }

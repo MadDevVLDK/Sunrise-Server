@@ -2,13 +2,15 @@ package com.sunrise.core.service;
 
 import com.sunrise.core.dataservice.type.TokenType;
 import com.sunrise.core.service.result.*;
-import com.sunrise.entity.dto.UserDTO;
-import com.sunrise.entity.dto.LoginHistoryDTO;
-import com.sunrise.entity.dto.VerificationTokenDTO;
+import com.sunrise.entity.creation.CreateUserDTO;
+import com.sunrise.entity.dto.UserSecurityDTO;
+import com.sunrise.entity.creation.CreateLoginHistoryDTO;
+import com.sunrise.entity.creation.CreateVerificationTokenDTO;
 import com.sunrise.core.dataservice.DataOrchestrator;
 import com.sunrise.config.jwt.JwtUtil;
 import com.sunrise.core.dataservice.LockManager;
 import com.sunrise.core.notifier.EmailNotifier;
+import com.sunrise.entity.dto.VerificationTokenDTO;
 import com.sunrise.helpclass.SimpleSnowflakeId;
 import com.sunrise.helpclass.ValidationException;
 
@@ -23,7 +25,6 @@ import org.springframework.stereotype.Service;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -53,18 +54,18 @@ public class AuthService {
 
             LocalDateTime createdAt = LocalDateTime.now();
 
-            UserDTO user = UserDTO.create(
+            CreateUserDTO user = new CreateUserDTO(
                 SimpleSnowflakeId.nextId(), username, name, email,
                 passwordEncoder.encode(password), createdAt
             );
             dataOrchestrator.saveUser(user);
 
-            String token = generate64CharString();
+            String token = generateBase64String();
             TokenType tokenType = TokenType.EMAIL_UPDATE;
-            VerificationTokenDTO verificationTokenDTO = new VerificationTokenDTO(
+            CreateVerificationTokenDTO verificationToken = new CreateVerificationTokenDTO(
                 SimpleSnowflakeId.nextId(), user.getId(), token, tokenType, createdAt, 24 // 24 часа
             );
-            dataOrchestrator.saveVerificationToken(verificationTokenDTO);
+            dataOrchestrator.saveVerificationToken(verificationToken);
 
             // отправляем подтверждение активации аккаунта на почту
             emailNotifier.sendVerificationTokenMail(email, tokenType, token);
@@ -86,7 +87,7 @@ public class AuthService {
     } // TODO: ПРОБЛЕМА С ВЫЗОВОМ НЕСКОЛЬКИХ ФУНКЦИЙ ПО СОХРАНЕНИЮ В БД И КЕШ
     public ResultOneArg<UserLoginResult> authenticateUser(String username, String password, HttpServletRequest httpRequest) {
         try {
-            UserDTO user = dataOrchestrator.getUserByUsername(username)
+            UserSecurityDTO user = dataOrchestrator.getUserSecurityByUsername(username)
                     .orElseThrow(() -> new ValidationException("Invalid username or password"));
 
             if (!user.isEnabled()) {
@@ -99,7 +100,7 @@ public class AuthService {
             LocalDateTime updatedAt = LocalDateTime.now();
             dataOrchestrator.updateLastLogin(username, updatedAt);
 
-            var loginHistory = LoginHistoryDTO.create(
+            CreateLoginHistoryDTO loginHistory = new CreateLoginHistoryDTO(
                 SimpleSnowflakeId.nextId(), user.getId(),
                 extractClientIp(httpRequest), httpRequest.getHeader("User-Agent"), updatedAt
             );
@@ -122,14 +123,14 @@ public class AuthService {
 
     public ResultNoArgs requestEmailUpdate(long userId) {
         try {
-            UserDTO user = dataOrchestrator.getUser(userId)
+            UserSecurityDTO user = dataOrchestrator.getUserSecurity(userId)
                     .orElseThrow(() -> new ValidationException("User not found"));
 
             // Генерация токена
-            String token = generate64CharString();
+            String token = generateBase64String();
             TokenType tokenType = TokenType.EMAIL_UPDATE;
             LocalDateTime now = LocalDateTime.now();
-            VerificationTokenDTO verificationToken = new VerificationTokenDTO(
+            CreateVerificationTokenDTO verificationToken = new CreateVerificationTokenDTO(
                 SimpleSnowflakeId.nextId(), userId, token, tokenType, now, 24 // 24 часа
             );
             dataOrchestrator.saveVerificationToken(verificationToken);
@@ -149,14 +150,14 @@ public class AuthService {
     }
     public ResultNoArgs requestPasswordUpdate(String email) {
         try {
-            UserDTO user = dataOrchestrator.getUserByEmail(email)
+            UserSecurityDTO user = dataOrchestrator.getUserSecurityByEmail(email)
                     .orElseThrow(() -> new ValidationException("User with such email does not exist"));
 
             // Генерация токена
-            String token = generate64CharString();
+            String token = generateBase64String();
             TokenType tokenType = TokenType.PASSWORD_UPDATE;
             LocalDateTime now = LocalDateTime.now();
-            VerificationTokenDTO verificationToken = new VerificationTokenDTO(
+            CreateVerificationTokenDTO verificationToken = new CreateVerificationTokenDTO(
                 SimpleSnowflakeId.nextId(), user.getId(), token, tokenType, now, 1 // 1 час
             );
             dataOrchestrator.saveVerificationToken(verificationToken);
@@ -181,12 +182,9 @@ public class AuthService {
                 throw new ValidationException("Token cannot be empty");
             }
 
-            Optional<VerificationTokenDTO> tokenOpt = dataOrchestrator.getVerificationToken(token);
-            if (tokenOpt.isEmpty()) {
-                throw new ValidationException("Invalid token");
-            }
+            VerificationTokenDTO verificationToken = dataOrchestrator.getVerificationToken(token)
+                    .orElseThrow(() -> new ValidationException("Invalid token"));
 
-            VerificationTokenDTO verificationToken = tokenOpt.get();
             if (verificationToken.isExpired()) {
                 throw new ValidationException("Token expired");
             } else if (verificationToken.getTokenType() != TokenType.REGISTRATION) {
@@ -217,12 +215,9 @@ public class AuthService {
                 throw new ValidationException("Token cannot be empty");
             }
 
-            Optional<VerificationTokenDTO> tokenOpt = dataOrchestrator.getVerificationToken(token);
-            if (tokenOpt.isEmpty()) {
-                throw new ValidationException("Invalid token");
-            }
+            VerificationTokenDTO verificationToken = dataOrchestrator.getVerificationToken(token)
+                    .orElseThrow(() -> new ValidationException("Invalid token"));
 
-            VerificationTokenDTO verificationToken = tokenOpt.get();
             if (verificationToken.isExpired()) {
                 throw new ValidationException("Token expired");
             } else if (verificationToken.getTokenType() != TokenType.EMAIL_UPDATE) {
@@ -253,12 +248,9 @@ public class AuthService {
                 throw new ValidationException("Token cannot be empty");
             }
 
-            Optional<VerificationTokenDTO> tokenOpt = dataOrchestrator.getVerificationToken(token);
-            if (tokenOpt.isEmpty()) {
-                throw new ValidationException("Invalid token");
-            }
+            VerificationTokenDTO verificationToken = dataOrchestrator.getVerificationToken(token)
+                    .orElseThrow(() -> new ValidationException("Invalid token"));
 
-            VerificationTokenDTO verificationToken = tokenOpt.get();
             if (verificationToken.isExpired()) {
                 throw new ValidationException("Token expired");
             } else if (verificationToken.getTokenType() != TokenType.PASSWORD_UPDATE) {
@@ -294,7 +286,7 @@ public class AuthService {
             return "unknown";
         }
     }
-    private static String generate64CharString() {
+    private static String generateBase64String() {
         SecureRandom random = new SecureRandom();
         byte[] bytes = new byte[48]; // 48 bytes = 64 base64 characters
         random.nextBytes(bytes);

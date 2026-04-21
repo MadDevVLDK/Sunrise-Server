@@ -1,14 +1,14 @@
 package com.sunrise.entity.cache;
 
 import com.sunrise.core.dataservice.type.ChatType;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
-@lombok.Getter
-@lombok.Setter
-@lombok.AllArgsConstructor
+@Getter
+@AllArgsConstructor
 public class CacheChat {
-
     private long id;
     private String name;
     private String description;
@@ -20,6 +20,11 @@ public class CacheChat {
     private long createdBy;
     private LocalDateTime deletedAt;
     private boolean isDeleted;
+
+    private Long avatarId;
+    private String avatarHash;
+    private String avatarPreviewHash;
+    private LocalDateTime avatarCreatedAt;
 
     private final LocalDateTime cachedAt = LocalDateTime.now();
 
@@ -33,26 +38,6 @@ public class CacheChat {
         membersCount--;
     }
 
-    public void setChatType(ChatType chatType, LocalDateTime updatedAt) {
-        this.chatType = chatType;
-        this.updatedAt = updatedAt;
-    }
-    public void setChatInfo(String name, String description, LocalDateTime updatedAt) {
-        this.name = name;
-        this.description = description;
-        this.updatedAt = updatedAt;
-    }
-    public void delete(LocalDateTime updatedAt) {
-        this.deletedAt = updatedAt;
-        this.isDeleted = true;
-        this.updatedAt = updatedAt;
-    }
-    public void restore(LocalDateTime updatedAt) {
-        this.deletedAt = null;
-        this.isDeleted = false;
-        this.updatedAt = updatedAt;
-    }
-
     public boolean isActive() {
         return !isDeleted;
     }
@@ -61,19 +46,6 @@ public class CacheChat {
     }
     public boolean isNotPersonal(){
         return chatType.isNotPersonal();
-    }
-
-    public void updateFromCache(CacheChat cacheChat) {
-        this.name = cacheChat.getName();
-        this.description = cacheChat.getDescription();
-        this.chatType = cacheChat.getChatType();
-        this.opponentId = cacheChat.getOpponentId();
-        this.membersCount = cacheChat.getMembersCount();
-        this.updatedAt = cacheChat.getUpdatedAt();
-        this.createdAt = cacheChat.getCreatedAt();
-        this.createdBy = cacheChat.getCreatedBy();
-        this.deletedAt = cacheChat.getDeletedAt();
-        this.isDeleted = cacheChat.isDeleted();
     }
 
     public static CacheChat copy(CacheChat chat) {
@@ -90,7 +62,12 @@ public class CacheChat {
             chat.getCreatedAt(),
             chat.getCreatedBy(),
             chat.getDeletedAt(),
-            chat.isDeleted()
+            chat.isDeleted(),
+
+            chat.getAvatarId(),
+            chat.getAvatarHash(),
+            chat.getAvatarPreviewHash(),
+            chat.getAvatarCreatedAt()
         );
     }
 }

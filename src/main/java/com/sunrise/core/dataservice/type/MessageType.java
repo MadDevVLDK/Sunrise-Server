@@ -1,14 +1,18 @@
 package com.sunrise.core.dataservice.type;
 
 public enum MessageType {
-    COMMON(true),
-    SYSTEM(false);
+    COMMON(true, true),
+    IMMUTABLE(true, false),
+    SYSTEM(false, false);
 
-    private final boolean canSendAttachments;
+    private final boolean canSendWithAttachments;
+    private final boolean canEditOrDelete;
 
-    MessageType(boolean canSendAttachments) {
-        this.canSendAttachments = canSendAttachments;
+    MessageType(boolean canSendWithAttachments, boolean canEditOrDelete) {
+        this.canSendWithAttachments = canSendWithAttachments;
+        this.canEditOrDelete = canEditOrDelete;
     }
 
-    public boolean canSendAttachment() { return canSendAttachments; }
+    public boolean canSendWithAttachments() { return canSendWithAttachments; }
+    public boolean canEditOrDelete() { return canEditOrDelete; }
 }
