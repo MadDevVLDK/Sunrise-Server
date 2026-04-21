@@ -28,7 +28,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket")
 
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5")
 
     compileOnly("org.projectlombok:lombok:1.18.30")
@@ -42,22 +42,15 @@ dependencies {
 tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
     // Эта строка гарантирует, что профиль "local" будет активирован в процессе приложения, запущенном задачей bootRun
     systemProperty("spring.profiles.active", "local")
-
     doFirst {
         // Создаем Map, куда будем загружать переменные
         val envMap = mutableMapOf<String, String>()
-
-        // Читаем каждую строку из .env
         File(".env").readLines().forEach { line ->
-            // Пропускаем комментарии и пустые строки
             if (line.isNotEmpty() && !line.startsWith("#")) {
                 val parts = line.split("=", limit = 2)
                 if (parts.size == 2) {
-                    // Очищаем ключ и значение от лишних символов и кавычек
                     val key = parts[0].trim()
-                    // Убираем потенциальные кавычки, которые могут быть в .env
-                    val value = parts[1].trim().trim('"', '\'')
-                    envMap[key] = value
+                    envMap[key] = parts[1].trim().trim('"', '\'')
                 }
             }
         }
