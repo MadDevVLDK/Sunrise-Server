@@ -50,7 +50,7 @@ spring:
 
 logging:
   level:
-    com.Sunrise: ${LOGGING_LEVEL_APP:DEBUG}
+    com.sunrise: ${LOGGING_LEVEL_APP:DEBUG}
     org.hibernate.SQL: ${LOGGING_LEVEL_ORG_HIBERNATE_SQL:WARN}
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
 
@@ -59,15 +59,16 @@ app:
     secret: ${JWT_SECRET:mysupersecretkeymysupersecretkeymysupersecretkey}
     expiration: ${APP_JWT_EXPIRATION:36000} # in seconds
     no-jwt-endpoints: /ping,/cache-status,/auth/login,/auth/confirm-registration,/auth/reset-password,/auth/confirm-email-update,/auth/confirm-password-update
+  rate-limit:
+    requests-per-minute: ${APP_RATE_LIMIT_REQUESTS_PER_MINUTE:300} # Максимум 300 запросов в минуту с одного IP
   mail:
     mail-address: ${MAIL_USERNAME}
     base-url: http://${SERVER_IP:localhost}:${SERVER_PORT:10610}${SERVER_BASE_PATH:/app}
   locks:
     # in seconds
     timeout: ${APP_LOCKS_TIMEOUT:5}
-    clean-up-expiration: ${APP_LOCKS_CLEAN_UP_EXPIRATION:900}
-    clean-up-schedule: ${APP_LOCKS_CLEAN_UP_SCHEDULE:300}
-  # нужно добавить в код
+    clean-up-expiration: ${APP_LOCKS_CLEAN_UP_EXPIRATION:100000}
+    clean-up-schedule: ${APP_LOCKS_CLEAN_UP_SCHEDULE:300000}
   cache:
     max-size:
       user: ${APP_CACHE_MAX_SIZE_USER:100000}

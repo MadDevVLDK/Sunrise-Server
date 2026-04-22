@@ -1,13 +1,11 @@
 package com.sunrise.entity.cache;
 
 import com.sunrise.core.dataservice.type.ChatType;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
 import java.time.LocalDateTime;
 
-@Getter
-@AllArgsConstructor
+@lombok.Getter
+@lombok.AllArgsConstructor
 public class CacheChat {
     private long id;
     private String name;
@@ -20,11 +18,6 @@ public class CacheChat {
     private long createdBy;
     private LocalDateTime deletedAt;
     private boolean isDeleted;
-
-    private Long avatarId;
-    private String avatarHash;
-    private String avatarPreviewHash;
-    private LocalDateTime avatarCreatedAt;
 
     private final LocalDateTime cachedAt = LocalDateTime.now();
 
@@ -62,12 +55,7 @@ public class CacheChat {
             chat.getCreatedAt(),
             chat.getCreatedBy(),
             chat.getDeletedAt(),
-            chat.isDeleted(),
-
-            chat.getAvatarId(),
-            chat.getAvatarHash(),
-            chat.getAvatarPreviewHash(),
-            chat.getAvatarCreatedAt()
+            chat.isDeleted()
         );
     }
 }

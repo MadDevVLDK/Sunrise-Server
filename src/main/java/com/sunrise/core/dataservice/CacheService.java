@@ -3,84 +3,32 @@ package com.sunrise.core.dataservice;
 import com.sunrise.entity.cache.*;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("NullableProblems")
 @Slf4j
+@RequiredArgsConstructor
 @Service
 public class CacheService {
 
-    // кэш пользователей
-    private final Cache<Long, CacheUserSecurity> userSecurityCache = Caffeine.newBuilder()  // userId -> CacheUserProfile (пользователи)
-            .maximumSize(100_000)
-            .expireAfterAccess(1, TimeUnit.HOURS) // 1 h
-            .recordStats()
-            .build();
-
-    private final Cache<Long, CacheUserProfile> userProfileCache = Caffeine.newBuilder()  // userId -> CacheUserProfile (пользователи)
-            .maximumSize(100_000)
-            .expireAfterAccess(1, TimeUnit.HOURS) // 1 h
-            .recordStats()
-            .build();
-
-    private final Cache<String, Long> usernameIndex = Caffeine.newBuilder() // username -> userId (для регистрации)
-            .maximumSize(100_000)
-            .expireAfterAccess(1, TimeUnit.HOURS)
-            .softValues()  // при нехватке памяти delete-аем
-            .recordStats()
-            .build();
-    private final Cache<String, Long> emailIndex = Caffeine.newBuilder() // email -> userId (для регистрации)
-            .maximumSize(150_000)
-            .expireAfterAccess(1, TimeUnit.HOURS)
-            .softValues()  // при нехватке памяти delete-аем
-            .recordStats()
-            .build();
-
-
-    // кэш чатов
-    private final Cache<Long, CacheChat> chatInfoCache = Caffeine.newBuilder() // chatId -> CacheChat (чаты)
-            .maximumSize(50_000)
-            .expireAfterAccess(12, TimeUnit.HOURS) // 12 h
-            .build();
-
-    private final Cache<String, Long> personalChatIndex = Caffeine.newBuilder() // "creatorId:userId" -> chatId (личные чаты)
-            .maximumSize(100_000)
-            .expireAfterAccess(1, TimeUnit.HOURS)
-            .softValues() // при нехватке памяти delete-аем
-            .recordStats()
-            .build();
-
-
-    // контейнеры участников чата
-    private final Cache<Long, CacheChatMembersContainer> chatMembersCache = Caffeine.newBuilder() // chatId -> CacheChatMembersContainer (контейнер с участниками чата)
-            .maximumSize(100_000)
-            .expireAfterAccess(1, TimeUnit.HOURS)
-            .recordStats()
-            .build();
-
-    private final Cache<Long, CacheMessageSecurity> messageCache = Caffeine.newBuilder() // messageId -> CacheMessageSecurity (сообщения)
-            .maximumSize(200_000)
-            .expireAfterAccess(1, TimeUnit.HOURS)
-            .recordStats()
-            .build();
-
-
-    // кеш токенов подтверждения
-    private final Cache<String, CacheVerificationToken> verificationTokenCache = Caffeine.newBuilder() // token -> CacheVerificationToken (токены подтверждения)
-            .maximumSize(50_000)
-            .expireAfterWrite(2, TimeUnit.HOURS)
-            .build();
-
+    private final Cache<Long, CacheUserSecurity> userSecurityCache;
+    private final Cache<Long, CacheUserProfile> userProfileCache;
+    private final Cache<String, Long> usernameIndex;
+    private final Cache<String, Long> emailIndex;
+    private final Cache<Long, CacheChat> chatInfoCache;
+    private final Cache<String, Long> personalChatIndex;
+    private final Cache<Long, CacheChatMembersContainer> chatMembersCache;
+    private final Cache<Long, CacheMessageSecurity> messageCache;
+    private final Cache<String, CacheVerificationToken> verificationTokenCache;
 
 
     // ========== USER METHODS ==========
@@ -90,27 +38,43 @@ public class CacheService {
     public void saveUsersProfile(Collection<CacheUserProfile> users) {
         for (CacheUserProfile user : users){
             userProfileCache.put(user.getId(), CacheUserProfile.copy(user));
-            usernameIndex.put(user.getUsername().toLowerCase(), user.getId());
+            usernameIndex.put(user.getUsername(), user.getId());
         }
         log.debug("[⚡] Batch saved {} users to cache and updated indexes || saveUsers", users.size());
     }
     public void saveUserSecurity(CacheUserSecurity user) {
         userSecurityCache.put(user.getId(), CacheUserSecurity.copy(user));
-        emailIndex.put(user.getEmail().toLowerCase(), user.getId());
+        emailIndex.put(user.getEmail(), user.getId());
         log.debug("[⚡] Saved user security {} in cache and updated indexes || saveUserSecurity", user.getId());
+    }
+    public void saveUserSecurityAndUsernameIndex(CacheUserSecurity user, String username) {
+        userSecurityCache.put(user.getId(), CacheUserSecurity.copy(user));
+        usernameIndex.put(username, user.getId());
+        emailIndex.put(user.getEmail(), user.getId());
+        log.debug("[⚡] Saved user security {} in cache and updated indexes || saveUserSecurityAndUsernameIndex", user.getId());
     }
     public void saveUserProfile(CacheUserProfile user) {
         userProfileCache.put(user.getId(), CacheUserProfile.copy(user));
-        usernameIndex.put(user.getUsername().toLowerCase(), user.getId());
+        usernameIndex.put(user.getUsername(), user.getId());
         log.debug("[⚡] Saved user profile {} in cache and updated indexes || saveUserProfile", user.getId());
     }
     public void invalidateUserSecurity(long userId) {
         userSecurityCache.invalidate(userId);
         log.debug("[⚡] Invalidated user security {} in cache || invalidateUserSecurity", userId);
     }
+    public void invalidateUserSecurityAndEmailIndex(long userId, String email) {
+        userSecurityCache.invalidate(userId);
+        emailIndex.invalidate(email);
+        log.debug("[⚡] Invalidated user security {} and email index in cache || invalidateUserSecurityAndEmailIndex", userId);
+    }
     public void invalidateUserProfile(long userId) {
         userProfileCache.invalidate(userId);
         log.debug("[⚡] Invalidated user profile {} in cache || invalidateUserProfile", userId);
+    }
+    public void invalidateUserProfileAndUsernameIndex(long userId, String username) {
+        userProfileCache.invalidate(userId);
+        usernameIndex.invalidate(username);
+        log.debug("[⚡] Invalidated user profile {} and username index in cache || invalidateUserProfileAndUsernameIndex", userId);
     }
 
 
@@ -223,7 +187,7 @@ public class CacheService {
     }
 
 
-    // Методы для сохранения индекса личного чата TODO: НАДО ПОДУМАТЬ ЧТО СДЕЛАТЬ
+    // Методы для сохранения индекса личного чата
     private String getPersonalChatKey(long userId1, long userId2) {
         return Math.min(userId1, userId2) + ":" + Math.max(userId1, userId2);
     }
@@ -233,7 +197,7 @@ public class CacheService {
 
 
 
-    // ========== CHAT MEMBER METHODS ========== TODO: СЧЕТЧИК НЕ ОБНОВЛЯЕТСЯ В ЧАТЕ
+    // ========== CHAT MEMBER METHODS ==========
 
 
     // Основные методы
@@ -300,7 +264,6 @@ public class CacheService {
     }
 
 
-
     // Вспомогательные методы
     public Optional<Boolean> isActiveAdminInActiveChat(long chatId, long userId) {
         return getChatMembersContainer(chatId).flatMap(c -> c.isAdmin(userId));
@@ -322,6 +285,7 @@ public class CacheService {
         verificationTokenCache.invalidate(token);
         log.debug("[⚡] Deleted verification token {} || deleteVerificationToken", token);
     }
+
 
     // Вспомогательные методы
     public Optional<CacheVerificationToken> getVerificationToken(String token) {
@@ -373,7 +337,6 @@ public class CacheService {
         final int verificationTokenCount;
         final int deletedMembersCount;
     }
-
     public CacheStats getCacheStatus() {
         Map<Long, CacheUserSecurity> userCacheSnapshot = userSecurityCache.asMap();
         Map<Long, CacheChat> chatInfoCacheSnapshot = chatInfoCache.asMap();
@@ -406,17 +369,6 @@ public class CacheService {
             totalDeletedMembers
         );
     }
-    public void printCacheStats() {
-        CacheService.CacheStats stats = getCacheStatus();
-        log.info("📊 Cache Statistics:");
-        log.info("   ├─ Active Users: {}", stats.getActivatedUserCount());
-        log.info("   ├─ Users: {}", stats.getAllUserCount());
-        log.info("   ├─ Active Chats: {}", stats.getChatCount());
-        log.info("   ├─ Verification Tokens: {}", stats.getVerificationTokenCount());
-        log.info("   ├─ Chat Members: {}", stats.getChatMembersCount());
-        log.info("   └─ Admin Rights: {}", stats.getAdminRightsCount());
-    }
-
     public Map<String, Object> getDetailedCacheStatus() {
         Map<String, Object> stats = new HashMap<>();
 
@@ -454,6 +406,19 @@ public class CacheService {
         return stats;
     }
 
+    public void printCacheStats() {
+        CacheService.CacheStats stats = getCacheStatus();
+        log.info("📊 Cache Statistics:");
+        log.info("   ├─ Active Users: {}", stats.getActivatedUserCount());
+        log.info("   ├─ Users: {}", stats.getAllUserCount());
+        log.info("   ├─ Active Chats: {}", stats.getNotDeletedChatCount());
+        log.info("   ├─ Total Chats: {}", stats.getChatCount());
+        log.info("   ├─ Deleted Members: {}", stats.getDeletedMembersCount());
+        log.info("   ├─ Chat Members: {}", stats.getChatMembersCount());
+        log.info("   ├─ Admin Rights: {}", stats.getAdminRightsCount());
+        log.info("   └─ Verification Tokens: {}", stats.getVerificationTokenCount());
+    }
+
     @Scheduled(fixedDelay = 3_600_000, initialDelay = 10_000) // 1000 * 60 * 60
     public void logDetailedCacheStatus() {
 
@@ -461,19 +426,19 @@ public class CacheService {
 
         log.info("---------------------------");
 
-        printCacheStats(); // Выводим основную статистику
+        printCacheStats();
 
         log.info("📊 Cache Statistics Report");
-        log.info("   ├─ User Cache: size={}, hitRate={}, missRate={}, evictions={}",
+        log.info("   ├─ User Cache: size={}, hitRate={}%, missRate={}%, evictions={}",
                 cacheStats.get("userCache.estimatedSize"),
-                (Double)cacheStats.get("userCache.hitRate") * 100,
-                (Double)cacheStats.get("userCache.missRate") * 100,
+                Math.round((Double)cacheStats.get("userCache.hitRate") * 100),
+                Math.round((Double)cacheStats.get("userCache.missRate") * 100),
                 cacheStats.get("userCache.evictionCount"));
 
-        log.info("   ├─ Chat Cache: size={}, hitRate={}, missRate={}, evictions={}",
+        log.info("   ├─ Chat Cache: size={}, hitRate={}%, missRate={}%, evictions={}",
                 cacheStats.get("chatCache.estimatedSize"),
-                (Double)cacheStats.get("chatCache.hitRate") * 100,
-                (Double)cacheStats.get("chatCache.missRate") * 100,
+                Math.round((Double)cacheStats.get("chatCache.hitRate") * 100),
+                Math.round((Double)cacheStats.get("chatCache.missRate") * 100),
                 cacheStats.get("chatCache.evictionCount"));
 
         log.info("   ├─ Chat Member Cache: size={}, hitRate={}%, missRate={}%, evictions={}",
@@ -482,10 +447,10 @@ public class CacheService {
                 Math.round((Double)cacheStats.get("chatMembersContainerCache.missRate") * 100),
                 cacheStats.get("chatMembersContainerCache.evictionCount"));
 
-        log.info("   ├─ Token Cache: size={}, hitRate={}, missRate={}, evictions={}",
+        log.info("   ├─ Token Cache: size={}, hitRate={}%, missRate={}%, evictions={}",
                 cacheStats.get("tokenCache.estimatedSize"),
-                (Double)cacheStats.get("tokenCache.hitRate") * 100,
-                (Double)cacheStats.get("tokenCache.missRate") * 100,
+                Math.round((Double)cacheStats.get("tokenCache.hitRate") * 100),
+                Math.round((Double)cacheStats.get("tokenCache.missRate") * 100),
                 cacheStats.get("tokenCache.evictionCount"));
 
         log.info("   ├─ Indexes: username={}, email={}, personalChats={}",

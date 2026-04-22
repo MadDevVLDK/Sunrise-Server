@@ -26,9 +26,9 @@ import java.util.Optional;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final JwtUtil jwtUtil;
     private final DataOrchestrator dataOrchestrator;
-    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     @Value("${app.jwt.no-jwt-endpoints}")
     private String[] excludedPaths;

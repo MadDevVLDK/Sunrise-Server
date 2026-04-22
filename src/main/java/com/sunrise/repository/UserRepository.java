@@ -1,6 +1,7 @@
 package com.sunrise.repository;
 
 import com.sunrise.core.dataservice.dbresult.UserProfileResult;
+import com.sunrise.core.dataservice.dbresult.UserSecurityResult;
 import com.sunrise.entity.db.User;
 
 import org.springframework.data.domain.Pageable;
@@ -63,10 +64,71 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // ========== ПОИСК ==========
 
-    @Query("SELECT u FROM User u WHERE u.isDeleted = false AND u.id IN :userIds")
-    List<User> getActiveUserByIds(@Param("userIds")List<Long> userIds);
-    Optional<User> getByUsername(String username);
-    Optional<User> getByEmail(String email);
+    @Query("""
+            SELECT
+                u.id as id,
+                u.username as username,
+                u.name as name,
+                u.profileUpdatedAt as profileUpdatedAt,
+                u.createdAt as createdAt,
+                u.isEnabled as isEnabled,
+                u.deletedAt as deletedAt,
+                u.isDeleted as isDeleted
+            FROM User u
+            WHERE u.id = :userId""")
+    Optional<UserProfileResult> getUserProfile(@Param("userId") long userId);
+    @Query("""
+            SELECT
+                u.id as id,
+                u.username as username,
+                u.name as name,
+                u.profileUpdatedAt as profileUpdatedAt,
+                u.createdAt as createdAt,
+                u.isEnabled as isEnabled,
+                u.deletedAt as deletedAt,
+                u.isDeleted as isDeleted
+            FROM User u
+            WHERE u.isDeleted = false AND u.id IN :userIds""")
+    List<UserProfileResult> getActiveUserProfileByIds(@Param("userIds") List<Long> userIds);
+
+    @Query("""
+            SELECT
+                u.id as id,
+                u.email as email,
+                u.hashPassword as hashPassword,
+                u.jwtVersion as jwtVersion,
+                u.isEnabled as isEnabled,
+                u.deletedAt as deletedAt,
+                u.isDeleted as isDeleted
+            FROM User u
+            WHERE u.id = :userId""")
+    Optional<UserSecurityResult> getUserSecurity(@Param("userId") long userId);
+
+    @Query("""
+            SELECT
+                u.id as id,
+                u.email as email,
+                u.hashPassword as hashPassword,
+                u.jwtVersion as jwtVersion,
+                u.isEnabled as isEnabled,
+                u.deletedAt as deletedAt,
+                u.isDeleted as isDeleted
+            FROM User u
+            WHERE u.username = :username""")
+    Optional<UserSecurityResult> getUserSecurityByUsername(@Param("username") String username);
+
+    @Query("""
+            SELECT
+                u.id as id,
+                u.email as email,
+                u.hashPassword as hashPassword,
+                u.jwtVersion as jwtVersion,
+                u.isEnabled as isEnabled,
+                u.deletedAt as deletedAt,
+                u.isDeleted as isDeleted
+            FROM User u
+            WHERE u.email = :email""")
+    Optional<UserSecurityResult> getUserSecurityByEmail(@Param("email") String email);
 
 
     // ========== ПОИСК И ФИЛЬТРАЦИЯ С ПАГИНАЦИЕЙ ==========
@@ -74,8 +136,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("""
            SELECT
                u.id as id,
-               u.avatarUrl as avatarUrl,
-               u.avatarPreviewUrl as avatarPreviewUrl,
                u.username as username,
                u.name as name,
                u.profileUpdatedAt as profileUpdatedAt,

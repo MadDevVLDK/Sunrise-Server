@@ -30,8 +30,8 @@ public interface UserChatResult {
     LocalDateTime getMsgDeletedAt();
     Boolean getMsgIsDeleted();
 
-    Long getAvatarId();
-    String getAvatarHash();
-    String getAvatarPrHash();
-    LocalDateTime getAvatarCreatedAt();
+//    Long getAvatarId();
+//    String getAvatarHash();
+//    String getAvatarPrHash();
+//    LocalDateTime getAvatarCreatedAt();
 }

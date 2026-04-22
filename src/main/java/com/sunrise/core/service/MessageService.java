@@ -42,8 +42,8 @@ public class MessageService {
                 throw new ValidationException("Message text is too long");
             }
 
-            validator.validateActiveChatMemberInActiveChatAndGet(chatId, senderId);
-            UserProfileLightDTO user = dataOrchestrator.getUserProfile(senderId)
+            validator.validateActiveChatMemberInActiveChat(chatId, senderId);
+            UserProfileLightDTO user = dataOrchestrator.getUserProfileLight(senderId)
                     .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
 
             CreateMessageDTO message = new CreateMessageDTO(
@@ -78,8 +78,8 @@ public class MessageService {
                 throw new ValidationException("Message text is too long");
             }
 
-            validator.validateActiveChatMemberInActiveChatAndGet(chatId, senderId);
-            UserProfileLightDTO user = dataOrchestrator.getUserProfile(senderId)
+            validator.validateActiveChatMemberInActiveChat(chatId, senderId);
+            UserProfileLightDTO user = dataOrchestrator.getUserProfileLight(senderId)
                     .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
 
             CreateMessageDTO message = new CreateMessageDTO(

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @lombok.AllArgsConstructor
 public class ChatProfileDTO {
     private long id;
-    private ChatAvatarDTO avatar;
+//    private ChatAvatarDTO avatar;
     private String name;
     private String description;
     private ChatType chatType;

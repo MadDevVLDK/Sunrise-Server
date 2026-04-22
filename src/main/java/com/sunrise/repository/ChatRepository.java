@@ -1,5 +1,6 @@
 package com.sunrise.repository;
 
+import com.sunrise.core.dataservice.dbresult.ChatProfileResult;
 import com.sunrise.core.dataservice.dbresult.ChatStatsResult;
 import com.sunrise.core.dataservice.type.ChatType;
 import com.sunrise.core.dataservice.dbresult.UserChatResult;
@@ -54,14 +55,43 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     // ========== ПОИСК ==========
 
 
+    @Query("""
+            SELECT
+                c.id AS id,
+                c.name AS name,
+                c.description AS description,
+                c.chatType AS chatType,
+                c.opponentId AS opponentId,
+                c.membersCount AS membersCount,
+                c.updatedAt AS updatedAt,
+                c.createdAt AS createdAt,
+                c.createdBy AS createdBy,
+                c.deletedAt AS deletedAt,
+                c.isDeleted AS isDeleted
+            FROM Chat c
+            WHERE c.id = :chatId
+            """)
+    Optional<ChatProfileResult> getChat(@Param("chatId") long chatId);
 
     @Query("""
-           SELECT c FROM Chat c
-           INNER JOIN ChatMember cm1 ON cm1.id.chatId = c.id AND cm1.id.userId = :userId1 AND cm1.isDeleted = false
-           INNER JOIN ChatMember cm2 ON cm2.id.chatId = c.id AND cm2.id.userId = :userId2 AND cm2.isDeleted = false
-           WHERE c.chatType = :chatType
+            SELECT
+              c.id AS id,
+              c.name AS name,
+              c.description AS description,
+              c.chatType AS chatType,
+              c.opponentId AS opponentId,
+              c.membersCount AS membersCount,
+              c.updatedAt AS updatedAt,
+              c.createdAt AS createdAt,
+              c.createdBy AS createdBy,
+              c.deletedAt AS deletedAt,
+              c.isDeleted AS isDeleted
+            FROM Chat c
+            INNER JOIN ChatMember cm1 ON cm1.id.chatId = c.id AND cm1.id.userId = :userId1 AND cm1.isDeleted = false
+            INNER JOIN ChatMember cm2 ON cm2.id.chatId = c.id AND cm2.id.userId = :userId2 AND cm2.isDeleted = false
+            WHERE c.chatType = :chatType
            """)
-    Optional<Chat> getPersonalChat(@Param("userId1") long userId1, @Param("userId2") long userId2, @Param("chatType") ChatType chatType);
+    Optional<ChatProfileResult> getPersonalChat(@Param("userId1") long userId1, @Param("userId2") long userId2, @Param("chatType") ChatType chatType);
 
     @Query("""
            SELECT c.id FROM Chat c

@@ -14,14 +14,15 @@ public class UserGlobalStatusKeeper {
     private final Map<Long, String> userOnlineStatus = new ConcurrentHashMap<>(); // userId -> status
     private final Map<String, String> userChatActions = new ConcurrentHashMap<>(); // "chatId:userId" -> status
 
+
     // ==================== Онлайн статусы ====================
 
     public Set<String> updateUserGlobalStatus(long userId, String status) {
-        String previousStatus = userOnlineStatus.compute(userId, (id, current) -> status.equals(current) ? current : status);
-        if (previousStatus.equals(status)) {
+        String previousStatus = userOnlineStatus.put(userId, status);
+        // Если статус не изменился (включая случай, когда previousStatus == null и status == null), не уведомляем
+        if (previousStatus != null && previousStatus.equals(status)) {
             return Collections.emptySet();
         }
-
         return Set.copyOf(watchers.getOrDefault(userId, Collections.emptySet()));
     }
 
@@ -40,7 +41,8 @@ public class UserGlobalStatusKeeper {
 
     public boolean updateUserAction(long chatId, long userId, String action) {
         String key = chatId + ":" + userId;
-        String previous = userChatActions.merge(key, action, (old, val) -> old.equals(val) ? old : val);
-        return !previous.equals(action);
+        String previous = userChatActions.put(key, action);
+        // Если действие не изменилось (или это первое действие), возвращаем false
+        return previous == null || !previous.equals(action);
     }
 }

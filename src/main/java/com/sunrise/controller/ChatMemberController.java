@@ -6,6 +6,7 @@ import com.sunrise.controller.request.*;
 import com.sunrise.core.service.ChatMemberService;
 import com.sunrise.core.service.result.ResultNoArgs;
 import com.sunrise.core.service.result.ResultOneArg;
+import com.sunrise.entity.dto.ChatMemberProfileFullDTO;
 import com.sunrise.entity.pagination.ChatMembersPageDTO;
 
 import jakarta.validation.Valid;
@@ -15,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Validated
 @RequiredArgsConstructor
@@ -113,7 +116,18 @@ public class ChatMemberController {
     @GetMapping
     public ResponseEntity<?> getChatMembersPage(@PathVariable @ValidId long chatId, @Valid PaginationRequest request, @CurrentUserId long userId) {
 
-        ResultOneArg<ChatMembersPageDTO> result = chatMemberService.getChatMembersPage(chatId, userId, request.getCursor(), request.getLimit());
+        ResultOneArg<ChatMembersPageDTO> result = chatMemberService.getChatMemberPage(chatId, userId, request.getCursor(), request.getLimit());
+
+        if (result.isSuccess()) {
+            return ResponseEntity.ok(result.getResult());
+        } else {
+            return ResponseEntity.badRequest().body(result.getError());
+        }
+    }
+    @GetMapping("/by-ids")
+    public ResponseEntity<?> getChatMembersPage(@PathVariable @ValidId long chatId, @Valid GetChatMembersByIds request, @CurrentUserId long userId) {
+
+        ResultOneArg<Map<Long, ChatMemberProfileFullDTO>> result = chatMemberService.getChatMemberByIds(chatId, userId, request.getMembers());
 
         if (result.isSuccess()) {
             return ResponseEntity.ok(result.getResult());

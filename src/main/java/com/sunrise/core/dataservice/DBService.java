@@ -70,20 +70,20 @@ public class DBService {
 
     // Вспомогательные методы
     public Optional<UserSecurityResult> getUserSecurity(long userId) {
-        return userRepository.findById(userId);
+        return userRepository.getUserSecurity(userId);
     }
     public Optional<UserSecurityResult> getUserSecurityByUsername(String username) {
-        return userRepository.getByUsername(username);
+        return userRepository.getUserSecurityByUsername(username);
     }
     public Optional<UserSecurityResult> getUserSecurityByEmail(String email) {
-        return userRepository.getByEmail(email);
+        return userRepository.getUserSecurityByEmail(email);
     }
 
     public Optional<UserProfileResult> getUserProfile(long userId) {
-        return userRepository.findById(userId);
+        return userRepository.getUserProfile(userId);
     }
     public List<UserProfileResult> getActiveUserProfileByIds(List<Long> missingIds) {
-        return userRepository.getActiveUserByIds(missingIds);
+        return userRepository.getActiveUserProfileByIds(missingIds);
     }
     public List<UserProfileResult> getActiveUsersPage(String filter, Long cursor, int limit) {
         return userRepository.getActiveUsersPage(filter, cursor, Pageable.ofSize(limit));
@@ -124,7 +124,7 @@ public class DBService {
 
     // Вспомогательные методы
     public Optional<ChatProfileResult> getChat(long chatId) {
-        return chatRepository.findById(chatId);
+        return chatRepository.getChat(chatId);
     }
     public Optional<ChatProfileResult> getPersonalChat(long userId1, long userId2) {
         return chatRepository.getPersonalChat(userId1, userId2, ChatType.PERSONAL);
@@ -218,8 +218,8 @@ public class DBService {
         messageRepository.save(message);
     }
     public void markMessagesUpToRead(long chatId, long userId, long messageId, LocalDateTime readAt) {
-        messageRepository.markMessagesUpToRead(chatId, userId, messageId, readAt, "7 days");
-    } // TODO: ДОБАВИТЬ В КОНФИГ
+        messageRepository.markMessagesUpToRead(chatId, userId, messageId, readAt);
+    }
     public int updateMessage(long messageId, String newText, LocalDateTime updatedAt) {
         return messageRepository.updateMessage(messageId, newText, updatedAt);
     }

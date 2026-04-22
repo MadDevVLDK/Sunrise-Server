@@ -1,5 +1,6 @@
 package com.sunrise.core.service;
 
+import com.sunrise.core.dataservice.DataValidator;
 import com.sunrise.core.dataservice.type.TokenType;
 import com.sunrise.core.service.result.*;
 import com.sunrise.entity.creation.CreateUserDTO;
@@ -33,9 +34,10 @@ public class AuthService {
 
     private final EmailNotifier emailNotifier;
     private final DataOrchestrator dataOrchestrator;
+    private final DataValidator validator;
     private final LockManager lockManager;
     private final JwtUtil jwtUtil;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder passwordEncoder;
 
     public ResultOneArg<String> registerUser(String username, String name, String email, String password) {
         try {
@@ -87,12 +89,9 @@ public class AuthService {
     } // TODO: ПРОБЛЕМА С ВЫЗОВОМ НЕСКОЛЬКИХ ФУНКЦИЙ ПО СОХРАНЕНИЮ В БД И КЕШ
     public ResultOneArg<UserLoginResult> authenticateUser(String username, String password, HttpServletRequest httpRequest) {
         try {
-            UserSecurityDTO user = dataOrchestrator.getUserSecurityByUsername(username)
+            UserSecurityDTO user = dataOrchestrator.getActiveUserSecurityByUsername(username)
                     .orElseThrow(() -> new ValidationException("Invalid username or password"));
 
-            if (!user.isEnabled()) {
-                throw new ValidationException("Please verify your email first");
-            }
             if (!passwordEncoder.matches(password, user.getHashPassword())) {
                 throw new ValidationException("Invalid username or password");
             }
@@ -150,7 +149,7 @@ public class AuthService {
     }
     public ResultNoArgs requestPasswordUpdate(String email) {
         try {
-            UserSecurityDTO user = dataOrchestrator.getUserSecurityByEmail(email)
+            UserSecurityDTO user = dataOrchestrator.getActiveUserSecurityByEmail(email)
                     .orElseThrow(() -> new ValidationException("User with such email does not exist"));
 
             // Генерация токена
@@ -192,6 +191,9 @@ public class AuthService {
             }
 
             long userId = verificationToken.getUserId();
+
+            validator.validateActiveUser(userId);
+
             LocalDateTime updatedAt = LocalDateTime.now();
 
             dataOrchestrator.enableUser(userId, updatedAt);
@@ -225,9 +227,13 @@ public class AuthService {
             }
 
             long userId = verificationToken.getUserId();
+
+            UserSecurityDTO user = dataOrchestrator.getActiveUserSecurity(userId)
+                    .orElseThrow(() -> new ValidationException("User not found"));
+
             LocalDateTime updatedAt = LocalDateTime.now();
 
-            dataOrchestrator.updateUserEmail(userId, email, updatedAt);
+            dataOrchestrator.updateUserEmail(userId, user.getEmail(), email, updatedAt);
             dataOrchestrator.deleteVerificationToken(token);
 
             log.info("[🔧] ✅ Email changed successfully for user {}", userId);
@@ -258,6 +264,9 @@ public class AuthService {
             }
 
             long userId = verificationToken.getUserId();
+
+            validator.validateActiveUser(userId);
+
             LocalDateTime updatedAt = LocalDateTime.now();
 
             dataOrchestrator.updateUserPassword(userId, password, updatedAt);

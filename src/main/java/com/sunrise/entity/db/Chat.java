@@ -20,12 +20,6 @@ public class Chat {
     @Id
     protected Long id;
 
-    @Column(name = "avatar_file_id")
-    private Long avatarFileId;
-
-    @Column(name = "avatar_preview_file_id")
-    private Long avatarPreviewFileId;
-
     @Column(name = "name", length = 50)
     @Size(min = 4, max = 50)
     @Pattern(
@@ -67,12 +61,5 @@ public class Chat {
     public void setIsDeleted(boolean isDeleted){
         this.deletedAt = isDeleted ? LocalDateTime.now() : null;
         this.isDeleted = isDeleted;
-    }
-    public boolean isActive() {
-        return !isDeleted;
-    }
-
-    public boolean isNotPersonal(){
-        return chatType.isNotPersonal();
     }
 }

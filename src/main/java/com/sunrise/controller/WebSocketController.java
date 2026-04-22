@@ -38,6 +38,11 @@ public class WebSocketController {
     public void sendMessage(@DestinationVariable long chatId, @Payload WsRequests.MessageNewRequest request,
                             @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
 
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in sendMessage");
+            return;
+        }
+
         ResultOneArg<Long> result = messageService.makePublicMessage(request.tempId(), chatId, userId, request.text());
         if (!result.isSuccess()) {
             wsNotify.notifyError(principal.getName(), result.getError(), errorUrl);
@@ -46,6 +51,11 @@ public class WebSocketController {
     @MessageMapping("/chats/{chatId}/messages/send-private")
     public void sendPrivateMessage(@DestinationVariable long chatId, @Payload WsRequests.MessagePrivateNewRequest request,
                             @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
+
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in sendPrivateMessage");
+            return;
+        }
 
         ResultOneArg<Long> result = messageService.makePrivateMessage(request.tempId(), chatId, userId, request.receiverId(), request.text());
         if (!result.isSuccess()) {
@@ -56,6 +66,11 @@ public class WebSocketController {
     public void editMessage(@DestinationVariable long chatId, @Payload WsRequests.MessageInfoUpdateRequest request,
                             @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
 
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in editMessage");
+            return;
+        }
+
         ResultNoArgs result = messageService.updateMessage(chatId, userId, request.messageId(), request.newText());
         if (!result.isSuccess()) {
             wsNotify.notifyError(principal.getName(), result.getError(), errorUrl);
@@ -64,6 +79,11 @@ public class WebSocketController {
     @MessageMapping("/chats/{chatId}/messages/delete")
     public void deleteMessage(@DestinationVariable long chatId, @Payload WsRequests.MessageDeleteRequest request,
                               @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
+
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in deleteMessage");
+            return;
+        }
 
         ResultNoArgs result = messageService.deleteMessage(chatId, userId, request.messageId());
         if (!result.isSuccess()) {
@@ -74,6 +94,11 @@ public class WebSocketController {
     @MessageMapping("/chats/{chatId}/messages/read")
     public void markMessagesAsReadUpTo(@DestinationVariable long chatId, @Payload WsRequests.MarkAsReadRequest request,
                                        @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
+
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in markMessagesAsReadUpTo");
+            return;
+        }
 
         ResultNoArgs result = messageService.markMessagesUpToRead(chatId, userId, request.upToMessageId());
         if (!result.isSuccess()) {
@@ -86,6 +111,10 @@ public class WebSocketController {
 
     @MessageMapping("subscribe/user-status/{userId}")
     public void subscribeUserGlobalStatus(@DestinationVariable @ValidId long userId, Principal principal) {
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in subscribeUserGlobalStatus");
+            return;
+        }
         userGlobalStatusKeeper.subscribeUserGlobalStatus(userId, principal.getName());
     }
     @MessageMapping("/user-status/{status}")
@@ -98,12 +127,21 @@ public class WebSocketController {
     }
     @MessageMapping("unsubscribe/user-status/{userId}")
     public void unsubscribeUserGlobalStatus(@DestinationVariable @ValidId long userId, Principal principal) {
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in unsubscribeUserGlobalStatus");
+            return;
+        }
         userGlobalStatusKeeper.unsubscribeUserGlobalStatus(userId, principal.getName());
     }
 
     @MessageMapping("/chats/{chatId}/actions/{action}")
     public void updateUserChatAction(@DestinationVariable long chatId, @DestinationVariable String action,
                                      @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
+
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in updateUserChatAction");
+            return;
+        }
 
         ResultOneArg<Boolean> result = chatService.isActionsEnabledForChat(chatId, userId);
         if (!result.isSuccess()){
@@ -123,6 +161,10 @@ public class WebSocketController {
 
     @MessageMapping("/ping")
     public void ping(Principal principal) {
+        if (principal == null || principal.getName() == null) {
+            log.error("[⚠️] Invalid principal in ping");
+            return;
+        }
         wsNotify.notifyPong(principal.getName());
     }
 }

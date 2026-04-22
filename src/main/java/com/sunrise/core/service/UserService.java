@@ -2,12 +2,12 @@ package com.sunrise.core.service;
 
 import com.sunrise.core.dataservice.LockManager;
 import com.sunrise.core.service.result.*;
+import com.sunrise.entity.dto.UserProfileFullDTO;
 import com.sunrise.entity.pagination.UsersPageDTO;
 
 import com.sunrise.core.dataservice.DataOrchestrator;
 import com.sunrise.core.dataservice.DataValidator;
 
-import com.sunrise.entity.dto.UserSecurityDTO;
 import com.sunrise.entity.dto.UserProfileLightDTO;
 import com.sunrise.helpclass.ValidationException;
 
@@ -35,11 +35,14 @@ public class UserService {
         try {
             validator.validateActiveUser(userId);
 
-            UserSecurityDTO user = dataOrchestrator.getUserSecurity(userId)
+            UserProfileLightDTO user = dataOrchestrator.getUserProfileLight(userId)
                     .orElseThrow(() -> new ValidationException("User not found"));
 
-            boolean usernameNotChanged = user.getUsername().equals(newUsername);
-            boolean nameNotChanged = user.getName().equals(newName);
+            String oldUsername = user.getUsername();
+            String oldName = user.getName();
+
+            boolean usernameNotChanged = oldUsername.equals(newUsername);
+            boolean nameNotChanged = oldName.equals(newName);
 
             // Проверяем, что данные изменились
             if (usernameNotChanged && nameNotChanged) {
@@ -51,7 +54,7 @@ public class UserService {
             }
 
             // Обновляем профиль
-            dataOrchestrator.updateUserProfile(userId, newUsername, newName, LocalDateTime.now());
+            dataOrchestrator.updateUserProfile(userId, oldUsername, newUsername, newName, LocalDateTime.now());
 
             log.info("[🔧] ✅ User {} updated profile", userId);
             return ResultNoArgs.success();
@@ -96,7 +99,7 @@ public class UserService {
         try {
             validator.validateActiveUser(userId);
 
-            UserProfileLightDTO profile = dataOrchestrator.getUserProfile(userId)
+            UserProfileLightDTO profile = dataOrchestrator.getUserProfileLight(userId)
                     .orElseThrow(() -> new ValidationException("User not found or is deleted"));
 
             log.debug("[🔧] ✅ Loaded profile for user {}", userId);
@@ -111,23 +114,44 @@ public class UserService {
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
-    public ResultOneArg<UserProfileLightDTO> getOtherProfile(long currentUserId, long otherUserId) {
+
+    public ResultOneArg<UserProfileLightDTO> getOtherProfileLight(long currentUserId, long otherUserId) {
         try {
             validator.validateActiveUser(currentUserId);
             validator.validateActiveUser(otherUserId);
 
-            UserProfileLightDTO profile = dataOrchestrator.getUserProfile(otherUserId)
+            UserProfileLightDTO profile = dataOrchestrator.getUserProfileLight(otherUserId)
                     .orElseThrow(() -> new ValidationException("User not found or is deleted"));
 
-            log.debug("[🔧] ✅ User {} retrieved profile of user {}", currentUserId, otherUserId);
+            log.debug("[🔧] ✅ User {} retrieved light profile of user {}", currentUserId, otherUserId);
             return ResultOneArg.success(profile);
         }
         catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to get other profile for user {}: {}", otherUserId, e.getMessage());
+            log.warn("[🔧] ☝️ Failed to get other light profile for user {}: {}", otherUserId, e.getMessage());
             return ResultOneArg.error(e.getMessage());
         }
         catch (Exception e) {
-            log.error("[🔧] ⚠️ Error getting other profile for user {}: {}", otherUserId, e.getMessage());
+            log.error("[🔧] ⚠️ Error getting other light profile for user {}: {}", otherUserId, e.getMessage());
+            return ResultOneArg.error("Get profile failed due to server error");
+        }
+    }
+    public ResultOneArg<UserProfileFullDTO> getOtherProfileFull(long currentUserId, long otherUserId) {
+        try {
+            validator.validateActiveUser(currentUserId);
+            validator.validateActiveUser(otherUserId);
+
+            UserProfileFullDTO profile = dataOrchestrator.getUserProfileFull(otherUserId)
+                    .orElseThrow(() -> new ValidationException("User not found or is deleted"));
+
+            log.debug("[🔧] ✅ User {} retrieved full profile of user {}", currentUserId, otherUserId);
+            return ResultOneArg.success(profile);
+        }
+        catch (ValidationException e) {
+            log.warn("[🔧] ☝️ Failed to get other full profile for user {}: {}", otherUserId, e.getMessage());
+            return ResultOneArg.error(e.getMessage());
+        }
+        catch (Exception e) {
+            log.error("[🔧] ⚠️ Error getting other full profile for user {}: {}", otherUserId, e.getMessage());
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
@@ -136,7 +160,7 @@ public class UserService {
         try {
             validator.validateActiveUser(userId);
 
-            UsersPageDTO usersPage = dataOrchestrator.getActiveUsersPage(filter, cursor, limit);
+            UsersPageDTO usersPage = dataOrchestrator.getActiveUserProfileLightsPage(filter, cursor, limit);
 
             log.debug("[🔧] ✅ Get {} users with filter='{}', nextCursor={}, limit={}", usersPage.users().size(), filter, cursor, limit);
             return ResultOneArg.success(usersPage);

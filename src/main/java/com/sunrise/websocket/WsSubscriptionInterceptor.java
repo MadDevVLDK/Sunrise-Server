@@ -27,7 +27,7 @@ public class WsSubscriptionInterceptor implements ChannelInterceptor {
             String destination = accessor.getDestination();
             Principal principal = accessor.getUser();
             if (principal == null || principal.getName() == null) {
-                log.warn("Subscription denied: no principal");
+                log.warn("[🔒] Subscription denied: no principal");
                 return createErrorMessage(accessor, "Not authenticated");
             }
             long userId = Long.parseLong(principal.getName());
@@ -37,10 +37,11 @@ public class WsSubscriptionInterceptor implements ChannelInterceptor {
                 try {
                     long chatId = Long.parseLong(destination.substring("/topic/chat/".length()));
                     if (!dataOrchestrator.hasActiveChatMember(userId, chatId)) {
-                        log.warn("User {} tried to subscribe to chat {} without membership", userId, chatId);
+                        log.warn("[🔒] User {} tried to subscribe to chat {} without membership", userId, chatId);
                         return createErrorMessage(accessor, "Access denied to this chat");
                     }
                 } catch (NumberFormatException e) {
+                    log.warn("[🔒] NumberFormatException on parsing chatId websocket {}", userId);
                     return createErrorMessage(accessor, "Invalid chat id");
                 }
             }
@@ -49,6 +50,7 @@ public class WsSubscriptionInterceptor implements ChannelInterceptor {
     }
 
     private Message<?> createErrorMessage(StompHeaderAccessor accessor, String errorMessage) {
+        log.error("[🔒] STOMP subscription error: {}", errorMessage);
         StompHeaderAccessor errorAccessor = StompHeaderAccessor.create(StompCommand.ERROR);
         errorAccessor.setMessage(errorMessage);
         errorAccessor.setSessionId(accessor.getSessionId());

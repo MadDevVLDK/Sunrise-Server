@@ -7,6 +7,7 @@ import com.sunrise.core.notifier.WebSocketNotifier;
 import com.sunrise.core.service.result.ResultNoArgs;
 import com.sunrise.core.service.result.ResultOneArg;
 import com.sunrise.entity.creation.CreateChatMemberDTO;
+import com.sunrise.entity.dto.ChatMemberProfileFullDTO;
 import com.sunrise.entity.pagination.ChatMembersPageDTO;
 import com.sunrise.entity.dto.ChatSecurityDTO;
 import com.sunrise.helpclass.ValidationException;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Slf4j
@@ -226,7 +228,7 @@ public class ChatMemberService {
         }
     }
 
-    public ResultOneArg<ChatMembersPageDTO> getChatMembersPage(long chatId, long userId, Long cursor, int limit) {
+    public ResultOneArg<ChatMembersPageDTO> getChatMemberPage(long chatId, long userId, Long cursor, int limit) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
@@ -242,6 +244,24 @@ public class ChatMemberService {
         catch (Exception e) {
             log.error("[🔧] ⚠️ Error getting chat {} members: {}", chatId, e.getMessage());
             return ResultOneArg.error("getChatMembers failed due to server error");
+        }
+    }
+    public ResultOneArg<Map<Long, ChatMemberProfileFullDTO>> getChatMemberByIds(long chatId, long userId, Set<Long> userIds) {
+        try {
+            validator.validateActiveChatMemberInActiveChat(chatId, userId);
+
+            Map<Long, ChatMemberProfileFullDTO> chatMembers = dataOrchestrator.getChatMemberByIds(chatId, userIds);
+
+            log.debug("[🔧] ✅ User {} got {} members by ids of chat {}", userId, userIds.size(), chatId);
+            return ResultOneArg.success(chatMembers);
+        }
+        catch (ValidationException e) {
+            log.warn("[🔧] ☝️ Failed to get chat {} members by ids: {}", chatId, e.getMessage());
+            return ResultOneArg.error(e.getMessage());
+        }
+        catch (Exception e) {
+            log.error("[🔧] ⚠️ Error getting chat {} members by ids: {}", chatId, e.getMessage());
+            return ResultOneArg.error("getChatMemberByIds failed due to server error");
         }
     }
 }

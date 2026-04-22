@@ -2,7 +2,6 @@ package com.sunrise.core.dataservice;
 
 import com.sunrise.core.dataservice.type.ChatType;
 import com.sunrise.entity.dto.ChatSecurityDTO;
-import com.sunrise.entity.dto.UserSecurityDTO;
 import com.sunrise.helpclass.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -140,19 +139,15 @@ public class DataValidator {
         validateActiveUsers(adminId, otherUserId);
         validateActiveChat(chatId);
         validateActiveChatMemberIsAdmin(chatId, adminId);
+        validateActiveChatMember(chatId, otherUserId);
     }
     public void validateCanKickChatMember(long chatId, long adminId, long otherUserId) {
         validateActiveUsers(adminId, otherUserId);
         validateActiveChat(chatId);
         validateActiveChatMemberIsAdmin(chatId, adminId);
-    }
-
-    public void validateCanSendPrivateMessage(long chatId, long senderId, long otherUserId) {
-        validateActiveUsers(senderId, otherUserId);
-        validateActiveGroupChat(chatId);
-        validateActiveChatMember(chatId, senderId);
         validateActiveChatMember(chatId, otherUserId);
     }
+
     public void validateCanUpdateMessage(long chatId, long userId, long messageId) {
         validateActiveUser(userId);
         Optional<Boolean> isAdmin = dataOrchestrator.isActiveAdminInActiveChat(chatId, userId);
@@ -185,13 +180,6 @@ public class DataValidator {
 
     public void validateActiveChatMemberInActiveChat(long chatId, long userId) {
         validateActiveUser(userId);
-        validateActiveChat(chatId);
-        validateActiveChatMember(chatId, userId);
-    }
-    public void validateActiveChatMemberInActiveChatAndGet(long chatId, long userId) {
-        dataOrchestrator.getUserSecurity(userId).filter(us -> !us.isDeleted() && !us.isEnabled())
-                .orElseThrow(() -> new ValidationException("User is not active -> " + userId));
-
         validateActiveChat(chatId);
         validateActiveChatMember(chatId, userId);
     }

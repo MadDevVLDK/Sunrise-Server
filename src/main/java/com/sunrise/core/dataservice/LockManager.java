@@ -1,5 +1,6 @@
 package com.sunrise.core.dataservice;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -9,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
+@Slf4j
 @Service
 public class LockManager {
 
@@ -130,16 +132,29 @@ public class LockManager {
         return stats;
     }
 
+    @Scheduled(fixedDelay = 3_600_000, initialDelay = 20_000) // 1000 * 60 * 60
+    public void printLockStats() {
+        Map<String, Object> stats = getLockStats();
+        log.info("---------------------------");
+        log.info("📊 Lock Statistics:");
+        log.info("   ├─ Chat Creation: size={}", stats.get("chatCreationLocks.size"));
+        log.info("   ├─ Chat Leave: size={}", stats.get("chatLeaveLocks.size"));
+        log.info("   ├─ Username: size={}", stats.get("usernameLocks.size"));
+        log.info("   └─ Email: size={}", stats.get("emailLocks.size"));
+        log.info("---------------------------");
+    }
+
 
     // ========== CLEANUP ==========
 
-    @Scheduled(fixedDelayString = "${app.locks.clean-up-schedule}")
+    @Scheduled(fixedDelayString = "${app.locks.clean-up-schedule}", initialDelay = 30_000)
     public void cleanupOldLocks() {
         long now = System.currentTimeMillis();
         cleanupLockMap(chatCreationLocks, now);
         cleanupLockMap(chatLeaveLocks, now);
         cleanupLockMap(usernameLocks, now);
         cleanupLockMap(emailLocks, now);
+        log.info("[🔧] ✅ Locks cleanup successful completed");
     }
     private void cleanupLockMap(Map<?, MyLock> lockMap, long now) {
         lockMap.entrySet().removeIf(entry -> {

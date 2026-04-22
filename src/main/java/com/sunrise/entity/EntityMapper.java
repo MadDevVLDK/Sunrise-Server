@@ -24,8 +24,7 @@ public class EntityMapper {
             user.getProfileUpdatedAt(),
             user.getCreatedAt(),
             user.getDeletedAt(),
-            user.isDeleted(),
-            null, null, null, null
+            user.isDeleted()
         );
     }
     public static CacheUserProfile toUserProfileCache(UserProfileResult user) {
@@ -38,12 +37,7 @@ public class EntityMapper {
             user.getCreatedAt(),
             user.getCreatedAt(),
             user.getCreatedAt(),
-            user.getIsDeleted(),
-
-            user.getAvatarId(),
-            user.getAvatarHash(),
-            user.getAvatarPrHash(),
-            user.getAvatarCreatedAt()
+            user.getIsDeleted()
         );
     }
 
@@ -79,8 +73,6 @@ public class EntityMapper {
 
         return new User(
             user.getId(),
-            null,
-            null,
             user.getUsername(),
             user.getName(),
             user.getEmail(),
@@ -123,24 +115,47 @@ public class EntityMapper {
         );
     }
 
-    public static UserProfileLightDTO toUserProfileDTO(CacheUserProfile user) {
+    public static UserProfileLightDTO toUserProfileLightDTO(CacheUserProfile user) {
         if (user == null) return null;
 
         return new UserProfileLightDTO(
             user.getId(),
-            toDtoUserAvatar(user),
             user.getUsername(),
             user.getName(),
             user.getProfileUpdatedAt(),
             user.getCreatedAt()
         );
     }
-    public static UserProfileLightDTO toUserProfileDTO(UserProfileResult user) {
+    public static UserProfileLightDTO toUserProfileLightDTO(UserProfileResult user) {
         if (user == null) return null;
 
         return new UserProfileLightDTO(
             user.getId(),
-            toDtoUserAvatar(user),
+            user.getUsername(),
+            user.getName(),
+            user.getProfileUpdatedAt(),
+            user.getCreatedAt()
+        );
+    }
+
+
+    // TODO: ЭТО ВРЕМЕННО, ПОКА НЕ РЕАЛИЗОВАНО ХРАНЕНИЕ АВАТАРОВ И ДРУГОЙ ИНФОРМАЦИИ
+    public static UserProfileFullDTO toUserProfileFullDTO(CacheUserProfile user) {
+        if (user == null) return null;
+
+        return new UserProfileFullDTO(
+            user.getId(),
+            user.getUsername(),
+            user.getName(),
+            user.getProfileUpdatedAt(),
+            user.getCreatedAt()
+        );
+    }
+    public static UserProfileFullDTO toUserProfileFullDTO(UserProfileResult user) {
+        if (user == null) return null;
+
+        return new UserProfileFullDTO(
+            user.getId(),
             user.getUsername(),
             user.getName(),
             user.getProfileUpdatedAt(),
@@ -152,7 +167,7 @@ public class EntityMapper {
         if (users == null) return resultMap;
 
         for (UserProfileResult user : users) {
-            resultMap.put(user.getId(), toUserProfileDTO(user));
+            resultMap.put(user.getId(), toUserProfileLightDTO(user));
         }
         return resultMap;
     }
@@ -160,28 +175,28 @@ public class EntityMapper {
 
     // ========== USER AVATAR ==========
 
-    public static UserAvatarDTO toDtoUserAvatar(UserProfileResult user) {
-        if (user == null || user.getAvatarId() == null) return null;
-
-        return new UserAvatarDTO(
-            user.getAvatarId(),
-            user.getAvatarHash(),
-            user.getAvatarPrHash(),
-            true,
-            user.getAvatarCreatedAt()
-        );
-    }
-    public static UserAvatarDTO toDtoUserAvatar(CacheUserProfile user) {
-        if (user == null || user.getAvatarId() == null) return null;
-
-        return new UserAvatarDTO(
-            user.getAvatarId(),
-            user.getAvatarHash(),
-            user.getAvatarPreviewHash(),
-            true,
-            user.getAvatarCreatedAt()
-        );
-    }
+//    public static UserAvatarDTO toDtoUserAvatar(UserProfileResult user) {
+//        if (user == null || user.getAvatarId() == null) return null;
+//
+//        return new UserAvatarDTO(
+//            user.getAvatarId(),
+//            user.getAvatarHash(),
+//            user.getAvatarPrHash(),
+//            true,
+//            user.getAvatarCreatedAt()
+//        );
+//    }
+//    public static UserAvatarDTO toDtoUserAvatar(CacheUserProfile user) {
+//        if (user == null || user.getAvatarId() == null) return null;
+//
+//        return new UserAvatarDTO(
+//            user.getAvatarId(),
+//            user.getAvatarHash(),
+//            user.getAvatarPreviewHash(),
+//            true,
+//            user.getAvatarCreatedAt()
+//        );
+//    }
 
 
     // ========== CHAT ==========
@@ -200,8 +215,7 @@ public class EntityMapper {
             chat.getCreatedAt(),
             chat.getCreatedBy(),
             chat.getDeletedAt(),
-            chat.isDeleted(),
-            null, null, null, null
+            chat.isDeleted()
         );
     }
     public static CacheChat toChatCache(CreatePersonalChatDTO chat) {
@@ -218,8 +232,7 @@ public class EntityMapper {
             chat.getCreatedAt(),
             chat.getCreatedBy(),
             chat.getDeletedAt(),
-            chat.isDeleted(),
-            null, null, null, null
+            chat.isDeleted()
         );
     }
     public static CacheChat toChatCache(ChatProfileResult chat) {
@@ -236,12 +249,7 @@ public class EntityMapper {
             chat.getCreatedAt(),
             chat.getCreatedBy(),
             chat.getDeletedAt(),
-            chat.getIsDeleted(),
-
-            chat.getAvatarId(),
-            chat.getAvatarHash(),
-            chat.getAvatarPrHash(),
-            chat.getAvatarCreatedAt()
+            chat.getIsDeleted()
         );
     }
     public static CacheChat toChatCache(UserChatResult chat) {
@@ -258,12 +266,7 @@ public class EntityMapper {
                 chat.getCreatedAt(),
                 chat.getCreatedBy(),
                 chat.getDeletedAt(),
-                chat.getIsDeleted(),
-
-                chat.getAvatarId(),
-                chat.getAvatarHash(),
-                chat.getAvatarPrHash(),
-                chat.getAvatarCreatedAt()
+                chat.getIsDeleted()
         );
     }
     public static List<CacheChat> toChatsCache(Collection<UserChatResult> items) {
@@ -281,8 +284,6 @@ public class EntityMapper {
 
         return new Chat(
             chat.getId(),
-            chat.getAvatarFileId(),
-            chat.getAvatarPreviewFileId(),
             chat.getName(),
             chat.getDescription(),
             chat.getChatType(),
@@ -300,8 +301,6 @@ public class EntityMapper {
 
         return new Chat(
             chat.getId(),
-            chat.getAvatarFileId(),
-            chat.getAvatarPreviewFileId(),
             chat.getName(),
             chat.getDescription(),
             chat.getChatType(),
@@ -347,7 +346,6 @@ public class EntityMapper {
 
         return new ChatProfileDTO(
             chat.getId(),
-            toChatAvatarDTO(chat),
             chat.getName(),
             chat.getDescription(),
             ChatType.valueOf(chat.getChatType()),
@@ -373,17 +371,17 @@ public class EntityMapper {
 
     // ========== CHAT AVATAR ==========
 
-    public static ChatAvatarDTO toChatAvatarDTO(UserChatResult chat) {
-        if (chat == null || chat.getAvatarId() == null) return null;
-
-        return new ChatAvatarDTO(
-            chat.getAvatarId(),
-            chat.getAvatarHash(),
-            chat.getAvatarPrHash(),
-            true,
-            chat.getAvatarCreatedAt()
-        );
-    }
+//    public static ChatAvatarDTO toChatAvatarDTO(UserChatResult chat) {
+//        if (chat == null || chat.getAvatarId() == null) return null;
+//
+//        return new ChatAvatarDTO(
+//            chat.getAvatarId(),
+//            chat.getAvatarHash(),
+//            chat.getAvatarPrHash(),
+//            true,
+//            chat.getAvatarCreatedAt()
+//        );
+//    }
 
 
     // ========== CHAT MEMBER ==========

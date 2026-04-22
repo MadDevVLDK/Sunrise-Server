@@ -8,7 +8,7 @@ import java.util.List;
 @lombok.AllArgsConstructor
 public class UserProfileFullDTO {
     private long id;
-    private List<UserAvatarDTO> avatars;
+//    private List<UserAvatarDTO> avatars;
     private String username;
     private String name;
     private LocalDateTime profileUpdatedAt;

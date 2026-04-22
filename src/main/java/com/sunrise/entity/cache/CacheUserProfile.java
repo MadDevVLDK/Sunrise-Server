@@ -16,11 +16,6 @@ public class CacheUserProfile {
     private LocalDateTime deletedAt;
     private boolean isDeleted;
 
-    private Long avatarId;
-    private String avatarHash;
-    private String avatarPreviewHash;
-    private LocalDateTime avatarCreatedAt;
-
     private final LocalDateTime cachedAt = LocalDateTime.now();
 
     public static CacheUserProfile copy(CacheUserProfile user) {
@@ -33,12 +28,7 @@ public class CacheUserProfile {
             user.getProfileUpdatedAt(),
             user.getCreatedAt(),
             user.getDeletedAt(),
-            user.isDeleted(),
-
-            user.getAvatarId(),
-            user.getAvatarHash(),
-            user.getAvatarPreviewHash(),
-            user.getAvatarCreatedAt()
+            user.isDeleted()
         );
     }
 }

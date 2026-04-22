@@ -15,8 +15,8 @@ public interface ChatProfileResult {
     LocalDateTime getDeletedAt();
     Boolean getIsDeleted();
 
-    Long getAvatarId();
-    String getAvatarHash();
-    String getAvatarPrHash();
-    LocalDateTime getAvatarCreatedAt();
+//    Long getAvatarId();
+//    String getAvatarHash();
+//    String getAvatarPrHash();
+//    LocalDateTime getAvatarCreatedAt();
 }

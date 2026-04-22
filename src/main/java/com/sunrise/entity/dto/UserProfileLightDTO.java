@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 @lombok.AllArgsConstructor
 public class UserProfileLightDTO {
     private long id;
-    private UserAvatarDTO avatar;
+//    private UserAvatarDTO avatar;
     private String username;
     private String name;
     private LocalDateTime profileUpdatedAt;

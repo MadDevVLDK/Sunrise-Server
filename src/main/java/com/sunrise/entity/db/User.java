@@ -16,12 +16,6 @@ public class User {
     @Id
     private Long id;
 
-    @Column(name = "avatar_file_id")
-    private Long avatarFileId;
-
-    @Column(name = "avatar_preview_file_id")
-    private Long avatarPreviewFileId;
-
     @Column(name = "username", unique = true, nullable = false, length = 30)
     private String username;
 

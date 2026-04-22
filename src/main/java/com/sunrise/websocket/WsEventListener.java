@@ -1,6 +1,7 @@
 package com.sunrise.websocket;
 
 import com.sunrise.core.notifier.SessionRegistry;
+import com.sunrise.core.service.UserGlobalStatusKeeper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class WsEventListener {
 
     private final SessionRegistry sessionRegistry;
+    private final UserGlobalStatusKeeper userGlobalStatusKeeper;
 
     @EventListener
     public void handleSessionConnected(SessionConnectedEvent event) {
@@ -50,6 +52,7 @@ public class WsEventListener {
 
         if (userId != null) {
             sessionRegistry.unregister(sessionId);
+            userGlobalStatusKeeper.unsubscribeUserGlobalStatus(userId, sessionId);
             log.info("[🗝️] ❌ WebSocket disconnected: sessionId={}, userId={}", sessionId, userId);
         }
     }

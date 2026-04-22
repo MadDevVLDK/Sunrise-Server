@@ -12,8 +12,8 @@ public interface UserProfileResult {
     LocalDateTime getDeletedAt();
     Boolean getIsDeleted();
 
-    Long getAvatarId();
-    String getAvatarHash();
-    String getAvatarPrHash();
-    LocalDateTime getAvatarCreatedAt();
+//    Long getAvatarId();
+//    String getAvatarHash();
+//    String getAvatarPrHash();
+//    LocalDateTime getAvatarCreatedAt();
 }

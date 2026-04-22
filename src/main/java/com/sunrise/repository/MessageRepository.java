@@ -119,9 +119,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
 
     @Transactional
-    @Query(value = "SELECT mark_messages_up_to_read(:chatId, :userId, :messageId, :readAt, CAST(:interval AS INTERVAL))", nativeQuery = true)
-    void markMessagesUpToRead(@Param("chatId") long chatId, @Param("userId") long userId, @Param("messageId") long messageId,
-                              @Param("readAt") LocalDateTime readAt, @Param("interval") String interval);
+    @Query(value = "SELECT mark_messages_up_to_read(:chatId, :userId, :messageId, :readAt)", nativeQuery = true)
+    void markMessagesUpToRead(@Param("chatId") long chatId, @Param("userId") long userId, @Param("messageId") long messageId, @Param("readAt") LocalDateTime readAt);
 
     @Modifying
     @Transactional
