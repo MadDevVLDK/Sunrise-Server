@@ -58,7 +58,7 @@ app:
   jwt:
     secret: ${JWT_SECRET:mysupersecretkeymysupersecretkeymysupersecretkey}
     expiration: ${APP_JWT_EXPIRATION:36000} # in seconds
-    no-jwt-endpoints: /ping,/cache-status,/auth/login,/auth/confirm-registration,/auth/reset-password,/auth/confirm-email-update,/auth/confirm-password-update
+    no-jwt-endpoints: /ping,/cache-status,/,/login,/register,/auth/login,/auth/register,/auth/change-password,/auth/confirm-registration,/auth/reset-password,/auth/confirm-email-update,/auth/confirm-password-update,/static/**
   rate-limit:
     requests-per-minute: ${APP_RATE_LIMIT_REQUESTS_PER_MINUTE:300} # Максимум 300 запросов в минуту с одного IP
   mail:

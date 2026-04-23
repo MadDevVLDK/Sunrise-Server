@@ -561,9 +561,10 @@ public class EntityMapper {
         return new UserMessageDTO(
             message.getId(),
             message.getChatId(),
-            message.getSenderId(),
             MessageType.valueOf(message.getMessageType()),
+            message.getSenderId(),
             message.getProfileUpdatedAt(),
+            message.getMemberUpdatedAt(),
             isCensored ? null : message.getText(),
             message.getReadCount(),
             message.getIsReadByUser() != null && message.getIsReadByUser(),
@@ -579,9 +580,10 @@ public class EntityMapper {
         return new UserMessageDTO(
             chat.getMsgId(),
             chat.getMsgChatId(),
-            chat.getMsgSenderId(),
             MessageType.valueOf(chat.getMsgMessageType()),
+            chat.getMsgSenderId(),
             chat.getMsgProfileUpdatedAt(),
+            chat.getMsgMemberUpdatedAt(),
             chat.getMsgText(),
             chat.getMsgReadCount(),
             chat.getMsgIsReadByUser(),

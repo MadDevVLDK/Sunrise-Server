@@ -7,6 +7,7 @@ import com.sunrise.controller.request.PaginationRequest;
 import com.sunrise.controller.request.PrivateMessageRequest;
 import com.sunrise.controller.request.PublicMessageRequest;
 import com.sunrise.controller.request.UpdateMessageRequest;
+import com.sunrise.controller.response.ApiResponse;
 import com.sunrise.core.service.result.*;
 
 import com.sunrise.core.dataservice.type.Direction;
@@ -39,11 +40,9 @@ public class MessageController {
 
         ResultOneArg<Long> result = messageService.makePublicMessage(request.getTempId(), chatId, userId, request.getText());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
     @PostMapping("/private")
@@ -52,11 +51,9 @@ public class MessageController {
 
         ResultOneArg<Long> result = messageService.makePrivateMessage(request.getTempId(), chatId, userId, request.getUserToSendId(), request.getText());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
 
@@ -66,11 +63,9 @@ public class MessageController {
 
         ResultNoArgs result = messageService.updateMessage(chatId, userId, messageId, request.getText().trim());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @PutMapping("/{messageId}/mark-up-to-read")
@@ -78,11 +73,9 @@ public class MessageController {
 
         ResultNoArgs result = messageService.markMessagesUpToRead(chatId, userId, messageId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
 
@@ -91,11 +84,9 @@ public class MessageController {
 
         ResultNoArgs result = messageService.deleteMessage(chatId, userId, messageId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
 
@@ -104,11 +95,9 @@ public class MessageController {
 
         ResultOneArg<Map<Long, MessageReadStatusDTO>> result = messageService.getMessageReads(chatId, userId, messageId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
     @GetMapping("/{messageId}")
@@ -116,11 +105,9 @@ public class MessageController {
 
         ResultOneArg<UserMessageDTO> result = messageService.getMessage(chatId, userId, messageId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
     @GetMapping
@@ -129,10 +116,8 @@ public class MessageController {
 
         ResultOneArg<MessagesPageDTO> result = messageService.getMessagePagination(chatId, userId, pagination.getCursor(), pagination.getLimit(), direction);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 }

@@ -8,6 +8,7 @@ public interface UserMessageResult {
     Long getSenderId();
     String getMessageType();
     LocalDateTime getProfileUpdatedAt();
+    LocalDateTime getMemberUpdatedAt();
     String getText();
     Long getReadCount();
     Boolean getIsReadByUser();

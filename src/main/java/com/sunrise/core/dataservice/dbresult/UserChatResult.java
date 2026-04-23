@@ -20,8 +20,9 @@ public interface UserChatResult {
     Long getMsgId();
     Long getMsgChatId();
     Long getMsgSenderId();
-    String getMsgMessageType();
     LocalDateTime getMsgProfileUpdatedAt();
+    LocalDateTime getMsgMemberUpdatedAt();
+    String getMsgMessageType();
     String getMsgText();
     Long getMsgReadCount();
     Boolean getMsgIsReadByUser();

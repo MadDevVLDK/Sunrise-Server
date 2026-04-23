@@ -3,6 +3,7 @@ package com.sunrise.controller;
 import com.sunrise.config.annotation.CurrentUserId;
 import com.sunrise.controller.request.LoginRequest;
 import com.sunrise.controller.request.RegisterRequest;
+import com.sunrise.controller.response.ApiResponse;
 import com.sunrise.core.service.result.*;
 import com.sunrise.core.service.AuthService;
 
@@ -33,11 +34,9 @@ public class AuthController {
             request.getPassword().trim()
         );
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
     @PostMapping("/login")
@@ -49,26 +48,28 @@ public class AuthController {
             httpRequest
         );
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
     @PutMapping("/change-email")
     public ResponseEntity<?> requestEmailChange(@CurrentUserId long userId) {
+
         ResultNoArgs result = authService.requestEmailUpdate(userId);
-        if (result.isSuccess()) {
-            return ResponseEntity.ok("Confirmation sent to your current email address");
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+
+        return result.isSuccess() ?
+                ApiResponse.success("Confirmation sent to your current email address") :
+                ApiResponse.error(result.getError());
     }
 
-    @PutMapping("/change-password")
+    @PutMapping("/change-password") // TODO: ТУТ ОШИБКА МОЖЕТ БЫТЬ БРОШЕНА
     public ResponseEntity<?> requestPasswordChange(@RequestParam @NotBlank @Email String email) {
+
         ResultNoArgs result = authService.requestPasswordUpdate(email);
-        return ResponseEntity.ok("If the user exists, a reset link has been sent");
+
+        return result.isSuccess() ?
+                ApiResponse.success("If the user exists, a reset link has been sent") :
+                ApiResponse.error("Some error occurred while processing your request");
     }
 }

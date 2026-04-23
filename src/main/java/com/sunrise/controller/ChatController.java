@@ -2,6 +2,7 @@ package com.sunrise.controller;
 
 import com.sunrise.config.annotation.CurrentUserId;
 import com.sunrise.controller.request.*;
+import com.sunrise.controller.response.ApiResponse;
 import com.sunrise.core.dataservice.dbresult.ChatStatsResult;
 import com.sunrise.core.service.result.*;
 import com.sunrise.core.service.ChatService;
@@ -31,11 +32,9 @@ public class ChatController {
 
         ResultOneArg<Long> result = chatService.createPersonalChat(request.getTempId(), userId, request.getOtherUserId());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
     @PostMapping("/create-group")
@@ -48,36 +47,29 @@ public class ChatController {
             request.getMembers()
         );
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
     @PutMapping("/{chatId}/info")
     public ResponseEntity<?> updateChatInfo(@PathVariable @ValidId long chatId, @RequestBody @Valid UpdateChatInfoRequest request, @CurrentUserId long userId) {
 
-        ResultNoArgs result = chatService.updateChatInfo(
-            chatId, userId, request.getChatName(), request.getChatDescription()
-        );
+        ResultNoArgs result = chatService.updateChatInfo(chatId, userId, request.getChatName(), request.getChatDescription());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @DeleteMapping("/{chatId}")
     public ResponseEntity<?> deleteChat(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
+
         ResultNoArgs result = chatService.deleteChat(chatId, userId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @GetMapping("/{chatId}/stats")
@@ -85,33 +77,27 @@ public class ChatController {
 
         ResultOneArg<ChatStatsResult> result = chatService.getChatStats(chatId, userId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 
     @GetMapping("/ids")
     public ResponseEntity<?> getUserChatIds(@CurrentUserId long userId) {
         ResultOneArg<List<Long>> result = chatService.getUserChatIds(userId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
     @GetMapping("/{chatId}")
     public ResponseEntity<?> getUserChat(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
 
         ResultOneArg<ChatProfileDTO> result = chatService.getUserChat(chatId, userId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
     @GetMapping
     public ResponseEntity<?> getUserChatsPage(@Valid ChatPaginationRequest request, @CurrentUserId long userId) {
@@ -121,10 +107,8 @@ public class ChatController {
             request.getChatIdCursor(), request.getLimit()
         );
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 }

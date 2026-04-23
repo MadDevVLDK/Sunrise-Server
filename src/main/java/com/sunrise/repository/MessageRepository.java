@@ -29,6 +29,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                m.chatId AS chatId,
                m.senderId AS senderId,
                u.profileUpdatedAt AS profileUpdatedAt,
+               member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
                m.readCount AS readCount,
@@ -40,6 +41,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            FROM Message m
            INNER JOIN User u
                ON u.id = m.senderId
+           INNER JOIN ChatMember member
+               ON member.id.userId = m.senderId
+               AND member.id.chatId = m.chatId
            LEFT JOIN UserChatReadStatus ucrs
                ON ucrs.id.userId = :userId
                AND ucrs.id.chatId = m.chatId
@@ -53,6 +57,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                m.chatId AS chatId,
                m.senderId AS senderId,
                u.profileUpdatedAt AS profileUpdatedAt,
+               member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
                m.readCount AS readCount,
@@ -64,6 +69,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            FROM Message m
            INNER JOIN User u
                ON u.id = m.senderId
+           INNER JOIN ChatMember member
+               ON member.id.userId = m.senderId
+               AND member.id.chatId = m.chatId
            LEFT JOIN UserChatReadStatus ucrs
                ON ucrs.id.userId = :userId
                AND ucrs.id.chatId = m.chatId
@@ -78,6 +86,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                m.chatId AS chatId,
                m.senderId AS senderId,
                u.profileUpdatedAt AS profileUpdatedAt,
+               member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
                m.readCount AS readCount,
@@ -89,6 +98,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            FROM Message m
            INNER JOIN User u
                ON u.id = m.senderId
+           INNER JOIN ChatMember member
+               ON member.id.userId = m.senderId
+               AND member.id.chatId = m.chatId
            LEFT JOIN UserChatReadStatus ucrs
                ON ucrs.id.userId = :userId AND ucrs.id.chatId = m.chatId
            WHERE m.chatId = :chatId AND m.id < :cursor
@@ -102,6 +114,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                m.chatId AS chatId,
                m.senderId AS senderId,
                u.profileUpdatedAt AS profileUpdatedAt,
+               member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
                m.readCount AS readCount,
@@ -113,6 +126,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            FROM Message m
            INNER JOIN User u
                ON u.id = m.senderId
+           INNER JOIN ChatMember member
+               ON member.id.userId = m.senderId
+               AND member.id.chatId = m.chatId
            LEFT JOIN UserChatReadStatus ucrs
                ON ucrs.id.userId = :userId AND ucrs.id.chatId = m.chatId
            WHERE m.chatId = :chatId AND m.id > :cursor

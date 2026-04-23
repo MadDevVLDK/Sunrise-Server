@@ -1,6 +1,7 @@
 package com.sunrise.controller;
 
 import com.sunrise.config.annotation.CurrentUserId;
+import com.sunrise.controller.response.ApiResponse;
 import com.sunrise.core.service.UserService;
 
 import com.sunrise.controller.request.PaginationRequest;
@@ -23,14 +24,13 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    public ResponseEntity<?> getActiveUsersPage(@RequestParam(defaultValue = "") @NotNull String filter, @Valid PaginationRequest pagination, @CurrentUserId long userId) {
+    public ResponseEntity<?> getActiveUsersPage(@RequestParam(defaultValue = "") @NotNull String filter, @Valid PaginationRequest pagination,
+                                                @CurrentUserId long userId) {
 
         ResultOneArg<UsersPageDTO> result = userService.getActiveUsersPage(userId, filter, pagination.getCursor(), pagination.getLimit());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 }

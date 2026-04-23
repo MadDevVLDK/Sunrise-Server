@@ -9,9 +9,10 @@ import java.time.LocalDateTime;
 public class UserMessageDTO {
     private long id;
     private long chatId;
-    private long senderId;
     private MessageType messageType;
+    private long senderId;
     private LocalDateTime profileUpdatedAt;
+    private LocalDateTime memberUpdatedAt;
     private String text;
     private long readCount;
     private boolean readByUser;

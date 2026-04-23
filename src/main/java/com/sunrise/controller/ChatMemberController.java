@@ -3,6 +3,7 @@ package com.sunrise.controller;
 import com.sunrise.config.annotation.CurrentUserId;
 import com.sunrise.config.annotation.ValidId;
 import com.sunrise.controller.request.*;
+import com.sunrise.controller.response.ApiResponse;
 import com.sunrise.core.service.ChatMemberService;
 import com.sunrise.core.service.result.ResultNoArgs;
 import com.sunrise.core.service.result.ResultOneArg;
@@ -32,11 +33,9 @@ public class ChatMemberController {
 
         ResultNoArgs result = chatMemberService.addOrRestoreChatMember(chatId, userId, request.getNewUserId());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @PostMapping("/add-many")
@@ -44,73 +43,54 @@ public class ChatMemberController {
 
         ResultNoArgs result = chatMemberService.addOrRestoreChatMembers(chatId, userId, request.getMembers());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @PutMapping("/{otherUserId}/info")
     public ResponseEntity<?> updateChatMemberInfo(@PathVariable @ValidId long chatId, @PathVariable @ValidId long otherUserId, @RequestBody @Valid UpdateChatMemberInfoRequest request, @CurrentUserId long userId) {
-        ResultNoArgs result = chatMemberService.updateChatMemberInfo(
-            chatId, userId, otherUserId, request.getTag()
-        );
+        ResultNoArgs result = chatMemberService.updateChatMemberInfo(chatId, userId, otherUserId, request.getTag());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @PutMapping("/{otherUserId}/admin-rights")
     public ResponseEntity<?> updateAdminRights(@PathVariable @ValidId long chatId, @PathVariable @ValidId long otherUserId, @RequestBody @Valid UpdateAdminRightsRequest request, @CurrentUserId long userId) {
-        ResultNoArgs result = chatMemberService.updateChatMemberAdminRight(
-                chatId, userId, otherUserId, request.getIsAdmin()
-        );
+        ResultNoArgs result = chatMemberService.updateChatMemberAdminRight(chatId, userId, otherUserId, request.getIsAdmin());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @PutMapping("/self")
     public ResponseEntity<?> updateSelfChatSettings(@PathVariable @ValidId long chatId, @RequestBody @Valid UpdateSelfChatSettingsRequest request, @CurrentUserId long userId) {
-        ResultNoArgs result = chatMemberService.updateSelfChatSettings(
-            chatId, userId, request.getIsPinned()
-        );
+        ResultNoArgs result = chatMemberService.updateSelfChatSettings(chatId, userId, request.getIsPinned());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @DeleteMapping("/{otherUserId}/kick")
     public ResponseEntity<?> kickChatMember(@PathVariable @ValidId long chatId, @PathVariable @ValidId long otherUserId, @CurrentUserId long userId) {
         ResultNoArgs result = chatMemberService.kickChatMember(chatId, userId, otherUserId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @DeleteMapping("/leave")
     public ResponseEntity<?> leaveChat(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
-
         ResultNoArgs result = chatMemberService.leaveChat(chatId, userId);
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getOperationText());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success() :
+                ApiResponse.error(result.getError());
     }
 
     @GetMapping
@@ -118,21 +98,17 @@ public class ChatMemberController {
 
         ResultOneArg<ChatMembersPageDTO> result = chatMemberService.getChatMemberPage(chatId, userId, request.getCursor(), request.getLimit());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
     @GetMapping("/by-ids")
     public ResponseEntity<?> getChatMembersPage(@PathVariable @ValidId long chatId, @RequestBody @Valid GetChatMembersByIds request, @CurrentUserId long userId) {
 
         ResultOneArg<Map<Long, ChatMemberProfileFullDTO>> result = chatMemberService.getChatMemberByIds(chatId, userId, request.getMembers());
 
-        if (result.isSuccess()) {
-            return ResponseEntity.ok(result.getResult());
-        } else {
-            return ResponseEntity.badRequest().body(result.getError());
-        }
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
     }
 }
