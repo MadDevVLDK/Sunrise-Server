@@ -125,7 +125,7 @@ public class ChatMemberController {
         }
     }
     @GetMapping("/by-ids")
-    public ResponseEntity<?> getChatMembersPage(@PathVariable @ValidId long chatId, @Valid GetChatMembersByIds request, @CurrentUserId long userId) {
+    public ResponseEntity<?> getChatMembersPage(@PathVariable @ValidId long chatId, @RequestBody @Valid GetChatMembersByIds request, @CurrentUserId long userId) {
 
         ResultOneArg<Map<Long, ChatMemberProfileFullDTO>> result = chatMemberService.getChatMemberByIds(chatId, userId, request.getMembers());
 

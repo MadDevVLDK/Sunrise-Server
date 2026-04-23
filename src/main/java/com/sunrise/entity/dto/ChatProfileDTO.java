@@ -17,6 +17,7 @@ public class ChatProfileDTO {
     private int membersCount;
     private UserMessageDTO lastMessage;
     private int unreadCount;
+    private boolean isPinned;
     private LocalDateTime updatedAt;
     private LocalDateTime createdAt;
     private long createdBy;

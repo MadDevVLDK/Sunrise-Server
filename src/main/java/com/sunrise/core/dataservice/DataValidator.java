@@ -95,12 +95,9 @@ public class DataValidator {
 
     // ========== COMPLEX METHODS ==========
 
-    public void validateCanCreateGroupChat(ChatType chatType, long userId, Set<Long> userIds) {
-        if (chatType.isPersonal()) {
-            throw new ValidationException("Cannot create group if chatType is personal");
-        }
-        if (!chatType.isMembersInBound(userIds.size() + 1)) {
-            throw new ValidationException("Members not in bound of chatType --> " + chatType);
+    public void validateCanCreateGroupChat(long userId, Set<Long> userIds) {
+        if (!ChatType.GROUP.isMembersInBound(userIds.size() + 1)) {
+            throw new ValidationException("Members not in bound of chatType --> " + ChatType.GROUP);
         }
 
         validateActiveUsers(userId, userIds);

@@ -27,10 +27,6 @@ public class CreateGroupChatRequest {
     @Size(max = 500, message = "chatDescription mustn`t be more than 500 characters")
     private String chatDescription;
 
-    @NotNull(message = "groupType is required")
-//    @Pattern(regexp = "PERSONAL|SMALL_GROUP|BIG_GROUP", message = "groupType must be PERSONAL, SMALL_GROUP, or BIG_GROUP")
-    private ChatType groupType;
-
     @NotNull(message = "members is required")
     @Size(max = 100, message = "Group cannot have more than 100 members")
     private Set<@ValidId Long> members;

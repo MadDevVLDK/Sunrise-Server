@@ -163,9 +163,10 @@ public class EntityMapper {
         );
     }
 
-    public static Map<Long, UserProfileLightDTO> toDtoUserProfiles(Collection<UserProfileResult> users, Map<Long, UserProfileLightDTO> resultMap) {
-        if (users == null) return resultMap;
+    public static Map<Long, UserProfileLightDTO> toDtoUserProfiles(Collection<UserProfileResult> users) {
+        if (users == null) return null;
 
+        Map<Long, UserProfileLightDTO> resultMap = new LinkedHashMap<>(users.size());
         for (UserProfileResult user : users) {
             resultMap.put(user.getId(), toUserProfileLightDTO(user));
         }
@@ -353,6 +354,7 @@ public class EntityMapper {
             chat.getMembersCount(),
             toUserMessageDTO(chat),
             chat.getUnreadCount(),
+            chat.getIsPinned(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy()
@@ -360,8 +362,8 @@ public class EntityMapper {
     }
     public static Map<Long, ChatProfileDTO> toChatProfileDTOs(Collection<UserChatResult> chats) {
         if (chats == null) return null;
-        Map<Long, ChatProfileDTO> resultMap = new HashMap<>(chats.size());
 
+        Map<Long, ChatProfileDTO> resultMap = new LinkedHashMap<>(chats.size());
         for (UserChatResult chat : chats) {
             resultMap.put(chat.getId(), toChatProfileDTO(chat));
         }

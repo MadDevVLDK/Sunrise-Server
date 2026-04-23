@@ -45,7 +45,6 @@ public class ChatController {
             request.getTempId(), userId,
             request.getChatName().trim(),
             request.getChatDescription(),
-            request.getGroupType(),
             request.getMembers()
         );
 

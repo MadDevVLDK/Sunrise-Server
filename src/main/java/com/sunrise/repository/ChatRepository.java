@@ -39,7 +39,7 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     @Modifying
     @Transactional
     @Query("UPDATE Chat c SET c.name = :name, c.description = :description, c.updatedAt = :updatedAt WHERE c.id = :chatId")
-    int updateChatInfo(@Param("chatId") long chatId, @Param("name") String chatName, @Param("description") String chatDescription, @Param("updatedAt") LocalDateTime updatedAt);
+    int updateChatInfo(@Param("chatId") long chatId, @Param("name") String name, @Param("description") String description, @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying
     @Transactional

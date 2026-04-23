@@ -231,26 +231,26 @@ public class DBService {
     }
 
     // Вспомогательные методы
-    public List<UserMessageResult> getMessagePage(long chatId, long userId, Long cursor, int limit, Direction direction) {
+    public List<UserMessageResult> getUserMessagePage(long chatId, long userId, Long cursor, int limit, Direction direction) {
         if (cursor == null) {
-            return messageRepository.getFirstMessagePage(chatId, userId, PageRequest.of(0, limit));
+            return messageRepository.getFirstUserMessagePage(chatId, userId, PageRequest.of(0, limit));
         }
         if (direction == Direction.FORWARD) {
-            return messageRepository.getMessagePageAfter(chatId, userId, cursor, PageRequest.of(0, limit));
+            return messageRepository.getUserMessagePageAfter(chatId, userId, cursor, PageRequest.of(0, limit));
         }
 
-        return messageRepository.getMessagePageBefore(chatId, userId, cursor, PageRequest.of(0, limit));
+        return messageRepository.getUserMessagePageBefore(chatId, userId, cursor, PageRequest.of(0, limit));
     }
 
     public ChatStatsResult getChatMessagesDeletedStats(long chatId, long userId) {
         return chatRepository.getChatClearStats(chatId, userId);
     }
 
-    public Optional<Message> getMessage(long messageId) {
-        return messageRepository.findById(messageId);
+    public Optional<Message> getMessage(long chatId, long messageId) {
+        return messageRepository.getMessageById(chatId, messageId);
     }
-    public Optional<UserMessageResult> getMessageWithReadStatus(long userId, long messageId) {
-        return messageRepository.getMessageById(userId, messageId);
+    public Optional<UserMessageResult> getUserMessage(long chatId, long userId, long messageId) {
+        return messageRepository.getUserMessageById(chatId, userId, messageId);
     }
     public List<MessageReadStatusResult> getMessageReaders(long messageId){
         return messageRepository.getMessageReaders(messageId);

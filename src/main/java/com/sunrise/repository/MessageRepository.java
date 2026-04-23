@@ -20,6 +20,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     // ========== ОПЕРАЦИИ С СООБЩЕНИЯМИ ==========
 
+    @Query("SELECT m FROM Message m WHERE m.id = :messageId AND m.chatId = :chatId")
+    Optional<Message> getMessageById(@Param("chatId") long chatId, @Param("messageId") long messageId);
+
     @Query("""
            SELECT
                m.id AS id,
@@ -40,9 +43,9 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            LEFT JOIN UserChatReadStatus ucrs
                ON ucrs.id.userId = :userId
                AND ucrs.id.chatId = m.chatId
-           WHERE m.id = :messageId
+           WHERE m.id = :messageId AND m.chatId = :chatId
            """)
-    Optional<UserMessageResult> getMessageById(@Param("userId") long userId, @Param("messageId") long messageId);
+    Optional<UserMessageResult> getUserMessageById(@Param("chatId") long chatId, @Param("userId") long userId, @Param("messageId") long messageId);
 
     @Query("""
            SELECT
@@ -67,7 +70,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            WHERE m.chatId = :chatId
            ORDER BY m.id DESC
            """)
-    List<UserMessageResult> getFirstMessagePage(@Param("chatId") long chatId, @Param("userId") long userId, Pageable pageable);
+    List<UserMessageResult> getFirstUserMessagePage(@Param("chatId") long chatId, @Param("userId") long userId, Pageable pageable);
 
     @Query("""
            SELECT
@@ -91,7 +94,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            WHERE m.chatId = :chatId AND m.id < :cursor
            ORDER BY m.id DESC
            """)
-    List<UserMessageResult> getMessagePageBefore(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
+    List<UserMessageResult> getUserMessagePageBefore(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
 
     @Query("""
            SELECT
@@ -115,7 +118,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            WHERE m.chatId = :chatId AND m.id > :cursor
            ORDER BY m.id ASC
            """)
-    List<UserMessageResult> getMessagePageAfter(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
+    List<UserMessageResult> getUserMessagePageAfter(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
 
 
     @Transactional

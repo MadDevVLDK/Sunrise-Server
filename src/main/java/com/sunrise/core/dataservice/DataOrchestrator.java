@@ -259,17 +259,10 @@ public class DataOrchestrator {
         // получаем пагинацию из бд
         List<UserProfileResult> rows = dbService.getActiveUsersPage(filter, cursor, limit + 1); // берем на одну больше
 
-        Map<Long, UserProfileLightDTO> users = new HashMap<>(rows.size());
-        Long nextCursor = null;
-
-        if (!rows.isEmpty()) {
-            boolean hasMore = rows.size() > limit;
-
-            List<UserProfileResult> pageRows = hasMore ? rows.subList(0, limit) : rows;
-
-            users = EntityMapper.toDtoUserProfiles(pageRows, users);
-            nextCursor = hasMore ? pageRows.getLast().getId() : null;
-        }
+        boolean hasMore = rows.size() > limit;
+        List<UserProfileResult> pageRows = hasMore ? rows.subList(0, limit) : rows;
+        Map<Long, UserProfileLightDTO> users = EntityMapper.toDtoUserProfiles(pageRows);
+        Long  nextCursor = hasMore ? pageRows.getLast().getId() : null;
 
         return new UsersPageDTO(users, nextCursor);
     }
@@ -530,10 +523,10 @@ public class DataOrchestrator {
 
         // Формируем результат
         Map<Long, ChatMemberProfileFullDTO> result = new LinkedHashMap<>();
-        for (Long userId : resultUserIds) {
+        for (long userId : resultUserIds) {
             UserProfileLightDTO user = userMap.get(userId);
             ChatMemberProfileDTO member = memberMap.get(userId);
-            if(user == null || member == null) continue;
+            if (user == null || member == null) continue;
 
             result.put(userId, EntityMapper.toChatMemberProfileFullDTO(user, member));
         }
@@ -550,7 +543,7 @@ public class DataOrchestrator {
 
         // Формируем результат
         Map<Long, ChatMemberProfileFullDTO> result = new LinkedHashMap<>();
-        for (Long userId : userIds) {
+        for (long userId : userIds) {
             UserProfileLightDTO user = userMap.get(userId);
             ChatMemberProfileDTO member = memberMap.get(userId);
             if(user == null || member == null) continue;
@@ -615,19 +608,6 @@ public class DataOrchestrator {
 
 
     // Вспомогательные методы
-    public boolean isMessageInChat(long chatId, long messageId) {
-        // пробуем кеш
-        Optional<CacheMessageSecurity> cacheMessage = cacheService.getMessage(messageId);
-        if (cacheMessage.isPresent())
-            return cacheMessage.filter(msg -> msg.getChatId() == chatId).isPresent();
-
-        // грузим из бд
-        Optional<Message> dbMessage = dbService.getMessage(messageId);
-        dbMessage.ifPresent(msg -> {
-            cacheService.saveMessage(EntityMapper.toMessageSecurityCache(msg)); // восстанавливаем в кеш
-        });
-        return dbMessage.filter(msg -> msg.getChatId() == chatId).isPresent();
-    }
     public boolean isActiveMessageInChat(long chatId, long messageId) {
         // пробуем кеш
         Optional<CacheMessageSecurity> cacheMessage = cacheService.getMessage(messageId);
@@ -635,11 +615,11 @@ public class DataOrchestrator {
             return cacheMessage.filter(msg -> msg.isActive() && msg.getChatId() == chatId).isPresent();
 
         // грузим из бд
-        Optional<Message> dbMessage = dbService.getMessage(messageId);
+        Optional<Message> dbMessage = dbService.getMessage(chatId, messageId);
         dbMessage.ifPresent(msg -> {
             cacheService.saveMessage(EntityMapper.toMessageSecurityCache(msg)); // восстанавливаем в кеш
         });
-        return dbMessage.filter(msg -> msg.isActive() && msg.getChatId() == chatId).isPresent();
+        return dbMessage.filter(Message::isActive).isPresent();
     }
     public boolean isActiveMessageInChatAndIsSender(long chatId, long userId, long messageId) {
         // пробуем кеш
@@ -648,27 +628,24 @@ public class DataOrchestrator {
             return cacheMessage.filter(msg -> msg.isActive() && msg.getChatId() == chatId && msg.getSenderId() == userId).isPresent();
 
         // грузим из бд
-        Optional<Message> dbMessage = dbService.getMessage(messageId);
+        Optional<Message> dbMessage = dbService.getMessage(chatId, messageId);
         dbMessage.ifPresent(msg -> {
             cacheService.saveMessage(EntityMapper.toMessageSecurityCache(msg)); // восстанавливаем в кеш
         });
-        return dbMessage.filter(msg -> msg.isActive() && msg.getChatId() == chatId && msg.getSenderId() == userId).isPresent();
+        return dbMessage.filter(Message::isActive).filter(msg -> msg.getSenderId() == userId).isPresent();
     }
 
     public Optional<UserMessageDTO> getActiveMessageWithReadStatusInChat(long chatId, long userId, long messageId) {
         // грузим из бд
-        Optional<UserMessageResult> dbMessage = dbService.getMessageWithReadStatus(userId, messageId);
+        Optional<UserMessageResult> dbMessage = dbService.getUserMessage(chatId, userId, messageId);
         dbMessage.ifPresent(msg -> {
             cacheService.saveMessage(EntityMapper.toMessageSecurityCache(msg)); // восстанавливаем в кеш
         });
-        return dbMessage.map(msg -> {
-            if (msg.getChatId() != chatId) return null;
-            return EntityMapper.toUserMessageDTO(msg, true);
-        });
+        return dbMessage.map(msg -> EntityMapper.toUserMessageDTO(msg, true));
     }
     public MessagesPageDTO getChatMessagesPage(long chatId, long userId, Long cursor, int limit, Direction direction) {
         // Получаем Page сообщений из БД
-        List<UserMessageResult> dbResult = dbService.getMessagePage(chatId, userId, cursor, limit + 1, direction); // Получаем с БД
+        List<UserMessageResult> dbResult = dbService.getUserMessagePage(chatId, userId, cursor, limit + 1, direction); // Получаем с БД
         if (dbResult.isEmpty()) {
             return new MessagesPageDTO(Collections.emptyMap(), null);
         }
@@ -689,8 +666,6 @@ public class DataOrchestrator {
         Map<Long, UserMessageDTO> messageMap = new LinkedHashMap<>(dbResult.size());
         List<CacheMessageSecurity> messagesToCache = new ArrayList<>(dbResult.size());
         for (UserMessageResult message : dbResult) {
-            if (message.getChatId() != chatId) continue;
-
             messageMap.put(message.getId(), EntityMapper.toUserMessageDTO(message, message.getIsDeleted()));
             messagesToCache.add(EntityMapper.toMessageSecurityCache(message));
         }

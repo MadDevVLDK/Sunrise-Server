@@ -85,9 +85,9 @@ public class ChatService {
             lockManager.unLockPersonalChatCreation(creatorId, opponentId);
         }
     }
-    public ResultOneArg<Long> createGroupChat(long tempId, long creatorId, @NotNull String chatName, @NotNull String chatDescription, @NotNull ChatType chatType, @NotNull Set<Long> usersToAddIds) {
+    public ResultOneArg<Long> createGroupChat(long tempId, long creatorId, @NotNull String chatName, @NotNull String chatDescription, @NotNull Set<Long> usersToAddIds) {
         try {
-            validator.validateCanCreateGroupChat(chatType, creatorId, usersToAddIds);
+            validator.validateCanCreateGroupChat(creatorId, usersToAddIds);
 
             int membersCount = usersToAddIds.size() + 1;
             long chatId = SimpleSnowflakeId.nextId();

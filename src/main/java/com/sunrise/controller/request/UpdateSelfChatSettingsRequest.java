@@ -2,7 +2,7 @@ package com.sunrise.controller.request;
 
 import jakarta.validation.constraints.NotNull;
 
-@lombok.Data
+@lombok.Getter
 @lombok.AllArgsConstructor
 @lombok.NoArgsConstructor
 public class UpdateSelfChatSettingsRequest {
