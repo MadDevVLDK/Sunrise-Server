@@ -1,0 +1,116 @@
+package com.sunrise.db.repository;
+
+import com.sunrise.db.result.ChatProfileResult;
+import com.sunrise.db.result.ChatStatsResult;
+import com.sunrise.dataservice.type.ChatType;
+import com.sunrise.db.result.UserChatResult;
+import com.sunrise.db.entity.Chat;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface ChatRepository extends JpaRepository<Chat, Long> {
+
+
+    // ========== ОПЕРАЦИИ С ЧАТОМ ==========
+
+    @Transactional
+    @Query(value = "SELECT create_personal_chat_with_members(:chatId, :chatType, :user1Id, :user2Id, :createdAt)", nativeQuery = true)
+    void savePersonalChatAndMembers(@Param("chatId") long chatId, @Param("chatType") String chatType,
+                                    @Param("user1Id") long user1Id, @Param("user2Id") long user2Id,
+                                    @Param("createdAt") LocalDateTime createdAt);
+
+
+    @Transactional
+    @Query(value = "SELECT create_group_chat_with_members(:chatId, :name, :description, :chatType, :memberIds, :creatorId, :createdAt)", nativeQuery = true)
+    void saveGroupChatAndMembers(@Param("chatId") long chatId, @Param("name") String name, @Param("description") String description,
+                                 @Param("chatType") String chatType, @Param("memberIds") Long[] memberIds,
+                                 @Param("creatorId") long creatorId, @Param("createdAt") LocalDateTime createdAt);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Chat c SET c.name = :name, c.description = :description, c.updatedAt = :updatedAt WHERE c.id = :chatId")
+    int updateChatInfo(@Param("chatId") long chatId, @Param("name") String name, @Param("description") String description, @Param("updatedAt") LocalDateTime updatedAt);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Chat c SET c.isDeleted = false, c.deletedAt = null, c.updatedAt = :updatedAt WHERE c.id = :chatId")
+    int restoreChat(@Param("chatId") long chatId, @Param("updatedAt") LocalDateTime updatedAt);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Chat c SET c.isDeleted = true, c.deletedAt = :updatedAt, c.updatedAt = :updatedAt WHERE c.id = :chatId")
+    int deleteChat(@Param("chatId") long chatId, @Param("updatedAt") LocalDateTime updatedAt);
+
+
+    // ========== ПОИСК ==========
+
+
+    @Query("""
+            SELECT
+                c.id AS id,
+                c.name AS name,
+                c.description AS description,
+                c.chatType AS chatType,
+                c.opponentId AS opponentId,
+                c.membersCount AS membersCount,
+                c.updatedAt AS updatedAt,
+                c.createdAt AS createdAt,
+                c.createdBy AS createdBy,
+                c.deletedAt AS deletedAt,
+                c.isDeleted AS isDeleted
+            FROM Chat c
+            WHERE c.id = :chatId
+            """)
+    Optional<ChatProfileResult> getChat(@Param("chatId") long chatId);
+
+    @Query("""
+            SELECT
+              c.id AS id,
+              c.name AS name,
+              c.description AS description,
+              c.chatType AS chatType,
+              c.opponentId AS opponentId,
+              c.membersCount AS membersCount,
+              c.updatedAt AS updatedAt,
+              c.createdAt AS createdAt,
+              c.createdBy AS createdBy,
+              c.deletedAt AS deletedAt,
+              c.isDeleted AS isDeleted
+            FROM Chat c
+            INNER JOIN ChatMember cm1 ON cm1.id.chatId = c.id AND cm1.id.userId = :userId1 AND cm1.isDeleted = false
+            INNER JOIN ChatMember cm2 ON cm2.id.chatId = c.id AND cm2.id.userId = :userId2 AND cm2.isDeleted = false
+            WHERE c.chatType = :chatType
+           """)
+    Optional<ChatProfileResult> getPersonalChat(@Param("userId1") long userId1, @Param("userId2") long userId2, @Param("chatType") ChatType chatType);
+
+    @Query("""
+           SELECT c.id FROM Chat c
+           INNER JOIN ChatMember cm ON cm.id.chatId = c.id AND cm.id.userId = :userId AND cm.isDeleted = false
+           WHERE c.isDeleted = false
+           """)
+    List<Long> getUserChatIds(@Param("userId") long userId);
+
+    @Query(value = "SELECT * FROM get_user_chats_page(:user_id, :isPinnedCursor, :lastMsgIdCursor, :chatIdCursor, :limit)", nativeQuery = true)
+    List<UserChatResult> getUserChatsPage(@Param("user_id") long userId, @Param("isPinnedCursor") Boolean isPinnedCursor, @Param("lastMsgIdCursor") Long lastMsgIdCursor, @Param("chatIdCursor") Long chatIdCursor, @Param("limit") int limit);
+
+    @Query(value = "SELECT * FROM get_chat_by_id(:chatId, :userId)", nativeQuery = true)
+    Optional<UserChatResult> getUserChat(@Param("chatId") long chatId, @Param("userId") long userId);
+
+
+    // ========== ДЕЙСТВИЯ С ИСТОРИЕЙ ЧАТОВ ==========
+
+
+    // Статистика
+    @Query(value = "SELECT * FROM get_chat_clear_stats(:chatId, :userId)", nativeQuery = true)
+    ChatStatsResult getChatClearStats(@Param("chatId") long chatId, @Param("userId") long userId);
+}

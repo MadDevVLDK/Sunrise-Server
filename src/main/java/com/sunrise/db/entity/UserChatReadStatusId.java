@@ -1,0 +1,18 @@
+package com.sunrise.db.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+
+@lombok.Getter
+@lombok.Setter
+@lombok.NoArgsConstructor
+@lombok.AllArgsConstructor
+@lombok.EqualsAndHashCode
+@Embeddable
+public class UserChatReadStatusId {
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "chat_id", nullable = false)
+    private Long chatId;
+}

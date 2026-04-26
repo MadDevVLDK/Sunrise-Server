@@ -12,3 +12,4 @@ build/
 DocumentationAPI.html
 init-sql/
 src/test/test-chats.sql
+bin/

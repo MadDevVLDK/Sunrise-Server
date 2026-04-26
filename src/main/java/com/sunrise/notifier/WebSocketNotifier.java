@@ -1,0 +1,156 @@
+package com.sunrise.notifier;
+
+import com.sunrise.dataservice.type.ChatType;
+import com.sunrise.service.creation.CreateChatMemberDTO;
+import com.sunrise.service.creation.CreateGroupChatDTO;
+import com.sunrise.service.creation.CreateMessageDTO;
+import com.sunrise.service.creation.CreatePersonalChatDTO;
+import com.sunrise.web.websocket.request.WsRequests;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.lang.NonNull;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+
+@RequiredArgsConstructor
+@Service
+public class WebSocketNotifier { // TODO: Добавить @Async если большие операции будут
+
+    private final SimpMessagingTemplate messagingTemplate;
+    private final SessionRegistry sessionRegistry;
+
+
+    // ======================= MESSAGE ============================
+    public void notifyMessageNew(long tempId, CreateMessageDTO message, LocalDateTime senderProfileUpdatedAt) {
+        sendToChatTopic(message.getChatId(), new WsRequests.MessageNewResponse(
+            tempId, message.getId(), message.getChatId(), message.getSenderId(),
+            senderProfileUpdatedAt, message.getText(), message.getReadCount(),
+            message.getSentAt(), message.getUpdatedAt(), message.getDeletedAt(), message.isDeleted()
+        ));
+    }
+    public void notifyMessagePrivateNew(long tempId, CreateMessageDTO message, LocalDateTime senderProfileUpdatedAt, long receiverId) {
+        var response = new WsRequests.MessagePrivateNewResponse(
+            tempId, message.getId(), message.getChatId(), message.getSenderId(),
+            senderProfileUpdatedAt, message.getText(), message.getSentAt()
+        );
+        for (long userId : List.of(message.getSenderId(), receiverId)) {
+            sendToUserSessions(userId, "/private-messages", response);
+        }
+    }
+    public void notifyMessageInfoUpdated(long chatId, long messageId, String newText, LocalDateTime updatedAt) {
+        sendToChatTopic(chatId, new WsRequests.MessageUpdateResponse(
+            messageId, chatId, newText, updatedAt
+        ));
+    }
+    public void notifyMessageDeleted(long chatId, long messageId, LocalDateTime deletedAt) {
+        sendToChatTopic(chatId, new WsRequests.MessageDeleteResponse(messageId, chatId, deletedAt));
+    }
+    public void notifyMessageReadUpTo(long chatId, long userId, long upToMessageId, LocalDateTime readAt) {
+        sendToChatTopic(chatId, new WsRequests.MessagesReadUpToResponse(userId, chatId, upToMessageId, readAt));
+    }
+
+
+    // ========================= CHAT =============================
+    public void notifyGroupChatNew(long tempId, CreateGroupChatDTO chat, Set<Long> userIdsToNotify) {
+        var response = new WsRequests.ChatNewResponse(
+            tempId, chat.getId(), chat.getName(), chat.getDescription(),
+            chat.getChatType(), chat.getOpponentId(), chat.getMembersCount(),
+            chat.getUpdatedAt(), chat.getCreatedAt(), chat.getCreatedBy()
+        );
+        for (long userId : userIdsToNotify){
+            sendToUserSessions(userId, "/chats", response);
+        }
+    }
+    public void notifyPersonalChatNew(long tempId, CreatePersonalChatDTO chat, Set<Long> userIdsToNotify) {
+        var response = new WsRequests.ChatNewResponse(
+            tempId, chat.getId(), chat.getName(), chat.getDescription(),
+            chat.getChatType(), chat.getOpponentId(), chat.getMembersCount(),
+            chat.getUpdatedAt(), chat.getCreatedAt(), chat.getCreatedBy()
+        );
+        for (long userId : userIdsToNotify){
+            sendToUserSessions(userId, "/chats", response);
+        }
+    }
+    public void notifyChatInfoUpdated(long chatId, String newName, String newDescription, LocalDateTime updatedAt) {
+        sendToChatTopic(chatId, new WsRequests.ChatInfoUpdateResponse(
+            chatId, newName, newDescription, updatedAt
+        ));
+    }
+    public void notifyChatTypeUpdated(long chatId, ChatType newChatType, LocalDateTime updatedAt) {
+        sendToChatTopic(chatId, new WsRequests.ChatTypeUpdateResponse(chatId, newChatType, updatedAt));
+    }
+    public void notifySelfChatSettingsUpdated(long chatId, long userId, boolean isPinned, LocalDateTime updatedAt) {
+        sendToUserSessions(userId, "/chat-settings", new WsRequests.SelfChatSettingsUpdateResponse(chatId, isPinned, updatedAt));
+    }
+    public void notifyChatDeleted(long chatId, LocalDateTime deletedAt) {
+        sendToChatTopic(chatId, new WsRequests.ChatDeleteResponse(chatId, deletedAt));
+    }
+
+
+    // ===================== CHAT-MEMBER ===========================
+    public void notifyChatMemberNew(CreateChatMemberDTO chatMember) {
+        sendToChatTopic(chatMember.getChatId(), new WsRequests.ChatMemberNewResponse(
+            chatMember.getChatId(), chatMember.getUserId(),
+            chatMember.getUpdatedAt(), chatMember.getJoinedAt(), chatMember.isAdmin()
+        ));
+    }
+    public void notifyChatMembersNew(Collection<CreateChatMemberDTO> chatMembers) {
+        for (CreateChatMemberDTO chatMember : chatMembers) {
+            sendToChatTopic(chatMember.getChatId(), new WsRequests.ChatMemberNewResponse(
+                chatMember.getChatId(), chatMember.getUserId(),
+                chatMember.getUpdatedAt(), chatMember.getJoinedAt(), chatMember.isAdmin()
+            ));
+        }
+    }
+    public void notifyChatMemberInfoUpdated(long chatId, long userId, String tag, LocalDateTime updatedAt) {
+        sendToChatTopic(chatId, new WsRequests.ChatMemberInfoUpdateResponse(chatId, userId, tag, updatedAt));
+    }
+    public void notifyChatMemberAdminRightsUpdated(long chatId, long userId, boolean isAdmin, LocalDateTime updatedAt) {
+        sendToChatTopic(chatId, new WsRequests.ChatMemberAdminRightsUpdateResponse(chatId, userId, isAdmin, updatedAt));
+    }
+    public void notifyChatMemberDeleted(long chatId, long userId, LocalDateTime deletedAt) {
+        sendToChatTopic(chatId, new WsRequests.ChatMemberDeleteResponse(chatId, userId, deletedAt));
+    }
+
+
+    // ================= PRESENCE/STATUS/OTHER ====================
+    public void notifyUserStatusChange(long userId, String newStatus, @NonNull Set<String> userSessionsToNotify) {
+        var response = new WsRequests.UserStatusResponse(userId, newStatus);
+        for (String sessionId : userSessionsToNotify) {
+            if (sessionId == null) continue;
+            messagingTemplate.convertAndSendToUser(sessionId, "/queue/user-status", response);
+        }
+    }
+    public void notifyUserAction(long chatId, long userId, String action) {
+        sendToChatTopic(chatId, new WsRequests.UserChatActionResponse(userId, chatId, action));
+    }
+    public void notifyPong(@NonNull String sessionId) {
+        sendToUserSession(sessionId, "/pong", new WsRequests.PongResponse());
+    }
+
+    public void notifyError(@NonNull String sessionId, String error, String errorUrl) {
+        sendToUserSession(sessionId, "/errors", new WsRequests.ErrorResponse("websocket_error", error, errorUrl));
+    }
+
+
+    // ===== PRIVATE =====
+    private void sendToUserSession(@NonNull String sessionId, String path, @NonNull Object result) {
+        messagingTemplate.convertAndSendToUser(sessionId, "/queue" + path, result);
+    }
+    private void sendToUserSessions(long userId, String path, @NonNull Object result) {
+        Set<String> sessions = sessionRegistry.getUserSessions(userId);
+        if (sessions.isEmpty()) return;
+
+        for (String sessionId : sessions) {
+            sendToUserSession(sessionId, "/queue" + path, result);
+        }
+    }
+    private void sendToChatTopic(long chatId, @NonNull Object result) {
+        messagingTemplate.convertAndSend("/topic/chats/" + chatId, result);
+    }
+}
