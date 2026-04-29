@@ -8,12 +8,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.NavigableSet;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Configuration
 public class CacheConfig {
-
 
     // ==================== USER CACHES ====================
 
@@ -35,7 +35,6 @@ public class CacheConfig {
     @Value("${app.cache.ttl.user-email-index:60}")
     private int emailIndexTtlMinutes;
 
-
     // ==================== CHAT CACHES ====================
 
     @Value("${app.cache.max-size.chat:200000}")
@@ -56,6 +55,21 @@ public class CacheConfig {
     @Value("${app.cache.ttl.chat-members:240}")
     private int chatMembersTtlMinutes;
 
+    // ==================== CHAT MEMBER CACHES ====================
+
+    @Value("${app.cache.max-size.recent-chat-members-ids:50000}")
+    private int recentChatMembersIdsMaxSize;
+
+    @Value("${app.cache.ttl.recent-chat-members-ids:20}")
+    private int recentChatMembersIdsTtlMinutes;
+
+    // ==================== MESSAGES CACHES ====================
+
+    @Value("${app.cache.max-size.recent-messages-ids:25000}")
+    private int recentMessagesIdsMaxSize;
+
+    @Value("${app.cache.ttl.recent-messages-ids:20}")
+    private int recentMessagesIdsTtlMinutes;
 
     // ==================== VERIFICATION TOKEN CACHE ====================
 
@@ -64,21 +78,6 @@ public class CacheConfig {
 
     @Value("${app.cache.ttl.verification-tokens:60}")
     private int verificationTokenCacheTtlMinutes;
-
-
-    // ==================== PAGINATION CACHES ====================
-
-    @Value("${app.cache.max-size.user_chats_pagination:25000}")
-    private int userChatsPaginationMaxSize;
-
-    @Value("${app.cache.ttl.user_chats_pagination:20}")
-    private int userChatsPaginationTtlMinutes;
-
-    @Value("${app.cache.max-size.chat_members_pagination:50000}")
-    private int chatMembersPaginationMaxSize;
-
-    @Value("${app.cache.ttl.chat_members_pagination:20}")
-    private int chatMembersPaginationTtlMinutes;
 
 
     // ==================== USER SECURITY CACHE ====================
@@ -103,7 +102,6 @@ public class CacheConfig {
                 .build();
     }
 
-
     // ==================== USER INDEX CACHES ====================
 
     @Bean
@@ -112,7 +110,7 @@ public class CacheConfig {
         return Caffeine.newBuilder()
                 .maximumSize(usernameIndexMaxSize)
                 .expireAfterAccess(usernameIndexTtlMinutes, TimeUnit.MINUTES)
-                .softValues()  // При нехватке памяти удаляются
+                .softValues()
                 .recordStats()
                 .build();
     }
@@ -123,11 +121,10 @@ public class CacheConfig {
         return Caffeine.newBuilder()
                 .maximumSize(emailIndexMaxSize)
                 .expireAfterAccess(emailIndexTtlMinutes, TimeUnit.MINUTES)
-                .softValues()  // При нехватке памяти удаляются
+                .softValues()
                 .recordStats()
                 .build();
     }
-
 
     // ==================== CHAT CACHES ====================
 
@@ -147,16 +144,15 @@ public class CacheConfig {
         return Caffeine.newBuilder()
                 .maximumSize(personalChatIndexMaxSize)
                 .expireAfterAccess(personalChatIndexTtlMinutes, TimeUnit.MINUTES)
-                .softValues()  // При нехватке памяти удаляются
+                .softValues()
                 .recordStats()
                 .build();
     }
 
-
     // ==================== CHAT MEMBERS CACHE ====================
 
     @Bean
-    public Cache<Long, CacheChatMembersContainer> chatMembersCache() {
+    public Cache<String, CacheChatMember> chatMembersCache() {
         log.info("[⚙️] Initializing Chat Members Cache (max-size: {}, ttl: {} min)", chatMembersMaxSize, chatMembersTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(chatMembersMaxSize)
@@ -165,11 +161,20 @@ public class CacheConfig {
                 .build();
     }
 
+    @Bean
+    public Cache<Long, NavigableSet<Long>> recentChatMembersIdsCache() {
+        log.info("[⚙️] Initializing Chat Members IDs Cache (max-size: {}, ttl: {} min)", recentChatMembersIdsMaxSize, recentChatMembersIdsTtlMinutes);
+        return Caffeine.newBuilder()
+                .maximumSize(recentChatMembersIdsMaxSize)
+                .expireAfterAccess(recentChatMembersIdsTtlMinutes, TimeUnit.MINUTES)
+                .recordStats()
+                .build();
+    }
 
     // ==================== MESSAGE CACHE ====================
 
     @Bean
-    public Cache<Long, CacheMessageSecurity> messageCache() {
+    public Cache<Long, CacheMessage> messageCache() {
         log.info("[⚙️] Initializing Message Cache (max-size: {}, ttl: {} min)", chatCacheMaxSize, chatCacheTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(chatCacheMaxSize)
@@ -178,6 +183,15 @@ public class CacheConfig {
                 .build();
     }
 
+    @Bean
+    public Cache<Long, NavigableSet<Long>> recentMessagesIdsCache() {
+        log.info("[⚙️] Initializing Recent Messages IDs Cache (max-size: {}, ttl: {} min)", recentMessagesIdsMaxSize, recentMessagesIdsTtlMinutes);
+        return Caffeine.newBuilder()
+                .maximumSize(recentMessagesIdsMaxSize)
+                .expireAfterAccess(recentMessagesIdsTtlMinutes, TimeUnit.MINUTES)
+                .recordStats()
+                .build();
+    }
 
     // ==================== VERIFICATION TOKEN CACHE ====================
 
@@ -186,32 +200,8 @@ public class CacheConfig {
         log.info("[⚙️] Initializing Verification Token Cache (max-size: {}, ttl: {} min)", verificationTokenCacheMaxSize, verificationTokenCacheTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(verificationTokenCacheMaxSize)
-                .expireAfterWrite(verificationTokenCacheTtlMinutes, TimeUnit.MINUTES)  // Write, не Access!
-                .recordStats()
-                .build();
-    }
-
-
-    // ==================== PAGINATION CACHES ====================
-
-    @Bean
-    public Cache<String, Object> userChatsPaginationCache() {
-        log.info("[⚙️] Initializing User Chats Pagination Cache (max-size: {}, ttl: {} min)", userChatsPaginationMaxSize, userChatsPaginationTtlMinutes);
-        return Caffeine.newBuilder()
-                .maximumSize(userChatsPaginationMaxSize)
-                .expireAfterAccess(userChatsPaginationTtlMinutes, TimeUnit.MINUTES)
-                .recordStats()
-                .build();
-    }
-
-    @Bean
-    public Cache<String, Object> chatMembersPaginationCache() {
-        log.info("[⚙️] Initializing Chat Members Pagination Cache (max-size: {}, ttl: {} min)", chatMembersPaginationMaxSize, chatMembersPaginationTtlMinutes);
-        return Caffeine.newBuilder()
-                .maximumSize(chatMembersPaginationMaxSize)
-                .expireAfterAccess(chatMembersPaginationTtlMinutes, TimeUnit.MINUTES)
+                .expireAfterWrite(verificationTokenCacheTtlMinutes, TimeUnit.MINUTES)
                 .recordStats()
                 .build();
     }
 }
-

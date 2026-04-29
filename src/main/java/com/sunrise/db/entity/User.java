@@ -2,7 +2,8 @@ package com.sunrise.db.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
 
 @lombok.Getter
 @lombok.Setter
@@ -30,16 +31,16 @@ public class User {
     private String hashPassword;
 
     @Column(name = "last_login")
-    private LocalDateTime lastLogin;
+    private Instant lastLogin;
 
     @Column(name = "profile_updated_at", nullable = false)
-    private LocalDateTime profileUpdatedAt = LocalDateTime.now();
+    private Instant profileUpdatedAt = Instant.now();
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private Instant updatedAt = Instant.now();
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Instant createdAt = Instant.now();
 
     @Column(name = "jwt_version", nullable = false)
     private int jwtVersion = 1;
@@ -48,7 +49,7 @@ public class User {
     private boolean isEnabled = false;
 
     @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted = false;

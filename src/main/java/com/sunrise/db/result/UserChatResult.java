@@ -1,6 +1,6 @@
 package com.sunrise.db.result;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public interface UserChatResult {
     Long getId();
@@ -8,43 +8,46 @@ public interface UserChatResult {
     String getDescription();
     String getChatType();
     Integer getMembersCount();
-    LocalDateTime getUpdatedAt();
-    LocalDateTime getCreatedAt();
+    Instant getUpdatedAt();
+    Instant getCreatedAt();
     Long getCreatedBy();
-    LocalDateTime getDeletedAt();
+    Instant getDeletedAt();
     Boolean getIsDeleted();
+    Long getLastReadMessageId();
     Integer getUnreadCount();
+    Long getSeq();
+
 
     Long getMsgId();
     Long getMsgChatId();
     Long getMsgSenderId();
-    LocalDateTime getMsgProfileUpdatedAt();
-    LocalDateTime getMsgMemberUpdatedAt();
+    Instant getMsgProfileUpdatedAt();
+    Instant getMsgMemberUpdatedAt();
     String getMsgMessageType();
     String getMsgText();
     Long getMsgReadCount();
     Boolean getMsgIsReadByUser();
-    LocalDateTime getMsgSentAt();
-    LocalDateTime getMsgUpdatedAt();
-    LocalDateTime getMsgDeletedAt();
+    Instant getMsgSentAt();
+    Instant getMsgUpdatedAt();
+    Instant getMsgDeletedAt();
     Boolean getMsgIsDeleted();
 
     String getSelfMemberTag();
-    LocalDateTime getSelfMemberSettingsUpdatedAt();
-    LocalDateTime getSelfMemberUpdatedAt();
-    LocalDateTime getSelfMemberJoinedAt();
+    Instant getSelfMemberSettingsUpdatedAt();
+    Instant getSelfMemberUpdatedAt();
+    Instant getSelfMemberJoinedAt();
     Boolean getSelfMemberIsPinned();
     Boolean getSelfMemberIsAdmin();
 
     Long getOpponentId();
     String getOpponentUsername();
     String getOpponentName();
-    LocalDateTime getOpponentProfileUpdatedAt();
-    LocalDateTime getOpponentCreatedAt();
+    Instant getOpponentProfileUpdatedAt();
+    Instant getOpponentCreatedAt();
 
     String getOpponentMemberTag();
-    LocalDateTime getOpponentMemberUpdatedAt();
-    LocalDateTime getOpponentMemberJoinedAt();
+    Instant getOpponentMemberUpdatedAt();
+    Instant getOpponentMemberJoinedAt();
     Boolean getOpponentMemberIsAdmin();
 
 //    Long getAvatarId();

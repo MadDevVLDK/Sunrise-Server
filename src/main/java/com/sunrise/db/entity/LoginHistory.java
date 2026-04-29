@@ -3,7 +3,7 @@ package com.sunrise.db.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @lombok.Getter
 @lombok.Setter
@@ -28,5 +28,5 @@ public class LoginHistory {
     private String deviceInfo;
 
     @Column(name= "login_at", nullable = false)
-    private LocalDateTime loginAt = LocalDateTime.now();
+    private Instant loginAt = Instant.now();
 }

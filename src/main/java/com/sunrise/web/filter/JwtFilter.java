@@ -1,7 +1,8 @@
 package com.sunrise.web.filter;
 
 import com.sunrise.helpclass.jwt.JwtUtil;
-import com.sunrise.dataservice.DataOrchestrator;
+import com.sunrise.orchestrator.service.UserOrchestrator;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,11 +31,12 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final JwtUtil jwtUtil;
-    private final DataOrchestrator dataOrchestrator;
+    private final UserOrchestrator userOrchestrator;
 
     @Value("${app.jwt.no-jwt-endpoints}")
     private String[] excludedPaths;
 
+    
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
 
@@ -78,7 +80,7 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
 
-        Optional<Integer> jwtVersion = dataOrchestrator.getUserJwtVersion(userId);
+        Optional<Integer> jwtVersion = userOrchestrator.getUserJwtVersion(userId);
         if (tokenVersion == null || jwtVersion.isEmpty() || !tokenVersion.equals(jwtVersion.get())) {
             sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_VERSION_MISMATCH");
             return;

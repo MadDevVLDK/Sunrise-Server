@@ -2,8 +2,8 @@ package com.sunrise.notifier;
 
 import org.springframework.lang.NonNull;
 
-import com.sunrise.service.creation.CreateLoginHistoryDTO;
-import com.sunrise.service.creation.CreateVerificationTokenDTO;
+import com.sunrise.core.creation.CreateLoginHistoryDTO;
+import com.sunrise.core.creation.CreateVerificationTokenDTO;
 
 public final class AsyncEvent {
     private AsyncEvent() {}

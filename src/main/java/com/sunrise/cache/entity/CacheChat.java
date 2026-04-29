@@ -1,8 +1,8 @@
 package com.sunrise.cache.entity;
 
-import com.sunrise.dataservice.type.ChatType;
+import java.time.Instant;
 
-import java.time.LocalDateTime;
+import com.sunrise.orchestrator.type.ChatType;
 
 @lombok.Getter
 @lombok.AllArgsConstructor
@@ -13,22 +13,19 @@ public class CacheChat {
     private ChatType chatType;
     private Long opponentId;
     private int membersCount;
-    private LocalDateTime updatedAt;
-    private LocalDateTime createdAt;
+    private Instant updatedAt;
+    private Instant createdAt;
     private long createdBy;
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
     private boolean isDeleted;
 
-    private final LocalDateTime cachedAt = LocalDateTime.now();
+    private final Instant cachedAt = Instant.now();
 
-    public void onAddMember(){
-        membersCount++;
+    public void increaseMembersCount(int numToAdd){
+        membersCount += numToAdd;
     }
-    public void onAddMembers(int membersToAdd){
-        membersCount += membersToAdd;
-    }
-    public void onDeleteMember(){
-        membersCount--;
+    public void decreaseMembersCount(int numToSubtract){
+        membersCount -= numToSubtract;
     }
 
     public boolean isActive() {
@@ -39,23 +36,5 @@ public class CacheChat {
     }
     public boolean isNotPersonal(){
         return chatType.isNotPersonal();
-    }
-
-    public static CacheChat copy(CacheChat chat) {
-        if (chat == null) return null;
-
-        return new CacheChat(
-            chat.getId(),
-            chat.getName(),
-            chat.getDescription(),
-            chat.getChatType(),
-            chat.getOpponentId(),
-            chat.getMembersCount(),
-            chat.getUpdatedAt(),
-            chat.getCreatedAt(),
-            chat.getCreatedBy(),
-            chat.getDeletedAt(),
-            chat.isDeleted()
-        );
     }
 }

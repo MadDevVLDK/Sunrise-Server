@@ -1,8 +1,9 @@
 package com.sunrise.web.api;
 
-import com.sunrise.service.AuthService;
-import com.sunrise.service.result.ResultOneArg;
-import com.sunrise.web.api.response.ApiResponse;
+import com.sunrise.core.result.ResultOneArg;
+import com.sunrise.core.service.AuthService;
+import com.sunrise.web.payload.ApiResponse;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

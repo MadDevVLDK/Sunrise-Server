@@ -1,6 +1,6 @@
 package com.sunrise.db.result;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public interface ChatProfileResult {
     Long getId();
@@ -9,14 +9,14 @@ public interface ChatProfileResult {
     String getChatType();
     Long getOpponentId();
     Integer getMembersCount();
-    LocalDateTime getUpdatedAt();
-    LocalDateTime getCreatedAt();
+    Instant getUpdatedAt();
+    Instant getCreatedAt();
     Long getCreatedBy();
-    LocalDateTime getDeletedAt();
+    Instant getDeletedAt();
     Boolean getIsDeleted();
 
 //    Long getAvatarId();
 //    String getAvatarHash();
 //    String getAvatarPrHash();
-//    LocalDateTime getAvatarCreatedAt();
+//    Instant getAvatarCreatedAt();
 }

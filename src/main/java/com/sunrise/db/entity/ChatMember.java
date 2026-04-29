@@ -1,7 +1,8 @@
 package com.sunrise.db.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
 
 @lombok.Getter
 @lombok.Setter
@@ -19,13 +20,13 @@ public class ChatMember {
     private String tag = null;
 
     @Column(name = "settings_updated_at", nullable = false)
-    private LocalDateTime settingsUpdatedAt = LocalDateTime.now();
+    private Instant settingsUpdatedAt = Instant.now();
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private Instant updatedAt = Instant.now();
 
     @Column(name = "joined_at", nullable = false)
-    private LocalDateTime joinedAt = LocalDateTime.now();
+    private Instant joinedAt = Instant.now();
 
     @Column(name = "is_pinned", nullable = false)
     private boolean isPinned = false;
@@ -34,7 +35,7 @@ public class ChatMember {
     private boolean isAdmin = false;
 
     @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 
     @Column(name = "is_deleted",nullable = false)
     private boolean isDeleted = false;

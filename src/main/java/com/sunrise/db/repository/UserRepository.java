@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,42 +24,42 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Modifying
     @Transactional
     @Query("UPDATE User u SET u.lastLogin = :lastLogin, u.updatedAt = :lastLogin WHERE u.username = :username")
-    void updateLastLogin(@Param("username") String username, @Param("lastLogin") LocalDateTime lastLogin);
+    void updateLastLogin(@Param("username") String username, @Param("lastLogin") Instant lastLogin);
 
     @Modifying
     @Transactional
     @Query("UPDATE User SET username = :username, name = :name, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
-    int updateProfile(@Param("userId") long userId, @Param("username") String username, @Param("name") String name, @Param("updatedAt") LocalDateTime updatedAt);
+    int updateProfile(@Param("userId") long userId, @Param("username") String username, @Param("name") String name, @Param("updatedAt") Instant updatedAt);
 
     @Modifying
     @Transactional
     @Query(value = "UPDATE User SET email = :email, jwtVersion = jwtVersion + 1, updatedAt = :updatedAt WHERE id = :userId")
-    int updateUserEmail(@Param("userId") long userId, @Param("email") String email, @Param("updatedAt") LocalDateTime updatedAt);
+    int updateUserEmail(@Param("userId") long userId, @Param("email") String email, @Param("updatedAt") Instant updatedAt);
 
     @Modifying
     @Transactional
     @Query("UPDATE User SET hashPassword = :password, jwtVersion = jwtVersion + 1, updatedAt = :updatedAt WHERE id = :userId")
-    int updateUserPassword(@Param("userId") long userId, @Param("password") String password, @Param("updatedAt") LocalDateTime updatedAt);
+    int updateUserPassword(@Param("userId") long userId, @Param("password") String password, @Param("updatedAt") Instant updatedAt);
 
     @Modifying
     @Transactional
     @Query("UPDATE User SET isEnabled = true, jwtVersion = jwtVersion + 1, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
-    int enableUser(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
+    int enableUser(@Param("userId") long userId, @Param("updatedAt") Instant updatedAt);
 
     @Modifying
     @Transactional
     @Query("UPDATE User SET isEnabled = false, jwtVersion = jwtVersion + 1, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
-    int disableUser(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
+    int disableUser(@Param("userId") long userId, @Param("updatedAt") Instant updatedAt);
 
     @Modifying
     @Transactional
     @Query("UPDATE User SET isDeleted = true, jwtVersion = jwtVersion + 1, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
-    int deleteUser(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
+    int deleteUser(@Param("userId") long userId, @Param("updatedAt") Instant updatedAt);
 
     @Modifying
     @Transactional
     @Query("UPDATE User SET isDeleted = false, jwtVersion = jwtVersion + 1, profileUpdatedAt = :updatedAt, updatedAt = :updatedAt WHERE id = :userId")
-    int restoreUser(@Param("userId") long userId, @Param("updatedAt") LocalDateTime updatedAt);
+    int restoreUser(@Param("userId") long userId, @Param("updatedAt") Instant updatedAt);
 
 
     // ========== ПОИСК ==========
@@ -77,6 +77,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
             FROM User u
             WHERE u.id = :userId""")
     Optional<UserProfileResult> getUserProfile(@Param("userId") long userId);
+
+    @Query("""
+        SELECT
+            u.id as id,
+            u.username as username,
+            u.name as name,
+            u.profileUpdatedAt as profileUpdatedAt,
+            u.createdAt as createdAt,
+            u.isEnabled as isEnabled,
+            u.deletedAt as deletedAt,
+            u.isDeleted as isDeleted
+        FROM User u
+        WHERE u.id IN :userIds""")
+    List<UserProfileResult> getUserProfileByIds(@Param("userIds") List<Long> userIds);
+
     @Query("""
             SELECT
                 u.id as id,

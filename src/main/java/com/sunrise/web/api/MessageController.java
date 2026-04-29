@@ -2,29 +2,22 @@ package com.sunrise.web.api;
 
 import com.sunrise.web.api.annotation.CurrentUserId;
 import com.sunrise.web.api.annotation.ValidId;
+import com.sunrise.web.payload.ApiRequest;
+import com.sunrise.web.payload.ApiResponse;
+import com.sunrise.core.result.*;
+import com.sunrise.core.service.MessageService;
+import com.sunrise.orchestrator.result.MessageReadStatusDTO;
+import com.sunrise.orchestrator.result.MessagesPageDTO;
+import com.sunrise.orchestrator.result.UserMessageDTO;
 
-import com.sunrise.web.api.request.PaginationRequest;
-import com.sunrise.web.api.request.PrivateMessageRequest;
-import com.sunrise.web.api.request.PublicMessageRequest;
-import com.sunrise.web.api.request.UpdateMessageRequest;
-import com.sunrise.web.api.response.ApiResponse;
-import com.sunrise.service.result.*;
-
-import com.sunrise.dataservice.type.Direction;
-import com.sunrise.service.MessageService;
-
-import com.sunrise.dataservice.result.UserMessageDTO;
-import com.sunrise.dataservice.result.MessageReadStatusDTO;
-import com.sunrise.dataservice.result.MessagesPageDTO;
 import jakarta.validation.Valid;
-
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
 
 @Validated
 @RequiredArgsConstructor
@@ -35,10 +28,10 @@ public class MessageController {
     private final MessageService messageService;
 
     @PostMapping
-    public ResponseEntity<?> sendPublicMessage(@PathVariable @ValidId long chatId,
-                                               @RequestBody @Valid PublicMessageRequest request, @CurrentUserId long userId) {
+    public ResponseEntity<?> sendPublicMessage(@PathVariable("chatId") @ValidId long chatId,
+                                               @RequestBody @Valid ApiRequest.PublicMessage request, @CurrentUserId long userId) {
 
-        ResultOneArg<Long> result = messageService.makePublicMessage(request.getTempId(), chatId, userId, request.getText());
+        ResultOneArg<Long> result = messageService.makePublicMessage(request.tempId(), chatId, userId, request.text());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -46,10 +39,12 @@ public class MessageController {
     }
 
     @PostMapping("/private")
-    public ResponseEntity<?> sendPrivateMessage(@PathVariable @ValidId long chatId,
-                                                @RequestBody @Valid PrivateMessageRequest request, @CurrentUserId long userId) {
+    public ResponseEntity<?> sendPrivateMessage(@PathVariable("chatId") @ValidId long chatId,
+                                                @RequestBody @Valid ApiRequest.PrivateMessage request, @CurrentUserId long userId) {
 
-        ResultOneArg<Long> result = messageService.makePrivateMessage(request.getTempId(), chatId, userId, request.getUserToSendId(), request.getText());
+        ResultOneArg<Long> result = messageService.makePrivateMessage(
+            request.tempId(), chatId, userId, request.receiverId(), request.text()
+        );
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -58,10 +53,12 @@ public class MessageController {
 
 
     @PutMapping("/{messageId}")
-    public ResponseEntity<?> updateMessage(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId,
-                                           @RequestBody @Valid UpdateMessageRequest request, @CurrentUserId long userId) {
+    public ResponseEntity<?> updateMessage(@PathVariable("chatId") @ValidId long chatId, @PathVariable("messageId") @ValidId long messageId,
+                                           @RequestBody @Valid ApiRequest.UpdateMessage request, @CurrentUserId long userId) {
 
-        ResultNoArgs result = messageService.updateMessage(chatId, userId, messageId, request.getText().trim());
+        ResultNoArgs result = messageService.updateMessage(
+            chatId, userId, messageId, request.text().trim()
+        );
 
         return result.isSuccess() ?
                 ApiResponse.success() :
@@ -69,7 +66,8 @@ public class MessageController {
     }
 
     @PutMapping("/{messageId}/mark-up-to-read")
-    public ResponseEntity<?> markMessagesUpToRead(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
+    public ResponseEntity<?> markMessagesUpToRead(@PathVariable("chatId") @ValidId long chatId, @PathVariable("messageId") @ValidId long messageId, 
+                                                  @CurrentUserId long userId) {
 
         ResultNoArgs result = messageService.markMessagesUpToRead(chatId, userId, messageId);
 
@@ -80,7 +78,8 @@ public class MessageController {
 
 
     @DeleteMapping("/{messageId}")
-    public ResponseEntity<?> deleteMessage(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
+    public ResponseEntity<?> deleteMessage(@PathVariable("chatId") @ValidId long chatId, @PathVariable("messageId") @ValidId long messageId, 
+                                           @CurrentUserId long userId) {
 
         ResultNoArgs result = messageService.deleteMessage(chatId, userId, messageId);
 
@@ -91,7 +90,8 @@ public class MessageController {
 
 
     @GetMapping("/{messageId}/reads")
-    public ResponseEntity<?> getMessageReads(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
+    public ResponseEntity<?> getMessageReads(@PathVariable("chatId") @ValidId long chatId, @PathVariable("messageId") @ValidId long messageId, 
+                                             @CurrentUserId long userId) {
 
         ResultOneArg<List<MessageReadStatusDTO>> result = messageService.getMessageReads(chatId, userId, messageId);
 
@@ -101,7 +101,8 @@ public class MessageController {
     }
 
     @GetMapping("/{messageId}")
-    public ResponseEntity<?> getMessage(@PathVariable @ValidId long chatId, @PathVariable @ValidId long messageId, @CurrentUserId long userId) {
+    public ResponseEntity<?> getMessage(@PathVariable("chatId") @ValidId long chatId, @PathVariable("messageId") @ValidId long messageId, 
+                                        @CurrentUserId long userId) {
 
         ResultOneArg<UserMessageDTO> result = messageService.getMessage(chatId, userId, messageId);
 
@@ -110,11 +111,22 @@ public class MessageController {
                 ApiResponse.error(result.getError());
     }
 
-    @GetMapping
-    public ResponseEntity<?> getMessagesPage(@PathVariable @ValidId long chatId, @Valid PaginationRequest pagination,
-                                             @RequestParam(defaultValue = "BACKWARD") @NotNull Direction direction, @CurrentUserId long userId) {
+    @GetMapping("/batch")
+    public ResponseEntity<?> getMessage(@PathVariable("chatId") @ValidId long chatId, @Valid ApiRequest.Batch request, 
+                                        @CurrentUserId long userId) {
 
-        ResultOneArg<MessagesPageDTO> result = messageService.getMessagePagination(chatId, userId, pagination.getCursor(), pagination.getLimit(), direction);
+        ResultOneArg<List<UserMessageDTO>> result = messageService.getMessageBatch(chatId, userId, request.ids());
+
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getMessagesPage(@PathVariable("chatId") @ValidId long chatId, 
+                                             @Valid ApiRequest.MessagePagination request, @CurrentUserId long userId) {
+
+        ResultOneArg<MessagesPageDTO> result = messageService.getMessagePagination(chatId, userId, request.cursor(), request.getLimit(), request.direction());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :

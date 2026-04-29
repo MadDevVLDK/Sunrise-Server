@@ -1,19 +1,18 @@
 package com.sunrise.db.result;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public interface UserMessageResult {
     Long getId();
     Long getChatId();
     Long getSenderId();
     String getMessageType();
-    LocalDateTime getProfileUpdatedAt();
-    LocalDateTime getMemberUpdatedAt();
+    Instant getProfileUpdatedAt();
+    Instant getMemberUpdatedAt();
     String getText();
     Long getReadCount();
-    Boolean getIsReadByUser();
-    LocalDateTime getSentAt();
-    LocalDateTime getUpdatedAt();
-    LocalDateTime getDeletedAt();
+    Instant getSentAt();
+    Instant getUpdatedAt();
+    Instant getDeletedAt();
     Boolean getIsDeleted();
 }

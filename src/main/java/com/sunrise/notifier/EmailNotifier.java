@@ -1,12 +1,13 @@
 package com.sunrise.notifier;
 
-import com.sunrise.dataservice.type.TokenType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import com.sunrise.orchestrator.type.TokenType;
 
 @RequiredArgsConstructor
 @Service

@@ -1,6 +1,6 @@
 package com.sunrise.db.result;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public interface UserSecurityResult {
     Long getId();
@@ -8,6 +8,6 @@ public interface UserSecurityResult {
     String getHashPassword();
     Integer getJwtVersion();
     Boolean getIsEnabled();
-    LocalDateTime getDeletedAt();
+    Instant getDeletedAt();
     Boolean getIsDeleted();
 }

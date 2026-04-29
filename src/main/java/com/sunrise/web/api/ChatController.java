@@ -1,23 +1,29 @@
 package com.sunrise.web.api;
 
 import com.sunrise.web.api.annotation.CurrentUserId;
-import com.sunrise.web.api.request.*;
-import com.sunrise.web.api.response.ApiResponse;
+import com.sunrise.web.payload.ApiRequest;
+import com.sunrise.web.payload.ApiRequest.Batch;
+import com.sunrise.web.payload.ApiRequest.CreateGroupChat;
+import com.sunrise.web.payload.ApiRequest.CreatePersonalChat;
+import com.sunrise.web.payload.ApiRequest.SyncRequest;
+import com.sunrise.web.payload.ApiResponse;
+import com.sunrise.db.event.ChatEvent;
 import com.sunrise.db.result.ChatStatsResult;
-import com.sunrise.service.result.*;
-import com.sunrise.service.ChatService;
+import com.sunrise.orchestrator.result.ChatMetaDTO;
+import com.sunrise.orchestrator.result.ChatProfileDTO;
 import com.sunrise.web.api.annotation.ValidId;
+import com.sunrise.core.result.*;
+import com.sunrise.core.service.ChatService;
 
-import com.sunrise.dataservice.result.ChatProfileDTO;
-import com.sunrise.dataservice.result.UserChatsPageDTO;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+
 
 @Validated
 @RequiredArgsConstructor
@@ -27,10 +33,11 @@ public class ChatController {
 
     private final ChatService chatService;
 
-    @PostMapping("/create-personal")
-    public ResponseEntity<?> createPersonalChat(@RequestBody @Valid CreatePersonalChatRequest request, @CurrentUserId long userId) {
 
-        ResultOneArg<Long> result = chatService.createPersonalChat(request.getTempId(), userId, request.getOtherUserId());
+    @PostMapping("/create-personal")
+    public ResponseEntity<?> createPersonalChat(@RequestBody @Valid CreatePersonalChat request, @CurrentUserId long userId) {
+
+        ResultOneArg<Long> result = chatService.createPersonalChat(request.tempId(), userId, request.otherUserId());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -38,13 +45,13 @@ public class ChatController {
     }
 
     @PostMapping("/create-group")
-    public ResponseEntity<?> createGroupChat(@RequestBody @Valid CreateGroupChatRequest request, @CurrentUserId long userId) {
+    public ResponseEntity<?> createGroupChat(@RequestBody @Valid CreateGroupChat request, @CurrentUserId long userId) {
 
         ResultOneArg<Long> result = chatService.createGroupChat(
-            request.getTempId(), userId,
-            request.getChatName().trim(),
-            request.getChatDescription(),
-            request.getMembers()
+            request.tempId(), userId,
+            request.chatName().trim(),
+            request.chatDescription(),
+            request.members()
         );
 
         return result.isSuccess() ?
@@ -53,9 +60,10 @@ public class ChatController {
     }
 
     @PutMapping("/{chatId}/info")
-    public ResponseEntity<?> updateChatInfo(@PathVariable @ValidId long chatId, @RequestBody @Valid UpdateChatInfoRequest request, @CurrentUserId long userId) {
+    public ResponseEntity<?> updateChatInfo(@PathVariable("chatId") @ValidId long chatId, 
+                                            @RequestBody @Valid ApiRequest.UpdateChatInfo request, @CurrentUserId long userId) {
 
-        ResultNoArgs result = chatService.updateChatInfo(chatId, userId, request.getChatName(), request.getChatDescription());
+        ResultNoArgs result = chatService.updateChatInfo(chatId, userId, request.chatName(), request.chatDescription());
 
         return result.isSuccess() ?
                 ApiResponse.success() :
@@ -63,7 +71,7 @@ public class ChatController {
     }
 
     @DeleteMapping("/{chatId}")
-    public ResponseEntity<?> deleteChat(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
+    public ResponseEntity<?> deleteChat(@PathVariable("chatId") @ValidId long chatId, @CurrentUserId long userId) {
 
         ResultNoArgs result = chatService.deleteChat(chatId, userId);
 
@@ -73,7 +81,7 @@ public class ChatController {
     }
 
     @GetMapping("/{chatId}/stats")
-    public ResponseEntity<?> getChatStats(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
+    public ResponseEntity<?> getChatStats(@PathVariable("chatId") @ValidId long chatId, @CurrentUserId long userId) {
 
         ResultOneArg<ChatStatsResult> result = chatService.getChatStats(chatId, userId);
 
@@ -82,16 +90,17 @@ public class ChatController {
                 ApiResponse.error(result.getError());
     }
 
-    @GetMapping("/ids")
-    public ResponseEntity<?> getUserChatIds(@CurrentUserId long userId) {
-        ResultOneArg<List<Long>> result = chatService.getUserChatIds(userId);
+    @GetMapping("/meta")
+    public ResponseEntity<?> getUserChatsMeta(@CurrentUserId long userId) {
+        ResultOneArg<List<ChatMetaDTO>> result = chatService.getUserChatsMeta(userId);
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
                 ApiResponse.error(result.getError());
     }
+
     @GetMapping("/{chatId}")
-    public ResponseEntity<?> getUserChat(@PathVariable @ValidId long chatId, @CurrentUserId long userId) {
+    public ResponseEntity<?> getUserChat(@PathVariable("chatId") @ValidId long chatId, @CurrentUserId long userId) {
 
         ResultOneArg<ChatProfileDTO> result = chatService.getUserChat(chatId, userId);
 
@@ -99,16 +108,27 @@ public class ChatController {
                 ApiResponse.success(result.getResult()) :
                 ApiResponse.error(result.getError());
     }
-    @GetMapping
-    public ResponseEntity<?> getUserChatsPage(@Valid ChatPaginationRequest request, @CurrentUserId long userId) {
 
-        ResultOneArg<UserChatsPageDTO> result = chatService.getUserChatsPage(
-            userId, request.getIsPinnedCursor(), request.getLastMsgIdCursor(),
-            request.getChatIdCursor(), request.getLimit()
-        );
+    @GetMapping("/batch")
+    public ResponseEntity<?> getUserChatsByIds(@Valid Batch request, @CurrentUserId long userId) {
+
+        ResultOneArg<List<ChatProfileDTO>> result = chatService.getUserChatsByIds(userId, request.ids());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
                 ApiResponse.error(result.getError());
     }
+
+    @PostMapping("/sync")
+    public ResponseEntity<?> syncChats(@RequestBody SyncRequest request, @CurrentUserId long userId) {
+
+        ResultOneArg<Map<Long, ChatSyncDTO>> result = chatService.syncChats(userId, request.chatSeqs());
+
+        return result.isSuccess() ?
+                ApiResponse.success(result.getResult()) :
+                ApiResponse.error(result.getError());
+    }
+
+    public record ChatEventDTO(long seq, String type, ChatEvent.IChatEvent event) {}
+    public record ChatSyncDTO(List<ChatEventDTO> events, boolean hasMore) {}
 }

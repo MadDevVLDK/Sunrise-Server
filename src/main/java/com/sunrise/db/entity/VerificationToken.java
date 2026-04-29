@@ -1,9 +1,10 @@
 package com.sunrise.db.entity;
 
-import com.sunrise.dataservice.type.TokenType;
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+
+import com.sunrise.orchestrator.type.TokenType;
 
 @lombok.Getter
 @lombok.Setter
@@ -28,8 +29,8 @@ public class VerificationToken {
     private TokenType tokenType;
 
     @Column(name = "expiry_date", nullable = false)
-    private LocalDateTime expiryDate;
+    private Instant expiryDate;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 }

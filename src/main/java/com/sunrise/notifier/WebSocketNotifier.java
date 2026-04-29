@@ -1,140 +1,273 @@
 package com.sunrise.notifier;
 
-import com.sunrise.dataservice.type.ChatType;
-import com.sunrise.service.creation.CreateChatMemberDTO;
-import com.sunrise.service.creation.CreateGroupChatDTO;
-import com.sunrise.service.creation.CreateMessageDTO;
-import com.sunrise.service.creation.CreatePersonalChatDTO;
-import com.sunrise.web.websocket.request.WsRequests;
+import com.sunrise.core.creation.CreateChatMemberDTO;
+import com.sunrise.core.creation.CreateGroupChatDTO;
+import com.sunrise.core.creation.CreateMessageDTO;
+import com.sunrise.core.creation.CreatePersonalChatDTO;
+import com.sunrise.web.payload.WsResponse;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-@RequiredArgsConstructor
+
+@Slf4j
 @Service
-public class WebSocketNotifier { // TODO: Добавить @Async если большие операции будут
+@RequiredArgsConstructor
+public class WebSocketNotifier { // TODO: Добавить batch‑отправку ChatMembersNew
 
     private final SimpMessagingTemplate messagingTemplate;
     private final SessionRegistry sessionRegistry;
 
 
     // ======================= MESSAGE ============================
-    public void notifyMessageNew(long tempId, CreateMessageDTO message, LocalDateTime senderProfileUpdatedAt) {
-        sendToChatTopic(message.getChatId(), new WsRequests.MessageNewResponse(
-            tempId, message.getId(), message.getChatId(), message.getSenderId(),
-            senderProfileUpdatedAt, message.getText(), message.getReadCount(),
-            message.getSentAt(), message.getUpdatedAt(), message.getDeletedAt(), message.isDeleted()
-        ));
-    }
-    public void notifyMessagePrivateNew(long tempId, CreateMessageDTO message, LocalDateTime senderProfileUpdatedAt, long receiverId) {
-        var response = new WsRequests.MessagePrivateNewResponse(
-            tempId, message.getId(), message.getChatId(), message.getSenderId(),
-            senderProfileUpdatedAt, message.getText(), message.getSentAt()
-        );
-        for (long userId : List.of(message.getSenderId(), receiverId)) {
-            sendToUserSessions(userId, "/private-messages", response);
+    
+    @Async("webSocketNotifierExecutor")
+    public void notifyMessageNew(long tempId, CreateMessageDTO message, Instant senderProfileUpdatedAt) {
+        try {
+            sendToChatTopic(message.getChatId(), new WsResponse.MessageNew(
+                tempId, message.getId(), message.getChatId(), message.getSenderId(),
+                senderProfileUpdatedAt, message.getText(), message.getReadCount(),
+                message.getSentAt(), message.getUpdatedAt(), message.getDeletedAt(), message.isDeleted()
+            ));
+            log.debug("[💬] 📨 Notified new message {} in chat {}", message.getId(), message.getChatId());
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify new message {} in chat {}: {}", message.getId(), message.getChatId(), e.getMessage());
         }
     }
-    public void notifyMessageInfoUpdated(long chatId, long messageId, String newText, LocalDateTime updatedAt) {
-        sendToChatTopic(chatId, new WsRequests.MessageUpdateResponse(
-            messageId, chatId, newText, updatedAt
-        ));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyMessagePrivateNew(long tempId, CreateMessageDTO message, Instant senderProfileUpdatedAt, long receiverId) {
+        try {
+            var response = new WsResponse.MessagePrivateNew(
+                tempId, message.getId(), message.getChatId(), message.getSenderId(),
+                senderProfileUpdatedAt, message.getText(), message.getSentAt()
+            );
+            for (long userId : List.of(message.getSenderId(), receiverId)) {
+                sendToUserSessions(userId, "/private-messages", response);
+            }
+            log.debug("[💬] 🔒 Notified private message {} from user {} to user {}", message.getId(), message.getSenderId(), receiverId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify private message {}: {}", message.getId(), e.getMessage());
+        }
     }
-    public void notifyMessageDeleted(long chatId, long messageId, LocalDateTime deletedAt) {
-        sendToChatTopic(chatId, new WsRequests.MessageDeleteResponse(messageId, chatId, deletedAt));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyMessageInfoUpdated(long chatId, long messageId, String newText, Instant updatedAt) {
+        try {
+            sendToChatTopic(chatId, new WsResponse.MessageUpdate(
+                messageId, chatId, newText, updatedAt
+            ));
+            log.debug("[💬] ✏️ Notified message {} update in chat {}", messageId, chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify message {} update: {}", messageId, e.getMessage());
+        }
     }
-    public void notifyMessageReadUpTo(long chatId, long userId, long upToMessageId, LocalDateTime readAt) {
-        sendToChatTopic(chatId, new WsRequests.MessagesReadUpToResponse(userId, chatId, upToMessageId, readAt));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyMessageDeleted(long chatId, long messageId, Instant deletedAt) {
+        try {
+            sendToChatTopic(chatId, new WsResponse.MessageDelete(messageId, chatId, deletedAt));
+            log.debug("[💬] 🗑️ Notified message {} deletion in chat {}", messageId, chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify message {} deletion: {}", messageId, e.getMessage());
+        }
+    }
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyMessageReadUpTo(long chatId, long userId, long upToMessageId, Instant readAt) {
+        try {
+            sendToChatTopic(chatId, new WsResponse.MessagesReadUpTo(userId, chatId, upToMessageId, readAt));
+            log.debug("[💬] 👁️ Notified user {} read up to message {} in chat {}", userId, upToMessageId, chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify read status for user {} in chat {}: {}", userId, chatId, e.getMessage());
+        }
     }
 
 
     // ========================= CHAT =============================
+    
+    @Async("webSocketNotifierExecutor")
     public void notifyGroupChatNew(long tempId, CreateGroupChatDTO chat, Set<Long> userIdsToNotify) {
-        var response = new WsRequests.ChatNewResponse(
-            tempId, chat.getId(), chat.getName(), chat.getDescription(),
-            chat.getChatType(), chat.getOpponentId(), chat.getMembersCount(),
-            chat.getUpdatedAt(), chat.getCreatedAt(), chat.getCreatedBy()
-        );
-        for (long userId : userIdsToNotify){
-            sendToUserSessions(userId, "/chats", response);
+        try {
+            var response = new WsResponse.ChatNew(
+                tempId, chat.getId(), chat.getName(), chat.getDescription(),
+                chat.getChatType(), chat.getOpponentId(), chat.getMembersCount(),
+                chat.getUpdatedAt(), chat.getCreatedAt(), chat.getCreatedBy()
+            );
+            for (long userId : userIdsToNotify){
+                sendToUserSessions(userId, "/chats", response);
+            }
+            log.debug("[💬] 🆕 Notified group chat {} creation to {} users", chat.getId(), userIdsToNotify.size());
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify group chat {} creation: {}", chat.getId(), e.getMessage());
         }
     }
+
+    @Async("webSocketNotifierExecutor")
     public void notifyPersonalChatNew(long tempId, CreatePersonalChatDTO chat, Set<Long> userIdsToNotify) {
-        var response = new WsRequests.ChatNewResponse(
-            tempId, chat.getId(), chat.getName(), chat.getDescription(),
-            chat.getChatType(), chat.getOpponentId(), chat.getMembersCount(),
-            chat.getUpdatedAt(), chat.getCreatedAt(), chat.getCreatedBy()
-        );
-        for (long userId : userIdsToNotify){
-            sendToUserSessions(userId, "/chats", response);
+        try {
+            var response = new WsResponse.ChatNew(
+                tempId, chat.getId(), chat.getName(), chat.getDescription(),
+                chat.getChatType(), chat.getOpponentId(), chat.getMembersCount(),
+                chat.getUpdatedAt(), chat.getCreatedAt(), chat.getCreatedBy()
+            );
+            for (long userId : userIdsToNotify){
+                sendToUserSessions(userId, "/chats", response);
+            }
+            log.debug("[💬] 💑 Notified personal chat {} creation to {} users", chat.getId(), userIdsToNotify.size());
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify personal chat {} creation: {}", chat.getId(), e.getMessage());
         }
     }
-    public void notifyChatInfoUpdated(long chatId, String newName, String newDescription, LocalDateTime updatedAt) {
-        sendToChatTopic(chatId, new WsRequests.ChatInfoUpdateResponse(
-            chatId, newName, newDescription, updatedAt
-        ));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyChatInfoUpdated(long chatId, String newName, String newDescription, Instant updatedAt) {
+        try {
+            sendToChatTopic(chatId, new WsResponse.ChatInfoUpdate(
+                chatId, newName, newDescription, updatedAt
+            ));
+            log.debug("[💬] 📝 Notified chat {} info update", chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify chat {} info update: {}", chatId, e.getMessage());
+        }
     }
-    public void notifyChatTypeUpdated(long chatId, ChatType newChatType, LocalDateTime updatedAt) {
-        sendToChatTopic(chatId, new WsRequests.ChatTypeUpdateResponse(chatId, newChatType, updatedAt));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifySelfChatSettingsUpdated(long chatId, long userId, boolean isPinned, Instant updatedAt) {
+        try {
+            sendToUserSessions(userId, "/chat-settings", new WsResponse.SelfChatSettingsUpdate(chatId, isPinned, updatedAt));
+            log.debug("[💬] ⚙️ Notified user {} chat {} settings update (pinned={})", userId, chatId, isPinned);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify user {} chat {} settings update: {}", userId, chatId, e.getMessage());
+        }
     }
-    public void notifySelfChatSettingsUpdated(long chatId, long userId, boolean isPinned, LocalDateTime updatedAt) {
-        sendToUserSessions(userId, "/chat-settings", new WsRequests.SelfChatSettingsUpdateResponse(chatId, isPinned, updatedAt));
-    }
-    public void notifyChatDeleted(long chatId, LocalDateTime deletedAt) {
-        sendToChatTopic(chatId, new WsRequests.ChatDeleteResponse(chatId, deletedAt));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyChatDeleted(long chatId, Instant deletedAt) {
+        try {
+            sendToChatTopic(chatId, new WsResponse.ChatDelete(chatId, deletedAt));
+            log.debug("[💬] 🗑️ Notified chat {} deletion", chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify chat {} deletion: {}", chatId, e.getMessage());
+        }
     }
 
 
     // ===================== CHAT-MEMBER ===========================
+    
+    @Async("webSocketNotifierExecutor")
     public void notifyChatMemberNew(CreateChatMemberDTO chatMember) {
-        sendToChatTopic(chatMember.getChatId(), new WsRequests.ChatMemberNewResponse(
-            chatMember.getChatId(), chatMember.getUserId(),
-            chatMember.getUpdatedAt(), chatMember.getJoinedAt(), chatMember.isAdmin()
-        ));
-    }
-    public void notifyChatMembersNew(Collection<CreateChatMemberDTO> chatMembers) {
-        for (CreateChatMemberDTO chatMember : chatMembers) {
-            sendToChatTopic(chatMember.getChatId(), new WsRequests.ChatMemberNewResponse(
+        try {
+            sendToChatTopic(chatMember.getChatId(), new WsResponse.ChatMemberNew(
                 chatMember.getChatId(), chatMember.getUserId(),
                 chatMember.getUpdatedAt(), chatMember.getJoinedAt(), chatMember.isAdmin()
             ));
+            log.debug("[💬] 👤 Notified new member {} in chat {}", chatMember.getUserId(), chatMember.getChatId());
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify new member {} in chat {}: {}", chatMember.getUserId(), chatMember.getChatId(), e.getMessage());
         }
     }
-    public void notifyChatMemberInfoUpdated(long chatId, long userId, String tag, LocalDateTime updatedAt) {
-        sendToChatTopic(chatId, new WsRequests.ChatMemberInfoUpdateResponse(chatId, userId, tag, updatedAt));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyChatMembersNew(Collection<CreateChatMemberDTO> chatMembers) {
+        for (CreateChatMemberDTO chatMember : chatMembers) {
+            try {
+                sendToChatTopic(chatMember.getChatId(), new WsResponse.ChatMemberNew(
+                    chatMember.getChatId(), chatMember.getUserId(),
+                    chatMember.getUpdatedAt(), chatMember.getJoinedAt(), chatMember.isAdmin()
+                ));
+            } catch (Exception e) {
+                log.error("[💬] ❌ Failed to notify new member {} in chat {}: {}", chatMember.getUserId(), chatMember.getChatId(), e.getMessage());
+            }
+        }
+        log.debug("[💬] 👥 Notified batch of {} new members", chatMembers.size());
     }
-    public void notifyChatMemberAdminRightsUpdated(long chatId, long userId, boolean isAdmin, LocalDateTime updatedAt) {
-        sendToChatTopic(chatId, new WsRequests.ChatMemberAdminRightsUpdateResponse(chatId, userId, isAdmin, updatedAt));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyChatMemberInfoUpdated(long chatId, long userId, String tag, Instant updatedAt) {
+        try {
+            sendToChatTopic(chatId, new WsResponse.ChatMemberInfoUpdate(chatId, userId, tag, updatedAt));
+            log.debug("[💬] 📋 Notified member {} info update in chat {}", userId, chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify member {} info update in chat {}: {}", userId, chatId, e.getMessage());
+        }
     }
-    public void notifyChatMemberDeleted(long chatId, long userId, LocalDateTime deletedAt) {
-        sendToChatTopic(chatId, new WsRequests.ChatMemberDeleteResponse(chatId, userId, deletedAt));
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyChatMemberAdminRightsUpdated(long chatId, long userId, boolean isAdmin, Instant updatedAt) {
+        try {
+            sendToChatTopic(chatId, new WsResponse.ChatMemberAdminRightsUpdate(chatId, userId, isAdmin, updatedAt));
+            log.debug("[💬] 👑 Notified member {} admin rights update (isAdmin={}) in chat {}", userId, isAdmin, chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify member {} admin rights update in chat {}: {}", userId, chatId, e.getMessage());
+        }
+    }
+
+    @Async("webSocketNotifierExecutor")
+    public void notifyChatMemberDeleted(long chatId, long userId, Instant deletedAt) {
+        try {
+            sendToChatTopic(chatId, new WsResponse.ChatMemberDelete(chatId, userId, deletedAt));
+            log.debug("[💬] 🚪 Notified member {} removal from chat {}", userId, chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify member {} removal from chat {}: {}", userId, chatId, e.getMessage());
+        }
     }
 
 
     // ================= PRESENCE/STATUS/OTHER ====================
+    
+    @Async("webSocketNotifierExecutor")
     public void notifyUserStatusChange(long userId, String newStatus, @NonNull Set<String> userSessionsToNotify) {
-        var response = new WsRequests.UserStatusResponse(userId, newStatus);
-        for (String sessionId : userSessionsToNotify) {
-            if (sessionId == null) continue;
-            messagingTemplate.convertAndSendToUser(sessionId, "/queue/user-status", response);
+        try {
+            var response = new WsResponse.UserStatus(userId, newStatus);
+            for (String sessionId : userSessionsToNotify) {
+                if (sessionId == null) continue;
+                messagingTemplate.convertAndSendToUser(sessionId, "/queue/user-status", response);
+            }
+            log.debug("[💬] 🟢 Notified user {} status change to '{}' ({} sessions)", userId, newStatus, userSessionsToNotify.size());
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify user {} status change: {}", userId, e.getMessage());
         }
     }
+
+    @Async("webSocketNotifierExecutor")
     public void notifyUserAction(long chatId, long userId, String action) {
-        sendToChatTopic(chatId, new WsRequests.UserChatActionResponse(userId, chatId, action));
-    }
-    public void notifyPong(@NonNull String sessionId) {
-        sendToUserSession(sessionId, "/pong", new WsRequests.PongResponse());
+        try {
+            sendToChatTopic(chatId, new WsResponse.UserChatAction(userId, chatId, action));
+            log.debug("[💬] ⌨️ Notified user {} action '{}' in chat {}", userId, action, chatId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to notify user {} action in chat {}: {}", userId, chatId, e.getMessage());
+        }
     }
 
+    @Async("webSocketNotifierExecutor")
+    public void notifyPong(@NonNull String sessionId) {
+        try {
+            sendToUserSession(sessionId, "/pong", new WsResponse.Pong());
+            log.debug("[💬] 🏓 Sent pong to session {}", sessionId);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to send pong to session {}: {}", sessionId, e.getMessage());
+        }
+    }
+
+    @Async("webSocketNotifierExecutor")
     public void notifyError(@NonNull String sessionId, String error, String errorUrl) {
-        sendToUserSession(sessionId, "/errors", new WsRequests.ErrorResponse("websocket_error", error, errorUrl));
+        try {
+            sendToUserSession(sessionId, "/errors", new WsResponse.Error("websocket_error", error, errorUrl));
+            log.debug("[💬] ⚠️ Sent error notification to session {}: {}", sessionId, error);
+        } catch (Exception e) {
+            log.error("[💬] ❌ Failed to send error to session {}: {}", sessionId, e.getMessage());
+        }
     }
 
 

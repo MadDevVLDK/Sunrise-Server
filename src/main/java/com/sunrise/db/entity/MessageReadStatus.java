@@ -2,7 +2,8 @@ package com.sunrise.db.entity;
 
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+
 
 @lombok.Getter
 @lombok.Setter
@@ -17,5 +18,5 @@ public class MessageReadStatus {
     protected MessageReadStatusId id;
 
     @Column(name = "read_at", nullable = false)
-    private LocalDateTime readAt = LocalDateTime.now();
+    private Instant readAt = Instant.now();
 }

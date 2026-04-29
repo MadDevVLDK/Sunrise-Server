@@ -1,11 +1,12 @@
 /**
  * Компонент боковой панели (меню + список чатов)
  */
-const Sidebar = ({ user, chats, selectedChatId, onSelectChat, isLoadingChats, isMenuOpen, onToggleMenu, onLogout, onProfile, onLoadMore, hasMoreChats }) => {
+const Sidebar = ({ user, chats, selectedChatId, onSelectChat, isLoadingChats, isMenuOpen, onToggleMenu, onLogout, onProfile, onLoadMore, hasMoreChats, onTogglePin }) => {
     const [searchQuery, setSearchQuery] = React.useState('');
 
     // Фильтровать чаты по поисковому запросу
     const filteredChats = React.useMemo(() => {
+        console.log('[Sidebar] filteredChats recomputed, input chats length:', chats?.length);
         if (!Array.isArray(chats) || !searchQuery.trim()) return chats;
 
         const query = searchQuery.toLowerCase();
@@ -17,15 +18,15 @@ const Sidebar = ({ user, chats, selectedChatId, onSelectChat, isLoadingChats, is
             {/* Header с логотипом и кнопками */}
             <div className="sidebar-header">
                 <div className="sidebar-brand">
-                    <i className="bi bi-sun-fill"></i>
+                    <i className="bi bi-sun-fill"/>
                     <span>Sunrise</span>
                 </div>
                 <div className="sidebar-actions">
                     <button className="sidebar-btn" title="Создать чат">
-                        <i className="bi bi-pencil-square"></i>
+                        <i className="bi bi-pencil-square"/>
                     </button>
                     <button className="sidebar-btn" title="Параметры">
-                        <i className="bi bi-sliders"></i>
+                        <i className="bi bi-sliders"/>
                     </button>
                 </div>
             </div>
@@ -49,6 +50,7 @@ const Sidebar = ({ user, chats, selectedChatId, onSelectChat, isLoadingChats, is
                 isLoading={isLoadingChats}
                 onLoadMore={onLoadMore}
                 hasMoreChats={hasMoreChats}
+                onTogglePin={onTogglePin}
             />
 
             {/* Меню пользователя */}

@@ -2,21 +2,20 @@ package com.sunrise.web.api;
 
 import com.sunrise.web.api.annotation.CurrentUserId;
 import com.sunrise.web.api.annotation.ValidId;
-import com.sunrise.web.api.request.GetUserProfilesByIds;
-import com.sunrise.web.api.response.ApiResponse;
-import com.sunrise.service.UserService;
-import com.sunrise.web.api.request.ProfileUpdateRequest;
-import com.sunrise.service.result.*;
-import com.sunrise.dataservice.result.UserProfileLightDTO;
+import com.sunrise.web.payload.ApiRequest;
+import com.sunrise.web.payload.ApiResponse;
+import com.sunrise.core.result.*;
+import com.sunrise.core.service.UserService;
+import com.sunrise.orchestrator.result.UserProfileLightDTO;
 
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+
 
 @Validated
 @RequiredArgsConstructor
@@ -26,9 +25,9 @@ public class ProfileController {
     private final UserService userService;
 
     @PutMapping
-    public ResponseEntity<?> updateProfile(@RequestBody @Valid ProfileUpdateRequest request, @CurrentUserId long userId) {
+    public ResponseEntity<?> updateProfile(@RequestBody @Valid ApiRequest.ProfileUpdate request, @CurrentUserId long userId) {
 
-        ResultNoArgs result = userService.updateProfile(userId, request.getUsername(), request.getName());
+        ResultNoArgs result = userService.updateProfile(userId, request.username(), request.name());
 
         return result.isSuccess() ?
                 ApiResponse.success() :
@@ -55,7 +54,8 @@ public class ProfileController {
     }
 
     @GetMapping("/{otherUserId}")
-    public ResponseEntity<?> getOtherProfile(@PathVariable @ValidId long otherUserId, @RequestParam Boolean light, @CurrentUserId long userId) {
+    public ResponseEntity<?> getOtherProfile(@PathVariable("otherUserId") @ValidId long otherUserId, 
+                                             @RequestParam("light") Boolean light, @CurrentUserId long userId) {
 
         ResultOneArg<?> result;
         if (light == null) {
@@ -71,10 +71,10 @@ public class ProfileController {
                 ApiResponse.error(result.getError());
     }
 
-    @GetMapping("/by-ids")
-    public ResponseEntity<?> getOtherProfilesByIds(@RequestBody @Valid GetUserProfilesByIds request, @CurrentUserId long userId) {
+    @GetMapping("/batch")
+    public ResponseEntity<?> getOtherProfilesByIds(@Valid ApiRequest.Batch request, @CurrentUserId long userId) {
 
-        ResultOneArg<List<UserProfileLightDTO>> result = userService.getOtherProfileLightByIds(userId, request.getUserIds());
+        ResultOneArg<List<UserProfileLightDTO>> result = userService.getOtherProfileLightByIds(userId, request.ids());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :

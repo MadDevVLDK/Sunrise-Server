@@ -1,11 +1,10 @@
 package com.sunrise.web.api;
 
+import com.sunrise.core.result.*;
+import com.sunrise.core.service.AuthService;
 import com.sunrise.web.api.annotation.CurrentUserId;
-import com.sunrise.web.api.request.LoginRequest;
-import com.sunrise.web.api.request.RegisterRequest;
-import com.sunrise.web.api.response.ApiResponse;
-import com.sunrise.service.result.*;
-import com.sunrise.service.AuthService;
+import com.sunrise.web.payload.ApiRequest;
+import com.sunrise.web.payload.ApiResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -25,13 +24,13 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody @Valid RegisterRequest request) {
+    public ResponseEntity<?> register(@RequestBody @Valid ApiRequest.Register request) {
 
         ResultOneArg<String> result = authService.registerUser(
-            request.getUsername().trim(),
-            request.getName().trim(),
-            request.getEmail().trim(),
-            request.getPassword().trim()
+            request.username().trim(),
+            request.name().trim(),
+            request.email().trim(),
+            request.password().trim()
         );
 
         return result.isSuccess() ?
@@ -40,11 +39,11 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request, HttpServletRequest httpRequest) {
+    public ResponseEntity<?> login(@RequestBody @Valid ApiRequest.Login request, HttpServletRequest httpRequest) {
 
         ResultOneArg<UserLoginResult> result = authService.authenticateUser(
-            request.getUsername().trim(),
-            request.getPassword().trim(),
+            request.username().trim(),
+            request.password().trim(),
             httpRequest
         );
 
@@ -64,7 +63,7 @@ public class AuthController {
     }
 
     @PutMapping("/change-password") // TODO: ТУТ ОШИБКА МОЖЕТ БЫТЬ БРОШЕНА
-    public ResponseEntity<?> requestPasswordChange(@RequestParam @NotBlank @Email String email) {
+    public ResponseEntity<?> requestPasswordChange(@RequestParam("email") @NotBlank @Email String email) {
 
         ResultNoArgs result = authService.requestPasswordUpdate(email);
 

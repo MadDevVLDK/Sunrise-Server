@@ -23,4 +23,16 @@ public class AsyncDBConfig {
         executor.initialize();
         return executor;
     }
+
+    @Bean("webSocketNotifierExecutor")
+    public Executor webSocketNotifierExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(20);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix("ws-notify-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy()); // если очередь переполнена, выполняем в вызывающем потоке
+        executor.initialize();
+        return executor;
+    }
 }

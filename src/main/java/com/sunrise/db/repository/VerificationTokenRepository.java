@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 
 public interface VerificationTokenRepository extends JpaRepository<VerificationToken, Long> {
@@ -24,5 +24,5 @@ public interface VerificationTokenRepository extends JpaRepository<VerificationT
     @Modifying
     @Transactional
     @Query("DELETE FROM VerificationToken vt WHERE vt.expiryDate < :dateTime")
-    int deleteByExpiryDateBefore(@Param("dateTime") LocalDateTime dateTime);
+    int deleteByExpiryDateBefore(@Param("dateTime") Instant dateTime);
 }

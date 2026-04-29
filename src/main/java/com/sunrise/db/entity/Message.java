@@ -1,9 +1,11 @@
 package com.sunrise.db.entity;
 
-import com.sunrise.dataservice.type.MessageType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
-import java.time.LocalDateTime;
+
+import java.time.Instant;
+
+import com.sunrise.orchestrator.type.MessageType;
 
 @lombok.Getter
 @lombok.Setter
@@ -34,13 +36,13 @@ public class Message {
     private long readCount;
 
     @Column(name = "sent_at", nullable = false)
-    private LocalDateTime sentAt;
+    private Instant sentAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted;

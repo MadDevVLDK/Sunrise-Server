@@ -1,19 +1,19 @@
 package com.sunrise.db.result;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public interface UserProfileResult {
     Long getId();
     String getUsername();
     String getName();
-    LocalDateTime getProfileUpdatedAt();
-    LocalDateTime getCreatedAt();
+    Instant getProfileUpdatedAt();
+    Instant getCreatedAt();
     Boolean getIsEnabled();
-    LocalDateTime getDeletedAt();
+    Instant getDeletedAt();
     Boolean getIsDeleted();
 
 //    Long getAvatarId();
 //    String getAvatarHash();
 //    String getAvatarPrHash();
-//    LocalDateTime getAvatarCreatedAt();
+//    Instant getAvatarCreatedAt();
 }

@@ -16,6 +16,10 @@ spring:
       on-profile: docker-full-stack, docker-only-app, local
   autoconfigure.exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration # у меня ваще-то jwt используется
 
+  jackson:
+    generator:
+      write_numbers_as_strings: true
+
   mail:
     host: smtp.mail.ru
     port: 465
@@ -79,7 +83,7 @@ app:
   jwt:
     secret: ${JWT_SECRET:mysupersecretkeymysupersecretkeymysupersecretkey}
     expiration: ${APP_JWT_EXPIRATION:36000} # in seconds
-    no-jwt-endpoints: /ping,/cache-status,/api/auth/login,/api/auth/register,/api/auth/change-password,/api/auth/reset-password,/forms/**,/static/**
+    no-jwt-endpoints: /ping,/cache-status,/api/auth/login,/api/auth/register,/api/auth/change-password,/api/auth/reset-password,/forms/**,/static/**,/ws/**
   rate-limit:
     requests-per-minute: ${APP_RATE_LIMIT_REQUESTS_PER_MINUTE:500}
   mail:
@@ -91,6 +95,9 @@ app:
     clean-up-expiration: ${APP_LOCKS_CLEAN_UP_EXPIRATION:100000}
     clean-up-schedule: ${APP_LOCKS_CLEAN_UP_SCHEDULE:300000}
   cache:
+    max-per-chat:
+      messages: ${APP_CACHE_MAX_PER_CHAT_MESSAGES:200}
+      chat-members: ${APP_CACHE_MAX_PER_CHAT_CHAT_MEMBERS:500}
     max-size:
       user: ${APP_CACHE_MAX_SIZE_USER:100000}
       username-index: ${APP_CACHE_MAX_SIZE_USERNAME_INDEX:150000}
@@ -99,10 +106,9 @@ app:
       personal-chat-index: ${APP_CACHE_MAX_SIZE_PERSONAL_CHAT_INDEX:100000}
       chat-members: ${APP_CACHE_MAX_SIZE_CHAT_MEMBERS:150000}
       verification-tokens: ${APP_CACHE_MAX_SIZE_VERIFICATION_TOKENS:100000}
-      user_chats_pagination: ${APP_CACHE_MAX_SIZE_USER_CHATS_PAGINATION:25000}
-      chat_members_pagination: ${APP_CACHE_MAX_SIZE_CHAT_MEMBERS_PAGINATION:50000}
+      recent-messages-ids: ${APP_CACHE_MAX_SIZE_RECENT_MESSAGES_IDS:25000}
+      recent-chat-members-ids: ${APP_CACHE_MAX_SIZE_RECENT_CHAT_MEMBERS_IDS:50000}
     ttl:
-      # in minutes
       user: ${APP_CACHE_TTL_USER:60}
       user-username-index: ${APP_CACHE_TTL_USER_USERNAME_INDEX:60}
       user-email-index: ${APP_CACHE_TTL_USER_EMAIL_INDEX:60}
@@ -110,5 +116,5 @@ app:
       personal-chat-index: ${APP_CACHE_TTL_PERSONAL_CHAT_INDEX:720}
       chat-members: ${APP_CACHE_TTL_CHAT_MEMBERS:240}
       verification-tokens: ${APP_CACHE_TTL_VERIFICATION_TOKENS:60}
-      user_chats_pagination: ${APP_CACHE_TTL_USER_CHATS_PAGINATION:20}
-      chat_members_pagination: ${APP_CACHE_TTL_CHAT_MEMBERS_PAGINATION:20}
+      recent-messages-ids: ${APP_CACHE_TTL_RECENT_MESSAGES_IDS:20}
+      recent-chat-members-ids: ${APP_CACHE_TTL_RECENT_CHAT_MEMBERS_IDS:20}

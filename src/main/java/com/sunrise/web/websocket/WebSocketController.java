@@ -1,13 +1,13 @@
 package com.sunrise.web.websocket;
 
 import com.sunrise.web.api.annotation.ValidId;
+import com.sunrise.web.payload.ApiRequest;
 import com.sunrise.web.websocket.annotation.WsCurrentUserId;
-import com.sunrise.web.websocket.request.WsRequests;
+import com.sunrise.core.result.ResultNoArgs;
+import com.sunrise.core.result.ResultOneArg;
+import com.sunrise.core.service.ChatService;
+import com.sunrise.core.service.MessageService;
 import com.sunrise.notifier.WebSocketNotifier;
-import com.sunrise.service.ChatService;
-import com.sunrise.service.MessageService;
-import com.sunrise.service.result.ResultNoArgs;
-import com.sunrise.service.result.ResultOneArg;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +34,7 @@ public class WebSocketController {
 
     // =========================== MESSAGE ===========================
     @MessageMapping("/chats/{chatId}/messages/send")
-    public void sendMessage(@DestinationVariable long chatId, @Payload WsRequests.MessageNewRequest request,
+    public void sendMessage(@DestinationVariable long chatId, @Payload ApiRequest.PublicMessage request,
                             @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
 
         if (principal == null || principal.getName() == null) {
@@ -48,7 +48,7 @@ public class WebSocketController {
         }
     }
     @MessageMapping("/chats/{chatId}/messages/send-private")
-    public void sendPrivateMessage(@DestinationVariable long chatId, @Payload WsRequests.MessagePrivateNewRequest request,
+    public void sendPrivateMessage(@DestinationVariable long chatId, @Payload ApiRequest.PrivateMessage request,
                             @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
 
         if (principal == null || principal.getName() == null) {
@@ -61,8 +61,8 @@ public class WebSocketController {
             wsNotify.notifyError(principal.getName(), result.getError(), errorUrl);
         }
     }
-    @MessageMapping("/chats/{chatId}/messages/edit")
-    public void editMessage(@DestinationVariable long chatId, @Payload WsRequests.MessageInfoUpdateRequest request,
+    @MessageMapping("/chats/{chatId}/messages/{messageId}/edit")
+    public void editMessage(@DestinationVariable long chatId, @DestinationVariable long messageId, @Payload ApiRequest.UpdateMessage request,
                             @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
 
         if (principal == null || principal.getName() == null) {
@@ -70,13 +70,13 @@ public class WebSocketController {
             return;
         }
 
-        ResultNoArgs result = messageService.updateMessage(chatId, userId, request.messageId(), request.newText());
+        ResultNoArgs result = messageService.updateMessage(chatId, userId, messageId, request.text());
         if (!result.isSuccess()) {
             wsNotify.notifyError(principal.getName(), result.getError(), errorUrl);
         }
     }
-    @MessageMapping("/chats/{chatId}/messages/delete")
-    public void deleteMessage(@DestinationVariable long chatId, @Payload WsRequests.MessageDeleteRequest request,
+    @MessageMapping("/chats/{chatId}/messages/{messageId}/delete")
+    public void deleteMessage(@DestinationVariable long chatId, @DestinationVariable long messageId,
                               @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
 
         if (principal == null || principal.getName() == null) {
@@ -84,14 +84,14 @@ public class WebSocketController {
             return;
         }
 
-        ResultNoArgs result = messageService.deleteMessage(chatId, userId, request.messageId());
+        ResultNoArgs result = messageService.deleteMessage(chatId, userId, messageId);
         if (!result.isSuccess()) {
             wsNotify.notifyError(principal.getName(), result.getError(), errorUrl);
         }
     }
 
-    @MessageMapping("/chats/{chatId}/messages/read")
-    public void markMessagesAsReadUpTo(@DestinationVariable long chatId, @Payload WsRequests.MarkAsReadRequest request,
+    @MessageMapping("/chats/{chatId}/messages/{messageId}/up-to-read")
+    public void markMessagesAsReadUpTo(@DestinationVariable long chatId, @DestinationVariable long messageId,
                                        @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {
 
         if (principal == null || principal.getName() == null) {
@@ -99,7 +99,7 @@ public class WebSocketController {
             return;
         }
 
-        ResultNoArgs result = messageService.markMessagesUpToRead(chatId, userId, request.upToMessageId());
+        ResultNoArgs result = messageService.markMessagesUpToRead(chatId, userId, messageId);
         if (!result.isSuccess()) {
             wsNotify.notifyError(principal.getName(), result.getError(), errorUrl);
         }

@@ -1,12 +1,13 @@
 package com.sunrise.db.entity;
 
-import com.sunrise.dataservice.type.ChatType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+
+import com.sunrise.orchestrator.type.ChatType;
 
 @lombok.Getter
 @lombok.Setter
@@ -44,22 +45,22 @@ public class Chat {
     protected int membersCount;
 
     @Column(name = "updated_at", nullable = false)
-    protected LocalDateTime updatedAt = LocalDateTime.now();
+    protected Instant updatedAt = Instant.now();
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    protected LocalDateTime createdAt = LocalDateTime.now();
+    protected Instant createdAt = Instant.now();
 
     @Column(name = "created_by", nullable = false)
     protected long createdBy;
 
     @Column(name = "deleted_at")
-    protected LocalDateTime deletedAt;
+    protected Instant deletedAt;
 
     @Column(name = "is_deleted", nullable = false)
     protected boolean isDeleted = false;
 
     public void setIsDeleted(boolean isDeleted){
-        this.deletedAt = isDeleted ? LocalDateTime.now() : null;
+        this.deletedAt = isDeleted ? Instant.now() : null;
         this.isDeleted = isDeleted;
     }
 }

@@ -1,8 +1,8 @@
 package com.sunrise.db.result;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public interface MessageReadStatusResult {
     Long getUserId();
-    LocalDateTime getReadAt();
+    Instant getReadAt();
 }
