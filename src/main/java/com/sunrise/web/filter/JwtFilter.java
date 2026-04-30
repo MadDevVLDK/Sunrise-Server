@@ -1,7 +1,7 @@
 package com.sunrise.web.filter;
 
-import com.sunrise.helpclass.jwt.JwtUtil;
 import com.sunrise.orchestrator.service.UserOrchestrator;
+import com.sunrise.web.jwt.JwtUtil;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

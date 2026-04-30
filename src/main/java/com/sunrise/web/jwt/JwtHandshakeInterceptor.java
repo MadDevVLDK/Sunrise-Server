@@ -1,4 +1,4 @@
-package com.sunrise.helpclass.jwt;
+package com.sunrise.web.jwt;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

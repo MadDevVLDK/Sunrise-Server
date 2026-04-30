@@ -10,7 +10,6 @@ import com.sunrise.cache.service.UserCacheService;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.entity.ChatMember;
 import com.sunrise.db.entity.Message;
-import com.sunrise.db.event.ChatEvent;
 import com.sunrise.db.result.MessageReadStatusResult;
 import com.sunrise.db.result.UserMessageResult;
 import com.sunrise.db.result.UserProfileResult;
@@ -23,6 +22,7 @@ import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.helpclass.mapper.MessageMapper;
 import com.sunrise.helpclass.mapper.OtherMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
+import com.sunrise.orchestrator.result.ChatEvent;
 import com.sunrise.orchestrator.result.Dto;
 import com.sunrise.orchestrator.type.Direction;
 

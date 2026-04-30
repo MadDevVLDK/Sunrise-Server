@@ -8,7 +8,6 @@ import com.sunrise.cache.service.ChatMemberCacheService;
 import com.sunrise.cache.service.UserCacheService;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.entity.ChatMember;
-import com.sunrise.db.event.ChatEvent;
 import com.sunrise.db.result.UserProfileResult;
 import com.sunrise.db.service.ChatEventDbService;
 import com.sunrise.db.service.ChatMemberDbService;
@@ -16,6 +15,7 @@ import com.sunrise.db.service.UserDbService;
 import com.sunrise.helpclass.mapper.ChatEventMapper;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
+import com.sunrise.orchestrator.result.ChatEvent;
 import com.sunrise.orchestrator.result.Dto;
 
 import lombok.RequiredArgsConstructor;

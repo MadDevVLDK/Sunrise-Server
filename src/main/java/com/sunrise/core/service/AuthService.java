@@ -3,7 +3,6 @@ package com.sunrise.core.service;
 import com.sunrise.notifier.AsyncEvent;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.core.result.*;
-import com.sunrise.helpclass.jwt.JwtUtil;
 import com.sunrise.notifier.EmailNotifier;
 import com.sunrise.orchestrator.DataValidator;
 import com.sunrise.orchestrator.result.Dto;
@@ -11,6 +10,7 @@ import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.UserOrchestrator;
 import com.sunrise.orchestrator.service.VerificationTokenOrchestrator;
 import com.sunrise.orchestrator.type.TokenType;
+import com.sunrise.web.jwt.JwtUtil;
 import com.sunrise.helpclass.SimpleSnowflakeId;
 import com.sunrise.helpclass.ValidationException;
 

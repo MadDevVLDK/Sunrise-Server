@@ -1,4 +1,4 @@
-package com.sunrise.helpclass.jwt;
+package com.sunrise.web.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

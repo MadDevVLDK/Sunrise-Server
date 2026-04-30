@@ -1,7 +1,8 @@
 package com.sunrise.web.websocket.config;
 
+import com.sunrise.web.jwt.JwtHandshakeInterceptor;
 import com.sunrise.web.websocket.annotation.WsUserIdArgumentResolver;
-import com.sunrise.helpclass.jwt.JwtHandshakeInterceptor;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;

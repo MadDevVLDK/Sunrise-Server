@@ -1,7 +1,6 @@
 package com.sunrise.orchestrator.result;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.sunrise.db.event.ChatEvent;
 import com.sunrise.orchestrator.type.ChatType;
 import com.sunrise.orchestrator.type.MessageType;
 import com.sunrise.orchestrator.type.TokenType;

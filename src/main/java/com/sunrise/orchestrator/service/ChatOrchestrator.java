@@ -7,7 +7,6 @@ import com.sunrise.cache.event.CacheEvent;
 import com.sunrise.cache.service.ChatCacheService;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.entity.ChatEventDb;
-import com.sunrise.db.event.ChatEvent;
 import com.sunrise.db.result.*;
 import com.sunrise.db.service.ChatDbService;
 import com.sunrise.db.service.ChatEventDbService;

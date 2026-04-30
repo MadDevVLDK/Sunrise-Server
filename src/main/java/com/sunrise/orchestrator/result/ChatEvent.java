@@ -1,4 +1,4 @@
-package com.sunrise.db.event;
+package com.sunrise.orchestrator.result;
 
 import java.time.Instant;
 import java.util.List;
