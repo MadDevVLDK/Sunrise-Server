@@ -17,10 +17,27 @@ public class MessageMapper {
 
     // ========== MESSAGE ==========
 
-    public static CacheMessage copy(CacheMessage message) {
+    public static Cache.Message copy(Cache.Message message) {
         if (message == null) return null;
 
-        return new CacheMessage(
+        return new Cache.Message(
+            message.id(),
+            message.chatId(),
+            message.messageType(),
+            message.senderId(),
+            message.text(),
+            message.readCount(),
+            message.sentAt(),
+            message.updatedAt(),
+            message.deletedAt(),
+            message.isDeleted()
+        );
+    }
+
+    public static Cache.Message toCache(CreateDto.Message message) {
+        if (message == null) return null;
+
+        return new Cache.Message(
             message.getId(),
             message.getChatId(),
             message.getMessageType(),
@@ -34,27 +51,10 @@ public class MessageMapper {
         );
     }
 
-    public static CacheMessage toCache(CreateMessageDTO message) {
+    public static Cache.Message toCache(UserMessageResult message) {
         if (message == null) return null;
 
-        return new CacheMessage(
-            message.getId(),
-            message.getChatId(),
-            message.getMessageType(),
-            message.getSenderId(),
-            message.getText(),
-            message.getReadCount(),
-            message.getSentAt(),
-            message.getUpdatedAt(),
-            message.getDeletedAt(),
-            message.isDeleted()
-        );
-    }
-
-    public static CacheMessage toCache(UserMessageResult message) {
-        if (message == null) return null;
-
-        return new CacheMessage(
+        return new Cache.Message(
             message.getId(),
             message.getChatId(),
             MessageType.valueOf(message.getMessageType()),
@@ -68,20 +68,20 @@ public class MessageMapper {
         );
     }
 
-    public static List<CacheMessage> toCaches(List<UserMessageResult> messages) {
+    public static List<Cache.Message> toCaches(List<UserMessageResult> messages) {
         if (messages == null) return null;
 
-        List<CacheMessage> result = new ArrayList<>(messages.size());
+        List<Cache.Message> result = new ArrayList<>(messages.size());
         for (UserMessageResult message : messages) {
             result.add(toCache(message));
         }
         return result;
     }
 
-    public static CacheMessage toCache(Message message) {
+    public static Cache.Message toCache(Message message) {
         if (message == null) return null;
 
-        return new CacheMessage(
+        return new Cache.Message(
             message.getId(),
             message.getChatId(),
             message.getMessageType(),
@@ -95,7 +95,7 @@ public class MessageMapper {
         );
     }
 
-    public static Message toEntity(CreateMessageDTO message) {
+    public static Message toEntity(CreateDto.Message message) {
         if (message == null) return null;
 
         return new Message(
@@ -112,29 +112,28 @@ public class MessageMapper {
         );
     }
 
-    public static UserMessageDTO toUserDTO(CacheMessage message, Instant profileUpdatedAt, 
-                                           Instant memberUpdatedAt, boolean isCensored) {
+    public static Dto.Message toUserDTO(Cache.Message message, Instant profileUpdatedAt, Instant memberUpdatedAt) {
         if (message == null) return null;
 
-        return new UserMessageDTO(
-            message.getId(),
-            message.getChatId(),
-            message.getMessageType(),
-            message.getSenderId(),
+        return new Dto.Message(
+            message.id(),
+            message.chatId(),
+            message.messageType(),
+            message.senderId(),
             profileUpdatedAt,
             memberUpdatedAt,
-            isCensored ? null : message.getText(),
-            message.getReadCount(),
-            message.getSentAt(),
-            message.getUpdatedAt(),
-            message.getDeletedAt(),
+            message.text(),
+            message.readCount(),
+            message.sentAt(),
+            message.updatedAt(),
+            message.deletedAt(),
             message.isDeleted()
         );
     }
-    public static UserMessageDTO toUserDTO(UserMessageResult message) {
+    public static Dto.Message toUserDTO(UserMessageResult message) {
         if (message == null) return null;
 
-        return new UserMessageDTO(
+        return new Dto.Message(
             message.getId(),
             message.getChatId(),
             MessageType.valueOf(message.getMessageType()),
@@ -150,10 +149,10 @@ public class MessageMapper {
         );
     }
 
-    public static UserMessageDTO toUserDTO(UserChatResult chat) {
+    public static Dto.Message toUserDTO(UserChatResult chat) {
         if (chat == null || chat.getMsgId() == null) return null;
 
-        return new UserMessageDTO(
+        return new Dto.Message(
             chat.getMsgId(),
             chat.getMsgChatId(),
             MessageType.valueOf(chat.getMsgMessageType()),

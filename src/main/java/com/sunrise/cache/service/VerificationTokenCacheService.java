@@ -1,7 +1,7 @@
 package com.sunrise.cache.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.sunrise.cache.entity.CacheVerificationToken;
+import com.sunrise.cache.entity.Cache.VerificationToken;
 import com.sunrise.helpclass.mapper.VerificationTokenMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -15,14 +15,14 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class VerificationTokenCacheService {
 
-    private final Cache<String, CacheVerificationToken> verificationTokenCache;
+    private final Cache<String, VerificationToken> verificationTokenCache;
 
 
     // ========== VERIFICATION TOKEN METHODS ==========
 
-    public void save(CacheVerificationToken cache) {
-        verificationTokenCache.put(cache.getToken(), VerificationTokenMapper.copy(cache));
-        log.debug("[⚡] 🎫 Saved verification token for user {} (token={}) || saveVerificationToken", cache.getUserId(), cache.getToken());
+    public void save(VerificationToken cache) {
+        verificationTokenCache.put(cache.token(), VerificationTokenMapper.copy(cache));
+        log.debug("[⚡] 🎫 Saved verification token for user {} (token={}) || saveVerificationToken", cache.userId(), cache.token());
     }
 
     public void invalidate(String token) {
@@ -30,7 +30,7 @@ public class VerificationTokenCacheService {
         log.debug("[⚡] 🎫🚫 Invalidated verification token {} || deleteVerificationToken", token);
     }
 
-    public Optional<CacheVerificationToken> get(String token) {
+    public Optional<VerificationToken> get(String token) {
         return Optional.ofNullable(VerificationTokenMapper.copy(verificationTokenCache.getIfPresent(token)));
     }
 }

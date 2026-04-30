@@ -17,10 +17,27 @@ public class ChatMemberMapper {
 
     // ========== CHAT MEMBER ==========
 
-    public static CacheChatMember copy(CacheChatMember member){
+    public static Cache.ChatMember copy(Cache.ChatMember member){
         if (member == null) return null;
 
-        return new CacheChatMember(
+        return new Cache.ChatMember(
+            member.chatId(),
+            member.userId(),
+            member.tag(),
+            member.settingsUpdatedAt(),
+            member.updatedAt(),
+            member.joinedAt(),
+            member.isPinned(),
+            member.isAdmin(),
+            member.deletedAt(),
+            member.isDeleted()
+        );
+    }
+
+    public static Cache.ChatMember toCache(CreateDto.ChatMember member) {
+        if (member == null) return null;
+
+        return new Cache.ChatMember(
             member.getChatId(),
             member.getUserId(),
             member.getTag(),
@@ -34,10 +51,10 @@ public class ChatMemberMapper {
         );
     }
 
-    public static CacheChatMember toCache(CreateChatMemberDTO member) {
+    public static Cache.ChatMember toCache(ChatMember member) {
         if (member == null) return null;
 
-        return new CacheChatMember(
+        return new Cache.ChatMember(
             member.getChatId(),
             member.getUserId(),
             member.getTag(),
@@ -51,34 +68,17 @@ public class ChatMemberMapper {
         );
     }
 
-    public static CacheChatMember toCache(ChatMember member) {
-        if (member == null) return null;
-
-        return new CacheChatMember(
-            member.getChatId(),
-            member.getUserId(),
-            member.getTag(),
-            member.getSettingsUpdatedAt(),
-            member.getUpdatedAt(),
-            member.getJoinedAt(),
-            member.isPinned(),
-            member.isAdmin(),
-            member.getDeletedAt(),
-            member.isDeleted()
-        );
-    }
-
-    public static List<CacheChatMember> toCaches(Collection<CreateChatMemberDTO> items) {
+    public static List<Cache.ChatMember> toCaches(Collection<CreateDto.ChatMember> items) {
         if (items == null) return Collections.emptyList();
 
-        List<CacheChatMember> cached = new ArrayList<>();
-        for (CreateChatMemberDTO item : items) {
+        List<Cache.ChatMember> cached = new ArrayList<>();
+        for (var item : items) {
             cached.add(toCache(item));
         }
         return cached;
     }
 
-    public static ChatMember toEntity(CreateChatMemberDTO member) {
+    public static ChatMember toEntity(CreateDto.ChatMember member) {
         if (member == null) return null;
 
         return new ChatMember(
@@ -94,10 +94,10 @@ public class ChatMemberMapper {
         );
     }
 
-    public static ChatMemberProfileDTO toProfileDTO(ChatMember member) {
+    public static Dto.ChatMemberProfile toProfileDTO(ChatMember member) {
         if (member == null) return null;
 
-        return new ChatMemberProfileDTO(
+        return new Dto.ChatMemberProfile(
             member.getChatId(),
             member.getUserId(),
             member.getTag(),
@@ -107,23 +107,23 @@ public class ChatMemberMapper {
         );
     }
 
-    public static ChatMemberProfileDTO toProfileDTO(CacheChatMember member) {
+    public static Dto.ChatMemberProfile toProfileDTO(Cache.ChatMember member) {
         if (member == null) return null;
 
-        return new ChatMemberProfileDTO(
-            member.getChatId(),
-            member.getUserId(),
-            member.getTag(),
-            member.getUpdatedAt(),
-            member.getJoinedAt(),
+        return new Dto.ChatMemberProfile(
+            member.chatId(),
+            member.userId(),
+            member.tag(),
+            member.updatedAt(),
+            member.joinedAt(),
             member.isAdmin()
         );
     }
 
-    public static ChatMemberFullDTO toSelfProfileDTO(UserChatResult chat, long userId) {
+    public static Dto.ChatMemberFull toSelfProfileDTO(UserChatResult chat, long userId) {
         if (chat == null) return null;
 
-        return new ChatMemberFullDTO(
+        return new Dto.ChatMemberFull(
             chat.getId(),
             userId,
             chat.getSelfMemberTag(),
@@ -135,18 +135,18 @@ public class ChatMemberMapper {
         );
     }
 
-    public static ChatMemberProfileFullDTO toOpponentProfileFullDTO(UserChatResult userChat) {
+    public static Dto.ChatMemberProfileFull toOpponentProfileFullDTO(UserChatResult userChat) {
         if (userChat == null || userChat.getOpponentId() == null) return null;
 
-        return new ChatMemberProfileFullDTO(
-            new UserProfileLightDTO(
+        return new Dto.ChatMemberProfileFull(
+            new Dto.UserProfileLight(
                 userChat.getOpponentId(),
                 userChat.getOpponentUsername(),
                 userChat.getOpponentName(),
                 userChat.getOpponentProfileUpdatedAt(),
                 userChat.getOpponentCreatedAt()
             ),
-            new ChatMemberProfileDTO(
+            new Dto.ChatMemberProfile(
                 userChat.getId(),
                 userChat.getOpponentId(),
                 userChat.getOpponentMemberTag(),
@@ -157,10 +157,10 @@ public class ChatMemberMapper {
         );
     }
 
-    public static ChatMemberProfileFullDTO toProfileFullDTO(UserProfileLightDTO user, ChatMemberProfileDTO member) {
+    public static Dto.ChatMemberProfileFull toProfileFullDTO(Dto.UserProfileLight user, Dto.ChatMemberProfile member) {
         if (user == null || member == null) return null;
 
-        return new ChatMemberProfileFullDTO(
+        return new Dto.ChatMemberProfileFull(
             user,
             member
         );

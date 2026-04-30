@@ -3,11 +3,10 @@ package com.sunrise.orchestrator.service;
 import static org.springframework.transaction.annotation.Propagation.MANDATORY;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
-import com.sunrise.cache.CacheEvent;
 import com.sunrise.cache.entity.*;
+import com.sunrise.cache.event.CacheEvent;
 import com.sunrise.cache.service.UserCacheService;
-import com.sunrise.core.creation.CreateLoginHistoryDTO;
-import com.sunrise.core.creation.CreateUserDTO;
+import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.result.*;
 import com.sunrise.db.service.LoginHistoryDbService;
 import com.sunrise.db.service.UserDbService;
@@ -46,7 +45,7 @@ public class UserOrchestrator {
     // Основные методы
 
     @Transactional(propagation = MANDATORY)
-    public void saveUser(@NonNull CreateUserDTO user) {
+    public void saveUser(@NonNull CreateDto.User user) {
         // синхронно в бд
         dbUserService.saveUser(UserMapper.toEntity(user));
 
@@ -127,7 +126,7 @@ public class UserOrchestrator {
     // Вспомогательные метод для сохранения истории входа
 
     @Transactional(propagation = REQUIRES_NEW)
-    public void saveLoginHistory(String username, CreateLoginHistoryDTO loginHistory) {
+    public void saveLoginHistory(String username, CreateDto.LoginHistory loginHistory) {
         // синхронно в бд
         dbUserService.updateLastLogin(username, loginHistory.getLoginAt());
         dbLoginHistoryService.save(OtherMapper.toLoginHistoryEntity(loginHistory));
@@ -170,7 +169,7 @@ public class UserOrchestrator {
 
     public boolean isActiveUser(long userId) {
         // пробуем кеш
-        Optional<CacheUserSecurity> cached = cacheUserService.getSecurity(userId);
+        Optional<Cache.UserSecurity> cached = cacheUserService.getSecurity(userId);
         if (cached.isPresent())
             return cached.filter(us -> us.isEnabled() && !us.isDeleted()).isPresent();
 
@@ -185,9 +184,9 @@ public class UserOrchestrator {
         return dbUser.filter(us -> us.getIsEnabled() && !us.getIsDeleted()).isPresent();
     }
     
-    public Optional<UserSecurityDTO> getUserSecurity(long userId) {
+    public Optional<Dto.UserSecurity> getUserSecurity(long userId) {
         // пробуем кеш
-        Optional<CacheUserSecurity> cached = cacheUserService.getSecurity(userId);
+        Optional<Cache.UserSecurity> cached = cacheUserService.getSecurity(userId);
         if (cached.isPresent())
             return cached.map(UserMapper::toSecurityDTO);
 
@@ -202,9 +201,9 @@ public class UserOrchestrator {
         return dbUser.map(UserMapper::toSecurityDTO);
     }
 
-    public Optional<UserSecurityDTO> getActiveUserSecurity(long userId) {
+    public Optional<Dto.UserSecurity> getActiveUserSecurity(long userId) {
         // пробуем кеш
-        Optional<CacheUserSecurity> cached = cacheUserService.getSecurity(userId);
+        Optional<Cache.UserSecurity> cached = cacheUserService.getSecurity(userId);
         if (cached.isPresent())
             return cached.filter(us -> us.isEnabled() && !us.isDeleted()).map(UserMapper::toSecurityDTO);
 
@@ -219,9 +218,9 @@ public class UserOrchestrator {
         return dbUser.filter(us -> us.getIsEnabled() && !us.getIsDeleted()).map(UserMapper::toSecurityDTO);
     }
 
-    public Optional<UserSecurityDTO> getActiveUserSecurityByUsername(String username) {
+    public Optional<Dto.UserSecurity> getActiveUserSecurityByUsername(String username) {
         // пробуем кеш
-        Optional<CacheUserSecurity> cached = cacheUserService.getSecurityByUsername(username);
+        Optional<Cache.UserSecurity> cached = cacheUserService.getSecurityByUsername(username);
         if (cached.isPresent())
             return cached.filter(us -> us.isEnabled() && !us.isDeleted()).map(UserMapper::toSecurityDTO);
 
@@ -236,9 +235,9 @@ public class UserOrchestrator {
         return dbUser.filter(us -> us.getIsEnabled() && !us.getIsDeleted()).map(UserMapper::toSecurityDTO);
     }
 
-    public Optional<UserSecurityDTO> getActiveUserSecurityByEmail(String email) {
+    public Optional<Dto.UserSecurity> getActiveUserSecurityByEmail(String email) {
         // пробуем кеш
-        Optional<CacheUserSecurity> cached = cacheUserService.getSecurityByEmail(email);
+        Optional<Cache.UserSecurity> cached = cacheUserService.getSecurityByEmail(email);
         if (cached.isPresent())
             return cached.filter(us -> us.isEnabled() && !us.isDeleted()).map(UserMapper::toSecurityDTO);
 
@@ -253,9 +252,9 @@ public class UserOrchestrator {
         return dbUser.filter(us -> us.getIsEnabled() && !us.getIsDeleted()).map(UserMapper::toSecurityDTO);
     }
 
-    public Optional<UserProfileLightDTO> getUserProfileLight(long userId) {
+    public Optional<Dto.UserProfileLight> getUserProfileLight(long userId) {
         // пробуем кеш
-        Optional<CacheUserProfile> cached = cacheUserService.getProfile(userId);
+        Optional<Cache.UserProfile> cached = cacheUserService.getProfile(userId);
         if (cached.isPresent())
             return cached.map(UserMapper::toProfileLightDTO);
 
@@ -270,9 +269,9 @@ public class UserOrchestrator {
         return dbUser.map(UserMapper::toProfileLightDTO);
     }
 
-    public Optional<UserProfileFullDTO> getUserProfileFull(long userId) {
+    public Optional<Dto.UserProfileFull> getUserProfileFull(long userId) {
         // пробуем кеш
-        Optional<CacheUserProfile> cached = cacheUserService.getProfile(userId);
+        Optional<Cache.UserProfile> cached = cacheUserService.getProfile(userId);
         if (cached.isPresent())
             return cached.map(UserMapper::toProfileFullDTO);
 
@@ -289,9 +288,9 @@ public class UserOrchestrator {
 
     public Optional<Integer> getUserJwtVersion(long userId) {
         // пробуем кеш
-        Optional<CacheUserSecurity> cached = cacheUserService.getSecurity(userId);
+        Optional<Cache.UserSecurity> cached = cacheUserService.getSecurity(userId);
         if (cached.isPresent())
-            return cached.map(CacheUserSecurity::getJwtVersion);
+            return cached.map(Cache.UserSecurity::jwtVersion);
 
         // грузим из бд
         Optional<UserSecurityResult> dbUser = dbUserService.getUserSecurity(userId);
@@ -307,30 +306,30 @@ public class UserOrchestrator {
 
     // Вспомогательный метод для загрузки профилей пользователей с кешем
 
-    public UsersPageDTO getActiveUserProfileLightsPage(String filter, Long cursor, int limit) {
+    public Dto.UsersPage getActiveUserProfileLightsPage(String filter, Long cursor, int limit) {
         // получаем пагинацию из бд
         List<UserProfileResult> rows = dbUserService.getActiveUsersPage(filter, cursor, limit + 1); // берем на одну больше
 
         boolean hasMore = rows.size() > limit;
         List<UserProfileResult> pageRows = hasMore ? rows.subList(0, limit) : rows;
-        List<UserProfileLightDTO> users = UserMapper.toProfileDTOs(pageRows);
+        List<Dto.UserProfileLight> users = UserMapper.toProfileDTOs(pageRows);
         Long  nextCursor = hasMore ? pageRows.getLast().getId() : null;
 
-        return new UsersPageDTO(users, nextCursor);
+        return new Dto.UsersPage(users, nextCursor);
     }
     
-    public List<UserProfileLightDTO> getUserProfileLightsByIds(Set<Long> userIds) {
+    public List<Dto.UserProfileLight> getUserProfileLightsByIds(Set<Long> userIds) {
         if (userIds.isEmpty()) {
             return Collections.emptyList();
         }
 
-        Map<Long, UserProfileLightDTO> userMap = new HashMap<>();
+        Map<Long, Dto.UserProfileLight> userMap = new HashMap<>();
 
         // Загружаем из кеша
         Set<Long> missingUserIds = new HashSet<>();
-        Map<Long, CacheUserProfile> cachedUsers = cacheUserService.getProfilesByIds(userIds, missingUserIds);
+        Map<Long, Cache.UserProfile> cachedUsers = cacheUserService.getProfilesByIds(userIds, missingUserIds);
 
-        for (Map.Entry<Long, CacheUserProfile> entry : cachedUsers.entrySet()) {
+        for (Map.Entry<Long, Cache.UserProfile> entry : cachedUsers.entrySet()) {
             if (!entry.getValue().isDeleted()) {
                 userMap.put(entry.getKey(), UserMapper.toProfileLightDTO(entry.getValue()));
             }
@@ -339,7 +338,7 @@ public class UserOrchestrator {
         // Загружаем недостающих из БД
         if (!missingUserIds.isEmpty()) {
             List<UserProfileResult> dbUsers = dbUserService.getActiveUserProfileByIds(new ArrayList<>(missingUserIds));
-            List<CacheUserProfile> usersToCache = new ArrayList<>();
+            List<Cache.UserProfile> usersToCache = new ArrayList<>();
 
             for (UserProfileResult user : dbUsers) {
                 usersToCache.add(UserMapper.toProfileCache(user));
@@ -355,10 +354,9 @@ public class UserOrchestrator {
         }
 
         // собираем результат
-        List<UserProfileLightDTO> result = new LinkedList<>();
+        List<Dto.UserProfileLight> result = new LinkedList<>();
         for (long userId : userIds) {
-            UserProfileLightDTO member = userMap.get(userId);
-            if (member != null) {
+            if (userMap.get(userId) instanceof Dto.UserProfileLight member) {
                 result.add(member);
             }
         }

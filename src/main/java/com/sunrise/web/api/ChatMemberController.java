@@ -7,8 +7,7 @@ import com.sunrise.web.payload.ApiResponse;
 import com.sunrise.core.result.ResultNoArgs;
 import com.sunrise.core.result.ResultOneArg;
 import com.sunrise.core.service.ChatMemberService;
-import com.sunrise.orchestrator.result.ChatMemberProfileDTO;
-import com.sunrise.orchestrator.result.ChatMembersPageDTO;
+import com.sunrise.orchestrator.result.Dto.*;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -108,7 +107,7 @@ public class ChatMemberController {
     @GetMapping
     public ResponseEntity<?> getChatMembersPage(@PathVariable("chatId") @ValidId long chatId, @Valid ApiRequest.ChatMemberPagination request, @CurrentUserId long userId) {
 
-        ResultOneArg<ChatMembersPageDTO> result = chatMemberService.getChatMemberPage(chatId, userId, request.cursor(), request.getLimit());
+        ResultOneArg<ChatMembersPage> result = chatMemberService.getChatMemberPage(chatId, userId, request.cursor(), request.getLimit());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -119,7 +118,7 @@ public class ChatMemberController {
     public ResponseEntity<?> getChatMembersPage(@PathVariable("chatId") @ValidId long chatId, @Valid ApiRequest.Batch request, 
                                                 @CurrentUserId long userId) {
 
-        ResultOneArg<List<ChatMemberProfileDTO>> result = chatMemberService.getChatMemberByIds(chatId, userId, request.ids());
+        ResultOneArg<List<ChatMemberProfile>> result = chatMemberService.getChatMemberByIds(chatId, userId, request.ids());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :

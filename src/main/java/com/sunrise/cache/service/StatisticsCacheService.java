@@ -1,6 +1,6 @@
 package com.sunrise.cache.service;
 
-import com.sunrise.cache.entity.*;
+import com.sunrise.cache.entity.Cache.*;
 import com.github.benmanes.caffeine.cache.Cache;
 
 import lombok.AllArgsConstructor;
@@ -17,21 +17,22 @@ import java.util.*;
 @Service
 public class StatisticsCacheService {
 
-    private final Cache<Long, CacheUserSecurity> userSecurityCache;
+    private final Cache<Long, UserSecurity> userSecurityCache;
     private final Cache<String, Long> usernameIndex;
     private final Cache<String, Long> emailIndex;
-    private final Cache<Long, CacheChat> chatInfoCache;
+    private final Cache<Long, Chat> chatInfoCache;
     private final Cache<String, Long> personalChatIndex;
-    private final Cache<String, CacheChatMember> chatMembersCache;
-    private final Cache<String, CacheVerificationToken> verificationTokenCache;
+    private final Cache<String, ChatMember> chatMembersCache;
+    private final Cache<String, VerificationToken> verificationTokenCache;
 
-    public StatisticsCacheService(Cache<Long, CacheUserSecurity> userSecurityCache,
+    public StatisticsCacheService(Cache<Long, UserSecurity> userSecurityCache,
                                   @Qualifier("usernameIndex") Cache<String, Long> usernameIndex,
                                   @Qualifier("emailIndex") Cache<String, Long> emailIndex,
-                                  Cache<Long, CacheChat> chatInfoCache,
+                                  Cache<Long, Chat> chatInfoCache,
                                   @Qualifier("personalChatIndex") Cache<String, Long> personalChatIndex,
-                                  Cache<String, CacheChatMember> chatMembersCache,
-                                  Cache<String, CacheVerificationToken> verificationTokenCache) {
+                                  Cache<String, ChatMember> chatMembersCache,
+                                  Cache<String, VerificationToken> verificationTokenCache) {
+                                        
         this.userSecurityCache = userSecurityCache;
         this.usernameIndex = usernameIndex;
         this.emailIndex = emailIndex;
@@ -55,9 +56,9 @@ public class StatisticsCacheService {
     }
 
     public CacheStats getCacheStatus() {
-        Map<Long, CacheUserSecurity> userCacheSnapshot = userSecurityCache.asMap();
-        Map<Long, CacheChat> chatInfoCacheSnapshot = chatInfoCache.asMap();
-        Map<String, CacheChatMember> chatMembersSnapshot = chatMembersCache.asMap();
+        Map<Long, UserSecurity> userCacheSnapshot = userSecurityCache.asMap();
+        Map<Long, Chat> chatInfoCacheSnapshot = chatInfoCache.asMap();
+        Map<String, ChatMember> chatMembersSnapshot = chatMembersCache.asMap();
 
         long activatedUserCount = userCacheSnapshot.values().stream()
                 .filter(user -> user.isEnabled() && !user.isDeleted())
@@ -66,11 +67,11 @@ public class StatisticsCacheService {
         int totalChatMembers = chatMembersSnapshot.size();
 
         int totalAdminRights = (int) chatMembersSnapshot.values().stream()
-                .filter(CacheChatMember::isAdmin)
+                .filter(ChatMember::isAdmin)
                 .count();
 
         int totalDeletedMembers = (int) chatMembersSnapshot.values().stream()
-                .filter(CacheChatMember::isDeleted)
+                .filter(ChatMember::isDeleted)
                 .count();
 
         return new CacheStats(

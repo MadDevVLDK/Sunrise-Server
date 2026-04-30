@@ -1,7 +1,7 @@
 package com.sunrise.cache.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.sunrise.cache.entity.CacheChat;
+import com.sunrise.cache.entity.Cache.Chat;
 import com.sunrise.helpclass.mapper.ChatMapper;
 
 import lombok.extern.slf4j.Slf4j;
@@ -15,10 +15,10 @@ import java.util.*;
 @Service
 public class ChatCacheService {
 
-    private final Cache<Long, CacheChat> chatInfoCache;
+    private final Cache<Long, Chat> chatInfoCache;
     private final Cache<String, Long> personalChatIndex;
 
-    public ChatCacheService(Cache<Long, CacheChat> chatInfoCache, 
+    public ChatCacheService(Cache<Long, Chat> chatInfoCache, 
                             @Qualifier("personalChatIndex") Cache<String, Long> personalChatIndex) {
 
         this.chatInfoCache = chatInfoCache;
@@ -28,8 +28,8 @@ public class ChatCacheService {
 
     // ========== CHAT METHODS ==========
 
-    public void saveBatch(Collection<CacheChat> newChats) {
-        for (CacheChat newChat : newChats) {
+    public void saveBatch(Collection<Chat> newChats) {
+        for (Chat newChat : newChats) {
             chatInfoCache.put(newChat.getId(), ChatMapper.copy(newChat));
             if (newChat.isPersonal()) {
                 savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
@@ -38,7 +38,7 @@ public class ChatCacheService {
         log.debug("[⚡] 💬 Batch saved {} chats to cache and updated indexes", newChats.size());
     }
 
-    public void save(CacheChat newChat) {
+    public void save(Chat newChat) {
         chatInfoCache.put(newChat.getId(), ChatMapper.copy(newChat));
         if (newChat.isPersonal()) {
             savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
@@ -60,14 +60,14 @@ public class ChatCacheService {
         log.debug("[⚡] 💬🚫 Invalidated chat {} in cache", chatId);
     }
 
-    public Optional<CacheChat> getPersonalChat(long userId1, long userId2) {
+    public Optional<Chat> getPersonalChat(long userId1, long userId2) {
         String key = getPersonalChatKey(userId1, userId2);
         Long chatId = personalChatIndex.getIfPresent(key);
         if (chatId == null) {
             log.debug("[⚡] 💬🔍 Personal chat between {} and {} not found in index", userId1, userId2);
             return Optional.empty();
         }
-        Optional<CacheChat> chat = getChatLink(chatId);
+        Optional<Chat> chat = getChatLink(chatId);
         if (chat.isEmpty()) {
             personalChatIndex.invalidate(key);
             log.debug("[⚡] 💬🔍 Personal chat index {} invalidated (chat not in cache)", key);
@@ -75,11 +75,11 @@ public class ChatCacheService {
         return chat;
     }
 
-    public Optional<CacheChat> get(long chatId) {
+    public Optional<Chat> get(long chatId) {
         return Optional.ofNullable(ChatMapper.copy(chatInfoCache.getIfPresent(chatId)));
     }
 
-    public Optional<CacheChat> getChatLink(long chatId) {
+    public Optional<Chat> getChatLink(long chatId) {
         return Optional.ofNullable(chatInfoCache.getIfPresent(chatId));
     }
 

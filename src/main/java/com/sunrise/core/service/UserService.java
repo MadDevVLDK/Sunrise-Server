@@ -3,9 +3,7 @@ package com.sunrise.core.service;
 import com.sunrise.core.result.*;
 import com.sunrise.helpclass.ValidationException;
 import com.sunrise.orchestrator.DataValidator;
-import com.sunrise.orchestrator.result.UserProfileFullDTO;
-import com.sunrise.orchestrator.result.UserProfileLightDTO;
-import com.sunrise.orchestrator.result.UsersPageDTO;
+import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.UserOrchestrator;
 
 import lombok.RequiredArgsConstructor;
@@ -32,14 +30,11 @@ public class UserService {
         try {
             validator.validateActiveUser(userId);
 
-            UserProfileLightDTO user = userOrchestrator.getUserProfileLight(userId)
+            UserProfileLight user = userOrchestrator.getUserProfileLight(userId)
                     .orElseThrow(() -> new ValidationException("User not found"));
 
-            String oldUsername = user.getUsername();
-            String oldName = user.getName();
-
-            boolean usernameNotChanged = oldUsername.equals(newUsername);
-            boolean nameNotChanged = oldName.equals(newName);
+            boolean usernameNotChanged = user.username().equals(newUsername);
+            boolean nameNotChanged = user.name().equals(newName);
 
             // Проверяем, что данные изменились
             if (usernameNotChanged && nameNotChanged) {
@@ -51,7 +46,7 @@ public class UserService {
             }
 
             // Обновляем профиль
-            userOrchestrator.updateUserProfile(userId, oldUsername, newUsername, newName, Instant.now());
+            userOrchestrator.updateUserProfile(userId, user.username(), newUsername, newName, Instant.now());
 
             log.info("[🔧] ✅ User {} updated profile", userId);
             return ResultNoArgs.success();
@@ -91,11 +86,11 @@ public class UserService {
         }
     }
 
-    public ResultOneArg<UserProfileLightDTO> getMyProfile(long userId) {
+    public ResultOneArg<UserProfileLight> getMyProfile(long userId) {
         try {
             validator.validateActiveUser(userId);
 
-            UserProfileLightDTO profile = userOrchestrator.getUserProfileLight(userId)
+            UserProfileLight profile = userOrchestrator.getUserProfileLight(userId)
                     .orElseThrow(() -> new ValidationException("User not found or is deleted"));
 
             log.debug("[🔧] ✅ Loaded profile for user {}", userId);
@@ -110,12 +105,12 @@ public class UserService {
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
-    public ResultOneArg<UserProfileLightDTO> getOtherProfileLight(long currentUserId, long otherUserId) {
+    public ResultOneArg<UserProfileLight> getOtherProfileLight(long currentUserId, long otherUserId) {
         try {
             validator.validateActiveUser(currentUserId);
             validator.validateActiveUser(otherUserId);
 
-            UserProfileLightDTO profile = userOrchestrator.getUserProfileLight(otherUserId)
+            UserProfileLight profile = userOrchestrator.getUserProfileLight(otherUserId)
                     .orElseThrow(() -> new ValidationException("User not found or is deleted"));
 
             log.debug("[🔧] ✅ User {} retrieved light profile of user {}", currentUserId, otherUserId);
@@ -130,12 +125,12 @@ public class UserService {
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
-    public ResultOneArg<UserProfileFullDTO> getOtherProfileFull(long currentUserId, long otherUserId) {
+    public ResultOneArg<UserProfileFull> getOtherProfileFull(long currentUserId, long otherUserId) {
         try {
             validator.validateActiveUser(currentUserId);
             validator.validateActiveUser(otherUserId);
 
-            UserProfileFullDTO profile = userOrchestrator.getUserProfileFull(otherUserId)
+            UserProfileFull profile = userOrchestrator.getUserProfileFull(otherUserId)
                     .orElseThrow(() -> new ValidationException("User not found or is deleted"));
 
             log.debug("[🔧] ✅ User {} retrieved full profile of user {}", currentUserId, otherUserId);
@@ -151,11 +146,11 @@ public class UserService {
         }
     }
 
-    public ResultOneArg<List<UserProfileLightDTO>> getOtherProfileLightByIds(long currentUser, Set<Long> userIds) {
+    public ResultOneArg<List<UserProfileLight>> getOtherProfileLightByIds(long currentUser, Set<Long> userIds) {
         try {
             validator.validateActiveUser(currentUser);
 
-            List<UserProfileLightDTO> profiles = userOrchestrator.getUserProfileLightsByIds(userIds);
+            List<UserProfileLight> profiles = userOrchestrator.getUserProfileLightsByIds(userIds);
 
             log.debug("[🔧] ✅ User {} retrieved full profile of {} users", currentUser, profiles.size());
             return ResultOneArg.success(profiles);
@@ -169,11 +164,11 @@ public class UserService {
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
-    public ResultOneArg<UsersPageDTO> getActiveUsersPage(long userId, String filter, Long cursor, int limit) {
+    public ResultOneArg<UsersPage> getActiveUsersPage(long userId, String filter, Long cursor, int limit) {
         try {
             validator.validateActiveUser(userId);
 
-            UsersPageDTO usersPage = userOrchestrator.getActiveUserProfileLightsPage(filter, cursor, limit);
+            UsersPage usersPage = userOrchestrator.getActiveUserProfileLightsPage(filter, cursor, limit);
 
             log.debug("[🔧] ✅ Get {} users with filter='{}', nextCursor={}, limit={}", usersPage.users().size(), filter, cursor, limit);
             return ResultOneArg.success(usersPage);

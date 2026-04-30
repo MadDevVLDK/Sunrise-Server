@@ -7,10 +7,8 @@ import com.sunrise.web.payload.ApiRequest.CreateGroupChat;
 import com.sunrise.web.payload.ApiRequest.CreatePersonalChat;
 import com.sunrise.web.payload.ApiRequest.SyncRequest;
 import com.sunrise.web.payload.ApiResponse;
-import com.sunrise.db.event.ChatEvent;
 import com.sunrise.db.result.ChatStatsResult;
-import com.sunrise.orchestrator.result.ChatMetaDTO;
-import com.sunrise.orchestrator.result.ChatProfileDTO;
+import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.web.api.annotation.ValidId;
 import com.sunrise.core.result.*;
 import com.sunrise.core.service.ChatService;
@@ -92,7 +90,7 @@ public class ChatController {
 
     @GetMapping("/meta")
     public ResponseEntity<?> getUserChatsMeta(@CurrentUserId long userId) {
-        ResultOneArg<List<ChatMetaDTO>> result = chatService.getUserChatsMeta(userId);
+        ResultOneArg<List<ChatMeta>> result = chatService.getUserChatsMeta(userId);
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -102,7 +100,7 @@ public class ChatController {
     @GetMapping("/{chatId}")
     public ResponseEntity<?> getUserChat(@PathVariable("chatId") @ValidId long chatId, @CurrentUserId long userId) {
 
-        ResultOneArg<ChatProfileDTO> result = chatService.getUserChat(chatId, userId);
+        ResultOneArg<ChatProfile> result = chatService.getUserChat(chatId, userId);
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -112,7 +110,7 @@ public class ChatController {
     @GetMapping("/batch")
     public ResponseEntity<?> getUserChatsByIds(@Valid Batch request, @CurrentUserId long userId) {
 
-        ResultOneArg<List<ChatProfileDTO>> result = chatService.getUserChatsByIds(userId, request.ids());
+        ResultOneArg<List<ChatProfile>> result = chatService.getUserChatsByIds(userId, request.ids());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -122,13 +120,10 @@ public class ChatController {
     @PostMapping("/sync")
     public ResponseEntity<?> syncChats(@RequestBody SyncRequest request, @CurrentUserId long userId) {
 
-        ResultOneArg<Map<Long, ChatSyncDTO>> result = chatService.syncChats(userId, request.chatSeqs());
+        ResultOneArg<Map<Long, GlobalChatSync>> result = chatService.syncChats(userId, request.chatSeqs());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
                 ApiResponse.error(result.getError());
     }
-
-    public record ChatEventDTO(long seq, String type, ChatEvent.IChatEvent event) {}
-    public record ChatSyncDTO(List<ChatEventDTO> events, boolean hasMore) {}
 }

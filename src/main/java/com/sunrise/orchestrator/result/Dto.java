@@ -1,6 +1,7 @@
 package com.sunrise.orchestrator.result;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.sunrise.db.event.ChatEvent;
 import com.sunrise.orchestrator.type.ChatType;
 import com.sunrise.orchestrator.type.MessageType;
 import com.sunrise.orchestrator.type.TokenType;
@@ -8,9 +9,9 @@ import com.sunrise.orchestrator.type.TokenType;
 import java.time.Instant;
 import java.util.List;
 
-public final class ServiceDTO {
+public final class Dto {
 
-
+    
     // ==================== ЧАТЫ ====================
 
     public record ChatMeta(
@@ -29,7 +30,7 @@ public final class ServiceDTO {
         ChatMemberFull rights,
         ChatMemberProfileFull opponent, // только для личных чатов
         int membersCount,
-        UserMessage lastMessage,
+        Message lastMessage,
         Long lastReadMessageId,
         int unreadCount,
         long seq,
@@ -57,6 +58,12 @@ public final class ServiceDTO {
         List<ChatProfile> chats,
         Long nextCursor
     ) {}
+
+    public record ChatStatsResult(
+        int totalMessages, 
+        int deletedForAll, 
+        boolean canDeleteForAll
+    ) { }
 
 
     // ==================== УЧАСТНИКИ ЧАТОВ ====================
@@ -90,11 +97,11 @@ public final class ServiceDTO {
     // ==================== СООБЩЕНИЯ ====================
 
     public record MessagesPage(
-        List<UserMessageDTO> messages,
+        List<Message> messages,
         Long nextCursor
     ) {}
 
-    public record UserMessage(
+    public record Message(
         long id,
         long chatId,
         MessageType messageType,
@@ -106,7 +113,7 @@ public final class ServiceDTO {
         Instant sentAt,
         Instant updatedAt,
         Instant deletedAt,
-        boolean isDeleted
+        @JsonProperty("isDeleted") boolean isDeleted
     ) {}
 
     public record MessageReadStatus(
@@ -116,6 +123,11 @@ public final class ServiceDTO {
 
 
     // ==================== ПОЛЬЗОВАТЕЛИ ====================
+
+    public record UserLogin(
+        String jwtToken, 
+        java.util.Date expiration
+    ) { }
 
     public record UserProfileLight(
         long id,
@@ -159,4 +171,18 @@ public final class ServiceDTO {
         Instant expiryDate,
         Instant createdAt
     ) { }
+
+
+    // ==================== СОБЫТИЯ ====================
+
+    public record GlobalChatEvent(
+        long seq, 
+        String type, 
+        ChatEvent.IChatEvent event
+    ) {}
+
+    public record GlobalChatSync(
+        List<GlobalChatEvent> events, 
+        boolean hasMore
+    ) {}
 }

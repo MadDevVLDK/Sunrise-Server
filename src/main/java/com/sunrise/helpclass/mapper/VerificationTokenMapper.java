@@ -10,23 +10,23 @@ public class VerificationTokenMapper {
     
     // ========== VERIFICATION_TOKEN ==========
 
-    public static CacheVerificationToken copy(CacheVerificationToken token) {
+    public static Cache.VerificationToken copy(Cache.VerificationToken token) {
         if (token == null) return null;
 
-        return new CacheVerificationToken(
-            token.getId(),
-            token.getUserId(),
-            token.getToken(),
-            token.getTokenType(),
-            token.getExpiryDate(),
-            token.getCreatedAt()
+        return new Cache.VerificationToken(
+            token.id(),
+            token.userId(),
+            token.token(),
+            token.tokenType(),
+            token.expiryDate(),
+            token.createdAt()
         );
     }
 
-    public static CacheVerificationToken toCache(CreateVerificationTokenDTO verificationToken) {
+    public static Cache.VerificationToken toCache(CreateDto.VerificationToken verificationToken) {
         if (verificationToken == null) return null;
 
-        return new CacheVerificationToken(
+        return new Cache.VerificationToken(
             verificationToken.getId(),
             verificationToken.getUserId(),
             verificationToken.getToken(),
@@ -35,10 +35,10 @@ public class VerificationTokenMapper {
             verificationToken.getCreatedAt()
         );
     }
-    public static CacheVerificationToken toCache(VerificationToken verificationToken) {
+    public static Cache.VerificationToken toCache(VerificationToken verificationToken) {
         if (verificationToken == null) return null;
 
-        return new CacheVerificationToken(
+        return new Cache.VerificationToken(
             verificationToken.getId(),
             verificationToken.getUserId(),
             verificationToken.getToken(),
@@ -48,7 +48,7 @@ public class VerificationTokenMapper {
         );
     }
 
-    public static VerificationToken toEntity(CreateVerificationTokenDTO verificationToken) {
+    public static VerificationToken toEntity(CreateDto.VerificationToken verificationToken) {
         if (verificationToken == null) return null;
 
         return new VerificationToken(
@@ -61,10 +61,10 @@ public class VerificationTokenMapper {
         );
     }
 
-    public static VerificationTokenDTO toDTO(VerificationToken verificationToken) {
+    public static Dto.VerificationToken toDTO(VerificationToken verificationToken) {
         if (verificationToken == null) return null;
 
-        return new VerificationTokenDTO(
+        return new Dto.VerificationToken(
             verificationToken.getId(),
             verificationToken.getUserId(),
             verificationToken.getToken(),
@@ -73,16 +73,16 @@ public class VerificationTokenMapper {
             verificationToken.getCreatedAt()
         );
     }
-    public static VerificationTokenDTO toDTO(CacheVerificationToken verificationToken) {
+    public static Dto.VerificationToken toDTO(Cache.VerificationToken verificationToken) {
         if (verificationToken == null) return null;
 
-        return new VerificationTokenDTO(
-            verificationToken.getId(),
-            verificationToken.getUserId(),
-            verificationToken.getToken(),
-            verificationToken.getTokenType(),
-            verificationToken.getExpiryDate(),
-            verificationToken.getCreatedAt()
+        return new Dto.VerificationToken(
+            verificationToken.id(),
+            verificationToken.userId(),
+            verificationToken.token(),
+            verificationToken.tokenType(),
+            verificationToken.expiryDate(),
+            verificationToken.createdAt()
         );
     }
 }

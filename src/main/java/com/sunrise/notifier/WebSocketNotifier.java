@@ -1,9 +1,6 @@
 package com.sunrise.notifier;
 
-import com.sunrise.core.creation.CreateChatMemberDTO;
-import com.sunrise.core.creation.CreateGroupChatDTO;
-import com.sunrise.core.creation.CreateMessageDTO;
-import com.sunrise.core.creation.CreatePersonalChatDTO;
+import com.sunrise.core.creation.CreateDto.*;
 import com.sunrise.web.payload.WsResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -32,7 +29,7 @@ public class WebSocketNotifier { // TODO: Добавить batch‑отправ�
     // ======================= MESSAGE ============================
     
     @Async("webSocketNotifierExecutor")
-    public void notifyMessageNew(long tempId, CreateMessageDTO message, Instant senderProfileUpdatedAt) {
+    public void notifyMessageNew(long tempId, Message message, Instant senderProfileUpdatedAt) {
         try {
             sendToChatTopic(message.getChatId(), new WsResponse.MessageNew(
                 tempId, message.getId(), message.getChatId(), message.getSenderId(),
@@ -46,7 +43,7 @@ public class WebSocketNotifier { // TODO: Добавить batch‑отправ�
     }
 
     @Async("webSocketNotifierExecutor")
-    public void notifyMessagePrivateNew(long tempId, CreateMessageDTO message, Instant senderProfileUpdatedAt, long receiverId) {
+    public void notifyMessagePrivateNew(long tempId, Message message, Instant senderProfileUpdatedAt, long receiverId) {
         try {
             var response = new WsResponse.MessagePrivateNew(
                 tempId, message.getId(), message.getChatId(), message.getSenderId(),
@@ -97,7 +94,7 @@ public class WebSocketNotifier { // TODO: Добавить batch‑отправ�
     // ========================= CHAT =============================
     
     @Async("webSocketNotifierExecutor")
-    public void notifyGroupChatNew(long tempId, CreateGroupChatDTO chat, Set<Long> userIdsToNotify) {
+    public void notifyGroupChatNew(long tempId, GroupChat chat, Set<Long> userIdsToNotify) {
         try {
             var response = new WsResponse.ChatNew(
                 tempId, chat.getId(), chat.getName(), chat.getDescription(),
@@ -114,7 +111,7 @@ public class WebSocketNotifier { // TODO: Добавить batch‑отправ�
     }
 
     @Async("webSocketNotifierExecutor")
-    public void notifyPersonalChatNew(long tempId, CreatePersonalChatDTO chat, Set<Long> userIdsToNotify) {
+    public void notifyPersonalChatNew(long tempId, PersonalChat chat, Set<Long> userIdsToNotify) {
         try {
             var response = new WsResponse.ChatNew(
                 tempId, chat.getId(), chat.getName(), chat.getDescription(),
@@ -166,7 +163,7 @@ public class WebSocketNotifier { // TODO: Добавить batch‑отправ�
     // ===================== CHAT-MEMBER ===========================
     
     @Async("webSocketNotifierExecutor")
-    public void notifyChatMemberNew(CreateChatMemberDTO chatMember) {
+    public void notifyChatMemberNew(ChatMember chatMember) {
         try {
             sendToChatTopic(chatMember.getChatId(), new WsResponse.ChatMemberNew(
                 chatMember.getChatId(), chatMember.getUserId(),
@@ -179,8 +176,8 @@ public class WebSocketNotifier { // TODO: Добавить batch‑отправ�
     }
 
     @Async("webSocketNotifierExecutor")
-    public void notifyChatMembersNew(Collection<CreateChatMemberDTO> chatMembers) {
-        for (CreateChatMemberDTO chatMember : chatMembers) {
+    public void notifyChatMembersNew(Collection<ChatMember> chatMembers) {
+        for (ChatMember chatMember : chatMembers) {
             try {
                 sendToChatTopic(chatMember.getChatId(), new WsResponse.ChatMemberNew(
                     chatMember.getChatId(), chatMember.getUserId(),

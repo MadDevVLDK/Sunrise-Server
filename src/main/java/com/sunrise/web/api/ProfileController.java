@@ -6,7 +6,7 @@ import com.sunrise.web.payload.ApiRequest;
 import com.sunrise.web.payload.ApiResponse;
 import com.sunrise.core.result.*;
 import com.sunrise.core.service.UserService;
-import com.sunrise.orchestrator.result.UserProfileLightDTO;
+import com.sunrise.orchestrator.result.Dto.*;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +46,7 @@ public class ProfileController {
     @GetMapping
     public ResponseEntity<?> getMyProfile(@CurrentUserId long userId) {
 
-        ResultOneArg<UserProfileLightDTO> result = userService.getMyProfile(userId);
+        ResultOneArg<UserProfileLight> result = userService.getMyProfile(userId);
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -74,7 +74,7 @@ public class ProfileController {
     @GetMapping("/batch")
     public ResponseEntity<?> getOtherProfilesByIds(@Valid ApiRequest.Batch request, @CurrentUserId long userId) {
 
-        ResultOneArg<List<UserProfileLightDTO>> result = userService.getOtherProfileLightByIds(userId, request.ids());
+        ResultOneArg<List<UserProfileLight>> result = userService.getOtherProfileLightByIds(userId, request.ids());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :

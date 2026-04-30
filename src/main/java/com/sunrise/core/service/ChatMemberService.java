@@ -1,13 +1,11 @@
 package com.sunrise.core.service;
 
-import com.sunrise.core.creation.CreateChatMemberDTO;
+import com.sunrise.core.creation.CreateDto;
 import com.sunrise.core.result.ResultNoArgs;
 import com.sunrise.core.result.ResultOneArg;
 import com.sunrise.notifier.WebSocketNotifier;
 import com.sunrise.orchestrator.DataValidator;
-import com.sunrise.orchestrator.result.ChatMemberProfileDTO;
-import com.sunrise.orchestrator.result.ChatMembersPageDTO;
-import com.sunrise.orchestrator.result.ChatSecurityDTO;
+import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.ChatMemberOrchestrator;
 import com.sunrise.orchestrator.service.ChatOrchestrator;
 import com.sunrise.helpclass.ValidationException;
@@ -43,7 +41,9 @@ public class ChatMemberService {
         try {
             validator.validateCanAddChatMember(chatId, inviterId, opponentId);
 
-            CreateChatMemberDTO member = new CreateChatMemberDTO(chatId, opponentId, Instant.now(), false);
+            CreateDto.ChatMember member = new CreateDto.ChatMember(
+                chatId, opponentId, Instant.now(), false
+            );
 
             boolean changed = chatMemberOrchestrator.saveOrRestore(member);
             if (changed) {
@@ -72,14 +72,14 @@ public class ChatMemberService {
 
             Instant createdAt = Instant.now();
 
-            List<CreateChatMemberDTO> members = new ArrayList<>(usersToAdd.size() + 1);
+            List<CreateDto.ChatMember> members = new ArrayList<>(usersToAdd.size() + 1);
             for (long userId : usersToAdd){
-                members.add(new CreateChatMemberDTO(chatId, userId, createdAt, false));
+                members.add(new CreateDto.ChatMember(chatId, userId, createdAt, false));
             }
 
             Long[] addedIds = chatMemberOrchestrator.saveOrRestoreBatch(chatId, members);
             if (addedIds.length > 0) {
-                List<CreateChatMemberDTO> addedMembers = members.stream()
+                List<CreateDto.ChatMember> addedMembers = members.stream()
                     .filter(m -> Arrays.asList(addedIds).contains(m.getUserId())).toList();
 
                  // уведомить всех надо об этом
@@ -199,10 +199,10 @@ public class ChatMemberService {
     @Transactional
     public ResultNoArgs leaveChat(long chatId, long userId) {
         try {
-            ChatSecurityDTO chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);
+            ChatSecurity chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);
             Instant updatedAt = Instant.now();
-            if (chat.getChatType().isPersonal()) {
-                if (chat.getMembersCount() > 1) {
+            if (chat.chatType().isPersonal()) {
+                if (chat.membersCount() > 1) {
                     // Удаляем пользователя из чата
                     boolean removed = chatMemberOrchestrator.remove(chatId, userId, updatedAt);
                     if (removed) {
@@ -240,11 +240,11 @@ public class ChatMemberService {
         }
     }
 
-    public ResultOneArg<ChatMembersPageDTO> getChatMemberPage(long chatId, long userId, Long cursor, int limit) {
+    public ResultOneArg<ChatMembersPage> getChatMemberPage(long chatId, long userId, Long cursor, int limit) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            ChatMembersPageDTO chatMembers = chatMemberOrchestrator.getPage(chatId, cursor, limit);
+            ChatMembersPage chatMembers = chatMemberOrchestrator.getPage(chatId, cursor, limit);
 
             log.debug("[🔧] ✅ User {} got {} members of chat {}", userId, chatMembers.chatMembers().size(), chatId);
             return ResultOneArg.success(chatMembers);
@@ -258,11 +258,11 @@ public class ChatMemberService {
             return ResultOneArg.error("getChatMembers failed due to server error");
         }
     }
-    public ResultOneArg<List<ChatMemberProfileDTO>> getChatMemberByIds(long chatId, long userId, Set<Long> userIds) {
+    public ResultOneArg<List<ChatMemberProfile>> getChatMemberByIds(long chatId, long userId, Set<Long> userIds) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            List<ChatMemberProfileDTO> chatMembers = chatMemberOrchestrator.getProfilesByIds(chatId, userIds);
+            List<ChatMemberProfile> chatMembers = chatMemberOrchestrator.getProfilesByIds(chatId, userIds);
 
             log.debug("[🔧] ✅ User {} got {} members by ids of chat {}", userId, userIds.size(), chatId);
             return ResultOneArg.success(chatMembers);

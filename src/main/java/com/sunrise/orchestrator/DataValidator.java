@@ -1,7 +1,7 @@
 package com.sunrise.orchestrator;
 
 import com.sunrise.helpclass.ValidationException;
-import com.sunrise.orchestrator.result.ChatSecurityDTO;
+import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.ChatMemberOrchestrator;
 import com.sunrise.orchestrator.service.ChatOrchestrator;
 import com.sunrise.orchestrator.service.MessageOrchestrator;
@@ -74,8 +74,8 @@ public class DataValidator {
             throw new ValidationException("Chat is a personal chat: " + chatId);
         }
     }
-    private ChatSecurityDTO validateActiveChatAndGet(long chatId) {
-        Optional<ChatSecurityDTO> chatOpt = chatOrchestrator.getActive(chatId);
+    private ChatSecurity validateActiveChatAndGet(long chatId) {
+        Optional<ChatSecurity> chatOpt = chatOrchestrator.getActive(chatId);
         if (chatOpt.isEmpty()) {
             throw new ValidationException("Chat does not exist or is deleted -> " + chatId);
         }
@@ -114,8 +114,8 @@ public class DataValidator {
     }
     public void validateCanUpdateChatInfo(long chatId, long userId) {
         validateActiveUser(userId);
-        ChatSecurityDTO chat = validateActiveChatAndGet(chatId);
-        if (chat.getChatType().isPersonal()) {
+        ChatSecurity chat = validateActiveChatAndGet(chatId);
+        if (chat.chatType().isPersonal()) {
             throw new ValidationException("Chat info is not changeable for private chat");
         }
         validateActiveChatMemberIsAdmin(chatId, userId);
@@ -190,9 +190,9 @@ public class DataValidator {
         validateActiveChat(chatId);
         validateActiveChatMember(chatId, userId);
     }
-    public ChatSecurityDTO validateActiveUserInActiveChatAndGetChat(long chatId, long userId) {
+    public ChatSecurity validateActiveUserInActiveChatAndGetChat(long chatId, long userId) {
         validateActiveUser(userId);
-        ChatSecurityDTO chat = validateActiveChatAndGet(chatId);
+        ChatSecurity chat = validateActiveChatAndGet(chatId);
         validateActiveChatMember(chatId, userId);
         return chat;
     }

@@ -1,4 +1,4 @@
-package com.sunrise.cache;
+package com.sunrise.cache.event;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,9 +9,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import com.sunrise.cache.CacheEvent.MessagesRecentIdsInit;
-import com.sunrise.cache.entity.CacheChatMember;
-import com.sunrise.cache.entity.CacheMessage;
+import com.sunrise.cache.entity.Cache.ChatMember;
+import com.sunrise.cache.entity.Cache.Message;
+import com.sunrise.cache.event.CacheEvent.MessagesRecentIdsInit;
 import com.sunrise.cache.service.ChatCacheService;
 import com.sunrise.cache.service.ChatMemberCacheService;
 import com.sunrise.cache.service.MessageCacheService;
@@ -158,10 +158,10 @@ public class CacheEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onChatMemberAdded(CacheEvent.ChatMemberAdded event) {
         try {
-            CacheChatMember member = event.member();
+            ChatMember member = event.member();
             chatMemberCacheService.save(member);
-            chatCacheService.increaseChatMemberCounter(member.getChatId(), 1);
-            chatMemberCacheService.addToRecentIds(member.getChatId(), member.getUserId());
+            chatCacheService.increaseChatMemberCounter(member.chatId(), 1);
+            chatMemberCacheService.addToRecentIds(member.chatId(), member.userId());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache chat member: {}", e.getMessage());
         }
@@ -231,9 +231,9 @@ public class CacheEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMessageCreated(CacheEvent.MessageCreated event) {
         try {
-            CacheMessage message = event.message();
+            Message message = event.message();
             messageCacheService.save(message);
-            messageCacheService.addToRecentIds(message.getChatId(), message.getId());
+            messageCacheService.addToRecentIds(message.chatId(), message.id());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache new message: {}", e.getMessage());
         }

@@ -2,11 +2,11 @@ package com.sunrise.orchestrator.service;
 
 import static org.springframework.transaction.annotation.Propagation.MANDATORY;
 
-import com.sunrise.cache.CacheEvent;
 import com.sunrise.cache.entity.*;
+import com.sunrise.cache.event.CacheEvent;
 import com.sunrise.cache.service.ChatMemberCacheService;
 import com.sunrise.cache.service.UserCacheService;
-import com.sunrise.core.creation.CreateChatMemberDTO;
+import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.entity.ChatMember;
 import com.sunrise.db.event.ChatEvent;
 import com.sunrise.db.result.UserProfileResult;
@@ -16,7 +16,7 @@ import com.sunrise.db.service.UserDbService;
 import com.sunrise.helpclass.mapper.ChatEventMapper;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
-import com.sunrise.orchestrator.result.ServiceDTO;
+import com.sunrise.orchestrator.result.Dto;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +51,7 @@ public class ChatMemberOrchestrator {
     // Основные методы
 
     @Transactional(propagation = MANDATORY)
-    public boolean saveOrRestore(@NonNull CreateChatMemberDTO chatMember) {
+    public boolean saveOrRestore(@NonNull CreateDto.ChatMember chatMember) {
         // синхронно в бд
         boolean saved = dbChatMemberService.saveOrRestore(ChatMemberMapper.toEntity(chatMember));
         if (saved) {
@@ -71,7 +71,7 @@ public class ChatMemberOrchestrator {
     }
 
     @Transactional(propagation = MANDATORY)
-    public Long[] saveOrRestoreBatch(long chatId, @NonNull List<CreateChatMemberDTO> chatMembers) {
+    public Long[] saveOrRestoreBatch(long chatId, @NonNull List<CreateDto.ChatMember> chatMembers) {
         // конвертируем
         Instant joinedAt = chatMembers.getFirst().getJoinedAt();
         Long[] memberIds = new Long[chatMembers.size()];
@@ -86,7 +86,7 @@ public class ChatMemberOrchestrator {
             List<Long> addedUserIds = Arrays.asList(addedIds);
             List<Boolean> admins = chatMembers.stream()
                 .filter(m -> addedUserIds.contains(m.getUserId()))
-                .map(CreateChatMemberDTO::isAdmin).toList();
+                .map(CreateDto.ChatMember::isAdmin).toList();
 
             var event = new ChatEvent.ChatMembersAdded(
                 chatId, addedUserIds,
@@ -96,7 +96,7 @@ public class ChatMemberOrchestrator {
 
 
             // Фильтруем только тех, кто реально добавлен/восстановлен
-            List<CreateChatMemberDTO> addedMembers = chatMembers.stream()
+            List<CreateDto.ChatMember> addedMembers = chatMembers.stream()
                     .filter(m -> Arrays.asList(addedIds).contains(m.getUserId())).toList();
 
             // публикуем для обновления кеша после коммита
@@ -211,19 +211,19 @@ public class ChatMemberOrchestrator {
         return dbMember.map(ChatMember::isAdmin);
     }
 
-    public List<ChatMemberProfileDTO> getProfilesByIds(long chatId, @NonNull Set<Long> userIds) {
+    public List<Dto.ChatMemberProfile> getProfilesByIds(long chatId, @NonNull Set<Long> userIds) {
         if (userIds.isEmpty()) {
             return Collections.emptyList();
         }
 
-        Map<Long, ChatMemberProfileDTO> memberMap = new HashMap<>();
+        Map<Long, Dto.ChatMemberProfile> memberMap = new HashMap<>();
 
         // Загружаем из кеша
         Set<Long> missingMemberIds = new HashSet<>();
-        Map<Long, CacheChatMember> cachedMembers = cacheChatMemberService.getBatch(chatId, userIds, missingMemberIds);
+        Map<Long, Cache.ChatMember> cachedMembers = cacheChatMemberService.getBatch(chatId, userIds, missingMemberIds);
 
-        for (Map.Entry<Long, CacheChatMember> entry : cachedMembers.entrySet()) {
-            CacheChatMember cachedMember = entry.getValue();
+        for (Map.Entry<Long, Cache.ChatMember> entry : cachedMembers.entrySet()) {
+            Cache.ChatMember cachedMember = entry.getValue();
             if (!cachedMember.isDeleted()) {
                 memberMap.put(entry.getKey(), ChatMemberMapper.toProfileDTO(cachedMember));
             }
@@ -232,7 +232,7 @@ public class ChatMemberOrchestrator {
         // Загружаем недостающих из БД
         if (!missingMemberIds.isEmpty()) {
             List<ChatMember> dbMembers = dbChatMemberService.getActiveBatch(chatId, new ArrayList<>(missingMemberIds));
-            List<CacheChatMember> membersToCache = new LinkedList<>();
+            List<Cache.ChatMember> membersToCache = new LinkedList<>();
 
             for (ChatMember member : dbMembers) {
                 membersToCache.add(ChatMemberMapper.toCache(member));
@@ -248,9 +248,9 @@ public class ChatMemberOrchestrator {
         }
 
         // собираем результат
-        List<ChatMemberProfileDTO> result = new LinkedList<>();
+        List<Dto.ChatMemberProfile> result = new LinkedList<>();
         for (long userId : userIds) {
-            ChatMemberProfileDTO member = memberMap.get(userId);
+            Dto.ChatMemberProfile member = memberMap.get(userId);
             if (member != null) {
                 result.add(member);
             }
@@ -258,7 +258,7 @@ public class ChatMemberOrchestrator {
         return result;
     }
 
-    public ChatMembersPageDTO getPage(long chatId, Long cursor, int limit) {
+    public Dto.ChatMembersPage getPage(long chatId, Long cursor, int limit) {
         if (!cacheChatMemberService.hasResentIds(chatId)) {
             // Публикуем событие для фоновой инициализации после коммита
             eventPublisher.publishEvent(
@@ -272,7 +272,7 @@ public class ChatMemberOrchestrator {
         // Получаем limit + 1 ID из кеша (с учётом курсора)
         List<Long> neededIds = cacheChatMemberService.getRecentIdsRange(chatId, cursor, limit + 1);
         if (neededIds.isEmpty()) {
-            return new ChatMembersPageDTO(Collections.emptyList(), null);
+            return new Dto.ChatMembersPage(Collections.emptyList(), null);
         }
         
         // Если кеш не полон, то используем кеш
@@ -289,65 +289,65 @@ public class ChatMemberOrchestrator {
         }
     }
 
-    private ChatMembersPageDTO buildPageFromIds(long chatId, List<Long> ids, int limit) {
+    private Dto.ChatMembersPage buildPageFromIds(long chatId, List<Long> ids, int limit) {
         boolean hasMore = ids.size() > limit;
         List<Long> pageIds = hasMore ? ids.subList(0, limit) : ids;
         Long nextCursor = hasMore ? pageIds.getLast() : null;
 
         // Загружаем профили пользователей и участников (те же методы)
-        Map<Long, UserProfileLightDTO> userMap = loadLightUserProfilesWithCache(new HashSet<>(pageIds));
-        Map<Long, ChatMemberProfileDTO> memberMap = loadChatMemberProfilesWithCache(chatId, new HashSet<>(pageIds));
+        Map<Long, Dto.UserProfileLight> userMap = loadLightUserProfilesWithCache(new HashSet<>(pageIds));
+        Map<Long, Dto.ChatMemberProfile> memberMap = loadChatMemberProfilesWithCache(chatId, new HashSet<>(pageIds));
 
-        List<ChatMemberProfileFullDTO> result = new LinkedList<>();
+        List<Dto.ChatMemberProfileFull> result = new LinkedList<>();
         for (long userId : pageIds) {
-            UserProfileLightDTO user = userMap.get(userId);
-            ChatMemberProfileDTO member = memberMap.get(userId);
+            Dto.UserProfileLight user = userMap.get(userId);
+            Dto.ChatMemberProfile member = memberMap.get(userId);
             if (user != null && member != null) {
                 result.add(ChatMemberMapper.toProfileFullDTO(user, member));
             }
         }
-        return new ChatMembersPageDTO(result, nextCursor);
+        return new Dto.ChatMembersPage(result, nextCursor);
     }
 
     // TODO: Заменить потом на пагинацию полную из бд
-    private ChatMembersPageDTO loadPageFromDb(long chatId, Long cursor, int limit) {
+    private Dto.ChatMembersPage loadPageFromDb(long chatId, Long cursor, int limit) {
         List<Long> userIds = dbChatMemberService.getIdsPage(chatId, cursor, limit + 1);
         if (userIds.isEmpty()) {
-            return new ChatMembersPageDTO(Collections.emptyList(), null);
+            return new Dto.ChatMembersPage(Collections.emptyList(), null);
         }
         boolean hasMore = userIds.size() > limit;
         List<Long> pageIds = hasMore ? userIds.subList(0, limit) : userIds;
         Long nextCursor = hasMore ? pageIds.getLast() : null;
 
-        Map<Long, UserProfileLightDTO> userMap = loadLightUserProfilesWithCache(new HashSet<>(pageIds));
-        Map<Long, ChatMemberProfileDTO> memberMap = loadChatMemberProfilesWithCache(chatId, new HashSet<>(pageIds));
+        Map<Long, Dto.UserProfileLight> userMap = loadLightUserProfilesWithCache(new HashSet<>(pageIds));
+        Map<Long, Dto.ChatMemberProfile> memberMap = loadChatMemberProfilesWithCache(chatId, new HashSet<>(pageIds));
 
-        List<ChatMemberProfileFullDTO> result = new LinkedList<>();
+        List<Dto.ChatMemberProfileFull> result = new LinkedList<>();
         for (long userId : pageIds) {
-            UserProfileLightDTO user = userMap.get(userId);
-            ChatMemberProfileDTO member = memberMap.get(userId);
+            Dto.UserProfileLight user = userMap.get(userId);
+            Dto.ChatMemberProfile member = memberMap.get(userId);
             if (user != null && member != null) {
                 result.add(ChatMemberMapper.toProfileFullDTO(user, member));
             }
         }
-        return new ChatMembersPageDTO(result, nextCursor);
+        return new Dto.ChatMembersPage(result, nextCursor);
     }
 
 
     // Вспомогательные методы для загрузки профилей пользователей с кешем
 
-    private Map<Long, UserProfileLightDTO> loadLightUserProfilesWithCache(Set<Long> userIds) {
+    private Map<Long, Dto.UserProfileLight> loadLightUserProfilesWithCache(Set<Long> userIds) {
         if (userIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        Map<Long, UserProfileLightDTO> userMap = new HashMap<>();
+        Map<Long, Dto.UserProfileLight> userMap = new HashMap<>();
 
         // Загружаем из кеша
         Set<Long> missingUserIds = new HashSet<>();
-        Map<Long, CacheUserProfile> cachedUsers = cacheUserService.getProfilesByIds(userIds, missingUserIds);
+        Map<Long, Cache.UserProfile> cachedUsers = cacheUserService.getProfilesByIds(userIds, missingUserIds);
 
-        for (Map.Entry<Long, CacheUserProfile> entry : cachedUsers.entrySet()) {
+        for (Map.Entry<Long, Cache.UserProfile> entry : cachedUsers.entrySet()) {
             if (!entry.getValue().isDeleted()) {
                 userMap.put(entry.getKey(), UserMapper.toProfileLightDTO(entry.getValue()));
             }
@@ -356,7 +356,7 @@ public class ChatMemberOrchestrator {
         // Загружаем недостающих из БД
         if (!missingUserIds.isEmpty()) {
             List<UserProfileResult> dbUsers = dbUserService.getActiveUserProfileByIds(new ArrayList<>(missingUserIds));
-            List<CacheUserProfile> usersToCache = new ArrayList<>();
+            List<Cache.UserProfile> usersToCache = new ArrayList<>();
 
             for (UserProfileResult user : dbUsers) {
                 usersToCache.add(UserMapper.toProfileCache(user));
@@ -374,19 +374,19 @@ public class ChatMemberOrchestrator {
         return userMap;
     }
 
-    private Map<Long, ChatMemberProfileDTO> loadChatMemberProfilesWithCache(long chatId, @NonNull Set<Long> userIds) {
+    private Map<Long, Dto.ChatMemberProfile> loadChatMemberProfilesWithCache(long chatId, @NonNull Set<Long> userIds) {
         if (userIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        Map<Long, ChatMemberProfileDTO> memberMap = new HashMap<>();
+        Map<Long, Dto.ChatMemberProfile> memberMap = new HashMap<>();
 
         // Загружаем из кеша
         Set<Long> missingMemberIds = new HashSet<>();
-        Map<Long, CacheChatMember> cachedMembers = cacheChatMemberService.getBatch(chatId, userIds, missingMemberIds);
+        Map<Long, Cache.ChatMember> cachedMembers = cacheChatMemberService.getBatch(chatId, userIds, missingMemberIds);
 
-        for (Map.Entry<Long, CacheChatMember> entry : cachedMembers.entrySet()) {
-            CacheChatMember cachedMember = entry.getValue();
+        for (Map.Entry<Long, Cache.ChatMember> entry : cachedMembers.entrySet()) {
+            Cache.ChatMember cachedMember = entry.getValue();
             if (!cachedMember.isDeleted()) {
                 memberMap.put(entry.getKey(), ChatMemberMapper.toProfileDTO(cachedMember));
             }
@@ -395,7 +395,7 @@ public class ChatMemberOrchestrator {
         // Загружаем недостающих из БД
         if (!missingMemberIds.isEmpty()) {
             List<ChatMember> dbMembers = dbChatMemberService.getActiveBatch(chatId, new ArrayList<>(missingMemberIds));
-            List<CacheChatMember> membersToCache = new ArrayList<>();
+            List<Cache.ChatMember> membersToCache = new ArrayList<>();
 
             for (ChatMember member : dbMembers) {
                 membersToCache.add(ChatMemberMapper.toCache(member));

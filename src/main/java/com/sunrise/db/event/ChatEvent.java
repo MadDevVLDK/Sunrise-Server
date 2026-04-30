@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class ChatEvent {
 
     public interface IChatEvent {
-        @JsonIgnore long getChatId();
+        long getChatId();
         @JsonIgnore Instant getCreatedAtDb();
     }
     

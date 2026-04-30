@@ -1,15 +1,13 @@
 package com.sunrise.core.service;
 
 import com.sunrise.notifier.AsyncEvent;
-import com.sunrise.core.creation.CreateLoginHistoryDTO;
-import com.sunrise.core.creation.CreateUserDTO;
-import com.sunrise.core.creation.CreateVerificationTokenDTO;
+import com.sunrise.core.creation.CreateDto;
 import com.sunrise.core.result.*;
 import com.sunrise.helpclass.jwt.JwtUtil;
 import com.sunrise.notifier.EmailNotifier;
 import com.sunrise.orchestrator.DataValidator;
-import com.sunrise.orchestrator.result.UserSecurityDTO;
-import com.sunrise.orchestrator.result.VerificationTokenDTO;
+import com.sunrise.orchestrator.result.Dto;
+import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.UserOrchestrator;
 import com.sunrise.orchestrator.service.VerificationTokenOrchestrator;
 import com.sunrise.orchestrator.type.TokenType;
@@ -61,14 +59,14 @@ public class AuthService {
             }
 
             Instant createdAt = Instant.now();
-            CreateUserDTO user = new CreateUserDTO(
+            CreateDto.User user = new CreateDto.User(
                 SimpleSnowflakeId.nextId(), username, name, email,
                 passwordEncoder.encode(password), createdAt
             );
             userOrchestrator.saveUser(user);
 
             // публикуем событие на сохранение токена
-            CreateVerificationTokenDTO verificationToken = new CreateVerificationTokenDTO(
+            CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
                 SimpleSnowflakeId.nextId(), user.getId(), generateBase64String(),
                 TokenType.EMAIL_UPDATE, createdAt, 24 // 24 часа
             );
@@ -91,26 +89,26 @@ public class AuthService {
     }
 
     @Transactional
-    public ResultOneArg<UserLoginResult> authenticateUser(@NonNull String username, @NonNull String password, HttpServletRequest httpRequest) {
+    public ResultOneArg<Dto.UserLogin> authenticateUser(@NonNull String username, @NonNull String password, HttpServletRequest httpRequest) {
         try {
-            UserSecurityDTO user = userOrchestrator.getActiveUserSecurityByUsername(username)
+            UserSecurity user = userOrchestrator.getActiveUserSecurityByUsername(username)
                     .orElseThrow(() -> new ValidationException("Invalid username or password"));
 
-            if (!passwordEncoder.matches(password, user.getHashPassword())) {
+            if (!passwordEncoder.matches(password, user.hashPassword())) {
                 throw new ValidationException("Invalid username or password");
             }
 
             // публикуем событие на сохранение истории логинов и обновление последнего логина
-            CreateLoginHistoryDTO loginHistory = new CreateLoginHistoryDTO(
-                SimpleSnowflakeId.nextId(), user.getId(),
-                extractClientIp(httpRequest), httpRequest.getHeader("User-Agent"), Instant.now()
+            CreateDto.LoginHistory loginHistory = new CreateDto.LoginHistory(
+                SimpleSnowflakeId.nextId(), user.id(), extractClientIp(httpRequest), 
+                httpRequest.getHeader("User-Agent"), Instant.now()
             );
             eventPublisher.publishEvent(new AsyncEvent.SaveUserLoginHistory(username, loginHistory));
 
-            String token = jwtUtil.generateToken(user.getId(), user.getJwtVersion());
+            String token = jwtUtil.generateToken(user.id(), user.jwtVersion());
 
             log.info("[🔧] ✅ User logged in successfully --> {}", username);
-            return ResultOneArg.success(new UserLoginResult(token, jwtUtil.getTokenExpirationTime(token)));
+            return ResultOneArg.success(new Dto.UserLogin(token, jwtUtil.getTokenExpirationTime(token)));
         }
         catch (ValidationException e) {
             log.warn("[🔧] ☝️ Failed to authenticate user: {}", e.getMessage());
@@ -125,20 +123,20 @@ public class AuthService {
     @Transactional
     public ResultNoArgs requestEmailUpdate(long userId) {
         try {
-            UserSecurityDTO user = userOrchestrator.getUserSecurity(userId)
+            UserSecurity user = userOrchestrator.getUserSecurity(userId)
                     .orElseThrow(() -> new ValidationException("User not found"));
 
             // Генерация токена
             String token = generateBase64String();
             TokenType tokenType = TokenType.EMAIL_UPDATE;
             Instant now = Instant.now();
-            CreateVerificationTokenDTO verificationToken = new CreateVerificationTokenDTO(
+            CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
                 SimpleSnowflakeId.nextId(), userId, token, tokenType, now, 24 // 24 часа
             );
             verificationTokenOrchestrator.saveVerificationToken(verificationToken);
 
             // Отправляем письмо на старый email
-            emailNotifier.sendVerificationTokenMail(user.getEmail(), tokenType, token);
+            emailNotifier.sendVerificationTokenMail(user.email(), tokenType, token);
             return ResultNoArgs.success();
         }
         catch (ValidationException e) {
@@ -154,20 +152,20 @@ public class AuthService {
     @Transactional
     public ResultNoArgs requestPasswordUpdate(@NonNull String email) {
         try {
-            UserSecurityDTO user = userOrchestrator.getActiveUserSecurityByEmail(email)
+            UserSecurity user = userOrchestrator.getActiveUserSecurityByEmail(email)
                     .orElseThrow(() -> new ValidationException("User with such email does not exist"));
 
             // Генерация токена
             String token = generateBase64String();
             TokenType tokenType = TokenType.PASSWORD_UPDATE;
             Instant now = Instant.now();
-            CreateVerificationTokenDTO verificationToken = new CreateVerificationTokenDTO(
-                SimpleSnowflakeId.nextId(), user.getId(), token, tokenType, now, 1 // 1 час
+            CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
+                SimpleSnowflakeId.nextId(), user.id(), token, tokenType, now, 1 // 1 час
             );
             verificationTokenOrchestrator.saveVerificationToken(verificationToken);
 
             // Отправляем письмо на старый email
-            emailNotifier.sendVerificationTokenMail(user.getEmail(), tokenType, token);
+            emailNotifier.sendVerificationTokenMail(user.email(), tokenType, token);
             return ResultNoArgs.success();
         }
         catch (ValidationException e) {
@@ -187,16 +185,16 @@ public class AuthService {
                 throw new ValidationException("Token cannot be empty");
             }
 
-            VerificationTokenDTO verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
+            VerificationToken verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
                     .orElseThrow(() -> new ValidationException("Invalid token"));
 
-            if (verificationToken.getExpiryDate().isBefore(Instant.now())) {
+            if (verificationToken.expiryDate().isBefore(Instant.now())) {
                 throw new ValidationException("Token expired");
-            } else if (verificationToken.getTokenType() != TokenType.REGISTRATION) {
+            } else if (verificationToken.tokenType() != TokenType.REGISTRATION) {
                 throw new ValidationException("Invalid token type");
             }
 
-            long userId = verificationToken.getUserId();
+            long userId = verificationToken.userId();
 
             // TODO: Надо проверку на то, не удаленный ли аккаунт
             // validator.validateActiveUser(userId);
@@ -228,23 +226,23 @@ public class AuthService {
                 throw new ValidationException("Token cannot be empty");
             }
 
-            VerificationTokenDTO verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
+            VerificationToken verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
                     .orElseThrow(() -> new ValidationException("Invalid token"));
 
-            if (verificationToken.getExpiryDate().isBefore(Instant.now())) {
+            if (verificationToken.expiryDate().isBefore(Instant.now())) {
                 throw new ValidationException("Token expired");
-            } else if (verificationToken.getTokenType() != TokenType.EMAIL_UPDATE) {
+            } else if (verificationToken.tokenType() != TokenType.EMAIL_UPDATE) {
                 throw new ValidationException("Invalid token type");
             }
 
-            long userId = verificationToken.getUserId();
+            long userId = verificationToken.userId();
 
-            UserSecurityDTO user = userOrchestrator.getActiveUserSecurity(userId)
+            UserSecurity user = userOrchestrator.getActiveUserSecurity(userId)
                     .orElseThrow(() -> new ValidationException("User not found"));
 
             Instant updatedAt = Instant.now();
 
-            userOrchestrator.updateUserEmail(userId, user.getEmail(), email, updatedAt);
+            userOrchestrator.updateUserEmail(userId, user.email(), email, updatedAt);
 
             // публикуем событие на удаление токена
             eventPublisher.publishEvent(new AsyncEvent.DeleteVerificationToken(token));
@@ -269,16 +267,16 @@ public class AuthService {
                 throw new ValidationException("Token cannot be empty");
             }
 
-            VerificationTokenDTO verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
+            VerificationToken verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
                     .orElseThrow(() -> new ValidationException("Invalid token"));
 
-            if (verificationToken.getExpiryDate().isBefore(Instant.now())) {
+            if (verificationToken.expiryDate().isBefore(Instant.now())) {
                 throw new ValidationException("Token expired");
-            } else if (verificationToken.getTokenType() != TokenType.PASSWORD_UPDATE) {
+            } else if (verificationToken.tokenType() != TokenType.PASSWORD_UPDATE) {
                 throw new ValidationException("Invalid token type");
             }
 
-            long userId = verificationToken.getUserId();
+            long userId = verificationToken.userId();
 
             validator.validateActiveUser(userId);
 
@@ -326,6 +324,7 @@ public class AuthService {
             return "unknown";
         }
     }
+    
     private static String generateBase64String() {
         SecureRandom random = new SecureRandom();
         byte[] bytes = new byte[48]; // 48 bytes = 64 base64 characters
@@ -333,4 +332,3 @@ public class AuthService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 }
-

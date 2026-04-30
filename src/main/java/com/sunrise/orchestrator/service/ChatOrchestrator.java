@@ -2,12 +2,10 @@ package com.sunrise.orchestrator.service;
 
 import static org.springframework.transaction.annotation.Propagation.MANDATORY;
 
-import com.sunrise.cache.CacheEvent;
 import com.sunrise.cache.entity.*;
+import com.sunrise.cache.event.CacheEvent;
 import com.sunrise.cache.service.ChatCacheService;
-import com.sunrise.core.creation.CreateChatMemberDTO;
-import com.sunrise.core.creation.CreateGroupChatDTO;
-import com.sunrise.core.creation.CreatePersonalChatDTO;
+import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.entity.ChatEventDb;
 import com.sunrise.db.event.ChatEvent;
 import com.sunrise.db.result.*;
@@ -18,8 +16,6 @@ import com.sunrise.helpclass.mapper.ChatMapper;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.orchestrator.result.*;
 import com.sunrise.orchestrator.type.ChatType;
-import com.sunrise.web.api.ChatController.ChatEventDTO;
-import com.sunrise.web.api.ChatController.ChatSyncDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +44,8 @@ public class ChatOrchestrator {
     // Основные методы
 
     @Transactional(propagation = MANDATORY)
-    public void savePersonalChatAndAddMembers(CreatePersonalChatDTO chat, CreateChatMemberDTO creator, CreateChatMemberDTO opponent) {
+    public void savePersonalChatAndAddMembers(CreateDto.PersonalChat chat, 
+                                              CreateDto.ChatMember creator, CreateDto.ChatMember opponent) {
         // синхронно в бд
         dbChatService.savePersonalChat(
             ChatMapper.toEntity(chat), opponent.getUserId()
@@ -77,9 +74,10 @@ public class ChatOrchestrator {
     }
 
     @Transactional(propagation = MANDATORY)
-    public void saveGroupChatAndAddMembers(CreateGroupChatDTO chat, CreateChatMemberDTO creator, List<CreateChatMemberDTO> chatMembers) {
+    public void saveGroupChatAndAddMembers(CreateDto.GroupChat chat, 
+                                           CreateDto.ChatMember creator, List<CreateDto.ChatMember> chatMembers) {
         // конвертируем
-        List<CacheChatMember> membersWithCreator = new ArrayList<>(chatMembers.size() + 1);
+        List<Cache.ChatMember> membersWithCreator = new ArrayList<>(chatMembers.size() + 1);
         membersWithCreator.add(ChatMemberMapper.toCache(creator));
 
         Long[] membersWithoutCreatorIds = new Long[chatMembers.size()];
@@ -96,7 +94,7 @@ public class ChatOrchestrator {
         allMembers.add(new ChatEvent.ChatCreatedWithMembers.MemberInfo(
             creator.getUserId(), creator.isAdmin(), creator.getJoinedAt()
         ));
-        for (CreateChatMemberDTO m : chatMembers) {
+        for (CreateDto.ChatMember m : chatMembers) {
             allMembers.add(new ChatEvent.ChatCreatedWithMembers.MemberInfo(
                 m.getUserId(), m.isAdmin(), m.getJoinedAt()
             ));
@@ -167,11 +165,11 @@ public class ChatOrchestrator {
     
     // Вспомогательные методы
     
-    public Optional<ChatSecurityDTO> getActive(long chatId) {
+    public Optional<Dto.ChatSecurity> getActive(long chatId) {
         // пробуем кеш
-        Optional<CacheChat> cacheChat = cacheChatService.get(chatId);
+        Optional<Cache.Chat> cacheChat = cacheChatService.get(chatId);
         if (cacheChat.isPresent())
-            return cacheChat.filter(CacheChat::isActive).map(ChatMapper::toSecurityDTO);
+            return cacheChat.filter(Cache.Chat::isActive).map(ChatMapper::toSecurityDTO);
 
         // грузим из бд
         Optional<ChatProfileResult> dbChat = dbChatService.get(chatId);
@@ -184,9 +182,9 @@ public class ChatOrchestrator {
         return dbChat.filter(chat -> !chat.getIsDeleted()).map(ChatMapper::toSecurityDTO);
     }
 
-    public Optional<ChatSecurityDTO> getPersonalChat(long userId1, long userId2) {
+    public Optional<Dto.ChatSecurity> getPersonalChat(long userId1, long userId2) {
         // пробуем кеш
-        Optional<CacheChat> cached = cacheChatService.getPersonalChat(userId1, userId2);
+        Optional<Cache.Chat> cached = cacheChatService.getPersonalChat(userId1, userId2);
         if (cached.isPresent())
             return cached.map(ChatMapper::toSecurityDTO);
 
@@ -203,9 +201,9 @@ public class ChatOrchestrator {
 
     public boolean isActive(long chatId) {
         // пробуем кеш
-        Optional<CacheChat> cacheChat = cacheChatService.get(chatId);
+        Optional<Cache.Chat> cacheChat = cacheChatService.get(chatId);
         if (cacheChat.isPresent())
-            return cacheChat.filter(CacheChat::isActive).isPresent();
+            return cacheChat.filter(Cache.Chat::isActive).isPresent();
 
         // грузим из бд
         Optional<ChatProfileResult> dbChat = dbChatService.get(chatId);
@@ -220,9 +218,9 @@ public class ChatOrchestrator {
 
     public Optional<Boolean> isActiveGroupChat(long chatId) {
         // пробуем кеш
-        Optional<CacheChat> cacheChat = cacheChatService.get(chatId);
+        Optional<Cache.Chat> cacheChat = cacheChatService.get(chatId);
         if (cacheChat.isPresent())
-            return cacheChat.filter(CacheChat::isActive).map(CacheChat::isNotPersonal);
+            return cacheChat.filter(Cache.Chat::isActive).map(Cache.Chat::isNotPersonal);
 
         // грузим из бд
         Optional<ChatProfileResult> dbChat = dbChatService.get(chatId);
@@ -235,7 +233,7 @@ public class ChatOrchestrator {
         return dbChat.filter(chat -> !chat.getIsDeleted()).map(chat -> ChatType.valueOf(chat.getChatType()).isNotPersonal());
     }
 
-    public Optional<ChatProfileDTO> getUserChat(long chatId, long userId) {
+    public Optional<Dto.ChatProfile> getUserChat(long chatId, long userId) {
         // загружаем с бд
         Optional<UserChatResult> dbChat = dbChatService.getUserChat(chatId, userId);
         dbChat.ifPresent(chat -> {
@@ -247,7 +245,7 @@ public class ChatOrchestrator {
         return dbChat.map(chat -> ChatMapper.toProfileDTO(chat, chatId));
     }
 
-    public List<ChatProfileDTO> getUserChatsByIds(long userId, Long[] chatsIds) {
+    public List<Dto.ChatProfile> getUserChatsByIds(long userId, Long[] chatsIds) {
         // загружаем с бд
         List<UserChatResult> dbChats = dbChatService.getChatsByIds(userId, chatsIds);
         if (!dbChats.isEmpty()){
@@ -259,22 +257,24 @@ public class ChatOrchestrator {
         return ChatMapper.toProfileDTOs(dbChats, userId);
     }
 
-    public List<ChatMetaDTO> getChatsMeta(long userId) {
+    public List<Dto.ChatMeta> getChatsMeta(long userId) {
         List<ChatMetaResult> rows = dbChatService.getChatsMeta(userId);
         return rows.stream().map(ChatMapper::toMetaDTO).toList();
     }
 
-    public Map<Long, ChatSyncDTO> getSyncChats(Map<Long, Long> chatSeqIds) {
-        Map<Long, ChatSyncDTO> result = new HashMap<>();
+    public Map<Long, Dto.GlobalChatSync> getSyncChats(Map<Long, Long> chatSeqIds) {
+        Map<Long, Dto.GlobalChatSync> result = new HashMap<>();
         for (Map.Entry<Long, Long> entry : chatSeqIds.entrySet()) {
             long chatId = entry.getKey();
             List<ChatEventDb> events = 
                 chatEventDbService.getEventsAfter(chatId, entry.getValue(), 101); // на 1 больше
             
-            List<ChatEventDTO> clientEvents = events.stream()
-                .map(dbEvent -> new ChatEventDTO(dbEvent.getSeq(), dbEvent.getEventType(), ChatEventMapper.toDomain(dbEvent))).toList();
+            List<Dto.GlobalChatEvent> clientEvents = events.stream()
+                .map(dbEvent -> new Dto.GlobalChatEvent(
+                    dbEvent.getSeq(), dbEvent.getEventType(), ChatEventMapper.toDomain(dbEvent)
+                )).toList();
 
-            var chatEvents = new ChatSyncDTO(clientEvents, events.size() > 100);
+            Dto.GlobalChatSync chatEvents = new Dto.GlobalChatSync(clientEvents, events.size() > 100);
             result.put(chatId, chatEvents);
         }
         return result;

@@ -1,8 +1,8 @@
 package com.sunrise.cache.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.sunrise.cache.entity.CacheUserProfile;
-import com.sunrise.cache.entity.CacheUserSecurity;
+import com.sunrise.cache.entity.Cache.UserProfile;
+import com.sunrise.cache.entity.Cache.UserSecurity;
 import com.sunrise.helpclass.mapper.UserMapper;
 
 import lombok.extern.slf4j.Slf4j;
@@ -16,13 +16,13 @@ import java.util.*;
 @Service
 public class UserCacheService {
 
-    private final Cache<Long, CacheUserSecurity> userSecurityCache;
-    private final Cache<Long, CacheUserProfile> userProfileCache;
+    private final Cache<Long, UserSecurity> userSecurityCache;
+    private final Cache<Long, UserProfile> userProfileCache;
     private final Cache<String, Long> usernameIndex;
     private final Cache<String, Long> emailIndex;
 
-    public UserCacheService(Cache<Long, CacheUserSecurity> userSecurityCache,
-                            Cache<Long, CacheUserProfile> userProfileCache,
+    public UserCacheService(Cache<Long, UserSecurity> userSecurityCache,
+                            Cache<Long, UserProfile> userProfileCache,
                             @Qualifier("usernameIndex") Cache<String, Long> usernameIndex,
                             @Qualifier("emailIndex") Cache<String, Long> emailIndex) {
         this.userSecurityCache = userSecurityCache;
@@ -34,31 +34,31 @@ public class UserCacheService {
 
     // ========== USER METHODS ==========
 
-    public void saveProfiles(Collection<CacheUserProfile> users) {
-        for (CacheUserProfile user : users) {
-            userProfileCache.put(user.getId(), UserMapper.copy(user));
-            usernameIndex.put(user.getUsername(), user.getId());
+    public void saveProfiles(Collection<UserProfile> users) {
+        for (UserProfile user : users) {
+            userProfileCache.put(user.id(), UserMapper.copy(user));
+            usernameIndex.put(user.username(), user.id());
         }
         log.debug("[⚡] 👥 Batch saved {} users to cache and updated indexes", users.size());
     }
 
-    public void saveSecurity(CacheUserSecurity user) {
-        userSecurityCache.put(user.getId(), UserMapper.copy(user));
-        emailIndex.put(user.getEmail(), user.getId());
-        log.debug("[⚡] 👤🔐 Saved user security {} in cache and updated indexes", user.getId());
+    public void saveSecurity(UserSecurity user) {
+        userSecurityCache.put(user.id(), UserMapper.copy(user));
+        emailIndex.put(user.email(), user.id());
+        log.debug("[⚡] 👤🔐 Saved user security {} in cache and updated indexes", user.id());
     }
 
-    public void saveSecurityAndUsernameIndex(CacheUserSecurity user, String username) {
-        userSecurityCache.put(user.getId(), UserMapper.copy(user));
-        usernameIndex.put(username, user.getId());
-        emailIndex.put(user.getEmail(), user.getId());
-        log.debug("[⚡] 👤🔐 Saved user security {} (username={}) in cache and updated indexes", user.getId(), username);
+    public void saveSecurityAndUsernameIndex(UserSecurity user, String username) {
+        userSecurityCache.put(user.id(), UserMapper.copy(user));
+        usernameIndex.put(username, user.id());
+        emailIndex.put(user.email(), user.id());
+        log.debug("[⚡] 👤🔐 Saved user security {} (username={}) in cache and updated indexes", user.id(), username);
     }
 
-    public void saveProfile(CacheUserProfile user) {
-        userProfileCache.put(user.getId(), UserMapper.copy(user));
-        usernameIndex.put(user.getUsername(), user.getId());
-        log.debug("[⚡] 👤 Saved user profile {} in cache and updated indexes", user.getId());
+    public void saveProfile(UserProfile user) {
+        userProfileCache.put(user.id(), UserMapper.copy(user));
+        usernameIndex.put(user.username(), user.id());
+        log.debug("[⚡] 👤 Saved user profile {} in cache and updated indexes", user.id());
     }
 
     public void invalidateSecurity(long userId) {
@@ -83,10 +83,10 @@ public class UserCacheService {
         log.debug("[⚡] 👤🚫 Invalidated user profile {} and username index {} in cache || invalidateUserProfileAndUsernameIndex", userId, username);
     }
 
-    public Map<Long, CacheUserProfile> getProfilesByIds(Collection<Long> userIds, Collection<Long> missingIds) {
-        Map<Long, CacheUserProfile> result = new HashMap<>(userIds.size());
+    public Map<Long, UserProfile> getProfilesByIds(Collection<Long> userIds, Collection<Long> missingIds) {
+        Map<Long, UserProfile> result = new HashMap<>(userIds.size());
         for (Long userId : userIds) {
-            Optional<CacheUserProfile> user = getProfile(userId);
+            Optional<UserProfile> user = getProfile(userId);
             if (user.isPresent()) {
                 result.put(userId, user.get());
             } else if (missingIds != null) {
@@ -97,14 +97,14 @@ public class UserCacheService {
         return result;
     }
 
-    public Optional<CacheUserSecurity> getSecurityByUsername(String username) {
+    public Optional<UserSecurity> getSecurityByUsername(String username) {
         String key = username.toLowerCase();
         Long userId = usernameIndex.getIfPresent(key);
         if (userId == null) {
             log.debug("[⚡] 👤🔍 User security not found by username: {}", username);
             return Optional.empty();
         }
-        Optional<CacheUserSecurity> user = getSecurity(userId);
+        Optional<UserSecurity> user = getSecurity(userId);
         if (user.isEmpty()) {
             usernameIndex.invalidate(key);
             log.debug("[⚡] 👤🚫 Invalidated username index {} (user not in cache)", username);
@@ -112,14 +112,14 @@ public class UserCacheService {
         return user;
     }
 
-    public Optional<CacheUserSecurity> getSecurityByEmail(String email) {
+    public Optional<UserSecurity> getSecurityByEmail(String email) {
         String key = email.toLowerCase();
         Long userId = emailIndex.getIfPresent(key);
         if (userId == null) {
             log.debug("[⚡] 👤🔍 User security not found by email: {}", email);
             return Optional.empty();
         }
-        Optional<CacheUserSecurity> user = getSecurity(userId);
+        Optional<UserSecurity> user = getSecurity(userId);
         if (user.isEmpty()) {
             emailIndex.invalidate(key);
             log.debug("[⚡] 👤🚫 Invalidated email index {} (user not in cache)", email);
@@ -127,11 +127,11 @@ public class UserCacheService {
         return user;
     }
 
-    public Optional<CacheUserSecurity> getSecurity(long userId) {
+    public Optional<UserSecurity> getSecurity(long userId) {
         return Optional.ofNullable(UserMapper.copy(userSecurityCache.getIfPresent(userId)));
     }
 
-    public Optional<CacheUserProfile> getProfile(long userId) {
+    public Optional<UserProfile> getProfile(long userId) {
         return Optional.ofNullable(UserMapper.copy(userProfileCache.getIfPresent(userId)));
     }
 

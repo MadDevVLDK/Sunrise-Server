@@ -2,6 +2,7 @@ package com.sunrise.web.api;
 
 import com.sunrise.core.result.*;
 import com.sunrise.core.service.AuthService;
+import com.sunrise.orchestrator.result.Dto;
 import com.sunrise.web.api.annotation.CurrentUserId;
 import com.sunrise.web.payload.ApiRequest;
 import com.sunrise.web.payload.ApiResponse;
@@ -41,7 +42,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody @Valid ApiRequest.Login request, HttpServletRequest httpRequest) {
 
-        ResultOneArg<UserLoginResult> result = authService.authenticateUser(
+        ResultOneArg<Dto.UserLogin> result = authService.authenticateUser(
             request.username().trim(),
             request.password().trim(),
             httpRequest

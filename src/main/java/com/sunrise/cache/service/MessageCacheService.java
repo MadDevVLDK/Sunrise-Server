@@ -1,7 +1,7 @@
 package com.sunrise.cache.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.sunrise.cache.entity.CacheMessage;
+import com.sunrise.cache.entity.Cache.Message;
 import com.sunrise.helpclass.mapper.MessageMapper;
 import com.sunrise.orchestrator.type.Direction;
 
@@ -22,11 +22,11 @@ import java.util.concurrent.ConcurrentSkipListSet;
 @Service
 public class MessageCacheService {
 
-    private final Cache<Long, CacheMessage> messageCache;
+    private final Cache<Long, Message> messageCache;
     private final Cache<Long, NavigableSet<Long>> recentMessagesIdsCache;
     private final int maxMessagesPerChat;
 
-     public MessageCacheService(Cache<Long, CacheMessage> messageCache,
+     public MessageCacheService(Cache<Long, Message> messageCache,
                                 @Qualifier("recentMessagesIdsCache") Cache<Long, NavigableSet<Long>> recentMessagesIdsCache,
                                 @Value("${app.cache.max-per-chat.messages:200}") int maxMessagesPerChat) {
         
@@ -38,15 +38,15 @@ public class MessageCacheService {
 
     // ========== MESSAGES METHODS ==========
 
-    public void save(CacheMessage message) {
-        CacheMessage copy = MessageMapper.copy(message);
-        messageCache.put(copy.getId(), copy);
-        log.debug("[⚡] ✉️ Saved message {} in cache (chat={}, sender={})", copy.getId(), copy.getChatId(), copy.getSenderId());
+    public void save(Message message) {
+        Message copy = MessageMapper.copy(message);
+        messageCache.put(copy.id(), copy);
+        log.debug("[⚡] ✉️ Saved message {} in cache (chat={}, sender={})", copy.id(), copy.chatId(), copy.senderId());
     }
 
-    public void saveBatch(List<CacheMessage> messages) {
-        for (CacheMessage message : messages) {
-            messageCache.put(message.getId(), MessageMapper.copy(message));
+    public void saveBatch(List<Message> messages) {
+        for (Message message : messages) {
+            messageCache.put(message.id(), MessageMapper.copy(message));
         }
         log.debug("[⚡] ✉️ Batch saved {} messages to cache", messages.size());
     }
@@ -56,7 +56,7 @@ public class MessageCacheService {
         log.debug("[⚡] ✉️🚫 Invalidated message {} in cache", messageId);
     }
 
-    public Optional<CacheMessage> get(long messageId) {
+    public Optional<Message> get(long messageId) {
         return Optional.ofNullable(MessageMapper.copy(messageCache.getIfPresent(messageId)));
     }
 

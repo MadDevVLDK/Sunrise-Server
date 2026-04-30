@@ -12,24 +12,38 @@ public class UserMapper {
 
     // ========== USER ==========
 
-    public static CacheUserSecurity copy(CacheUserSecurity user) {
+    public static Cache.UserSecurity copy(Cache.UserSecurity user) {
         if (user == null) return null;
 
-        return new CacheUserSecurity(
-            user.getId(),
-            user.getEmail(),
-            user.getHashPassword(),
-            user.getJwtVersion(),
+        return new Cache.UserSecurity(
+            user.id(),
+            user.email(),
+            user.hashPassword(),
+            user.jwtVersion(),
             user.isEnabled(),
-            user.getDeletedAt(),
+            user.deletedAt(),
             user.isDeleted()
         );
     }
 
-    public static CacheUserProfile copy(CacheUserProfile user) {
+    public static Cache.UserProfile copy(Cache.UserProfile user) {
         if (user == null) return null;
 
-        return new CacheUserProfile(
+        return new Cache.UserProfile(
+            user.id(),
+            user.username(),
+            user.name(),
+            user.profileUpdatedAt(),
+            user.createdAt(),
+            user.deletedAt(),
+            user.isDeleted()
+        );
+    }
+
+    public static Cache.UserProfile toProfileCache(CreateDto.User user) {
+        if (user == null) return null;
+
+        return new Cache.UserProfile(
             user.getId(),
             user.getUsername(),
             user.getName(),
@@ -40,24 +54,10 @@ public class UserMapper {
         );
     }
 
-    public static CacheUserProfile toProfileCache(CreateUserDTO user) {
+    public static Cache.UserProfile toProfileCache(UserProfileResult user) {
         if (user == null) return null;
 
-        return new CacheUserProfile(
-            user.getId(),
-            user.getUsername(),
-            user.getName(),
-            user.getProfileUpdatedAt(),
-            user.getCreatedAt(),
-            user.getDeletedAt(),
-            user.isDeleted()
-        );
-    }
-
-    public static CacheUserProfile toProfileCache(UserProfileResult user) {
-        if (user == null) return null;
-
-        return new CacheUserProfile(
+        return new Cache.UserProfile(
             user.getId(),
             user.getUsername(),
             user.getName(),
@@ -68,10 +68,10 @@ public class UserMapper {
         );
     }
 
-    public static CacheUserSecurity toSecurityCache(CreateUserDTO user) {
+    public static Cache.UserSecurity toSecurityCache(CreateDto.User user) {
         if (user == null) return null;
 
-        return new CacheUserSecurity(
+        return new Cache.UserSecurity(
             user.getId(),
             user.getEmail(),
             user.getHashPassword(),
@@ -82,10 +82,10 @@ public class UserMapper {
         );
     }
 
-    public static CacheUserSecurity toSecurityCache(UserSecurityResult user) {
+    public static Cache.UserSecurity toSecurityCache(UserSecurityResult user) {
         if (user == null) return null;
 
-        return new CacheUserSecurity(
+        return new Cache.UserSecurity(
             user.getId(),
             user.getEmail(),
             user.getHashPassword(),
@@ -96,7 +96,7 @@ public class UserMapper {
         );
     }
 
-    public static User toEntity(CreateUserDTO user) {
+    public static User toEntity(CreateDto.User user) {
         if (user == null) return null;
 
         return new User(
@@ -116,10 +116,10 @@ public class UserMapper {
         );
     }
 
-    public static UserSecurityDTO toSecurityDTO(UserSecurityResult user) {
+    public static Dto.UserSecurity toSecurityDTO(UserSecurityResult user) {
         if (user == null) return null;
 
-        return new UserSecurityDTO(
+        return new Dto.UserSecurity(
             user.getId(),
             user.getEmail(),
             user.getHashPassword(),
@@ -130,36 +130,36 @@ public class UserMapper {
         );
     }
 
-    public static UserSecurityDTO toSecurityDTO(CacheUserSecurity user) {
+    public static Dto.UserSecurity toSecurityDTO(Cache.UserSecurity user) {
         if (user == null) return null;
 
-        return new UserSecurityDTO(
-            user.getId(),
-            user.getEmail(),
-            user.getHashPassword(),
-            user.getJwtVersion(),
+        return new Dto.UserSecurity(
+            user.id(),
+            user.email(),
+            user.hashPassword(),
+            user.jwtVersion(),
             user.isEnabled(),
-            user.getDeletedAt(),
+            user.deletedAt(),
             user.isDeleted()
         );
     }
 
-    public static UserProfileLightDTO toProfileLightDTO(CacheUserProfile user) {
+    public static Dto.UserProfileLight toProfileLightDTO(Cache.UserProfile user) {
         if (user == null) return null;
 
-        return new UserProfileLightDTO(
-            user.getId(),
-            user.getUsername(),
-            user.getName(),
-            user.getProfileUpdatedAt(),
-            user.getCreatedAt()
+        return new Dto.UserProfileLight(
+            user.id(),
+            user.username(),
+            user.name(),
+            user.profileUpdatedAt(),
+            user.createdAt()
         );
     }
 
-    public static UserProfileLightDTO toProfileLightDTO(UserProfileResult user) {
+    public static Dto.UserProfileLight toProfileLightDTO(UserProfileResult user) {
         if (user == null) return null;
 
-        return new UserProfileLightDTO(
+        return new Dto.UserProfileLight(
             user.getId(),
             user.getUsername(),
             user.getName(),
@@ -169,10 +169,22 @@ public class UserMapper {
     }
 
     // TODO: ЭТО ВРЕМЕННО, ПОКА НЕ РЕАЛИЗОВАНО ХРАНЕНИЕ АВАТАРОВ И ДРУГОЙ ИНФОРМАЦИИ
-    public static UserProfileFullDTO toProfileFullDTO(CacheUserProfile user) {
+    public static Dto.UserProfileFull toProfileFullDTO(Cache.UserProfile user) {
         if (user == null) return null;
 
-        return new UserProfileFullDTO(
+        return new Dto.UserProfileFull(
+            user.id(),
+            user.username(),
+            user.name(),
+            user.profileUpdatedAt(),
+            user.createdAt()
+        );
+    }
+
+    public static Dto.UserProfileFull toProfileFullDTO(UserProfileResult user) {
+        if (user == null) return null;
+
+        return new Dto.UserProfileFull(
             user.getId(),
             user.getUsername(),
             user.getName(),
@@ -181,22 +193,10 @@ public class UserMapper {
         );
     }
 
-    public static UserProfileFullDTO toProfileFullDTO(UserProfileResult user) {
-        if (user == null) return null;
-
-        return new UserProfileFullDTO(
-            user.getId(),
-            user.getUsername(),
-            user.getName(),
-            user.getProfileUpdatedAt(),
-            user.getCreatedAt()
-        );
-    }
-
-    public static List<UserProfileLightDTO> toProfileDTOs(Collection<UserProfileResult> users) {
+    public static List<Dto.UserProfileLight> toProfileDTOs(Collection<UserProfileResult> users) {
         if (users == null) return null;
 
-        List<UserProfileLightDTO> resultMap = new LinkedList<>();
+        List<Dto.UserProfileLight> resultMap = new LinkedList<>();
         for (UserProfileResult user : users) {
             resultMap.add(toProfileLightDTO(user));
         }
@@ -205,5 +205,5 @@ public class UserMapper {
 
     // ========== USER AVATAR (закомментировано) ==========
     // public static UserAvatarDTO toDtoUserAvatar(UserProfileResult user) { ... }
-    // public static UserAvatarDTO toDtoUserAvatar(CacheUserProfile user) { ... }
+    // public static UserAvatarDTO toDtoUserAvatar(Cache.UserProfile user) { ... }
 }

@@ -18,10 +18,10 @@ public class ChatMapper {
     
     // ========== CHAT ==========
 
-    public static CacheChat copy(CacheChat chat) {
+    public static Cache.Chat copy(Cache.Chat chat) {
         if (chat == null) return null;
 
-        return new CacheChat(
+        return new Cache.Chat(
             chat.getId(),
             chat.getName(),
             chat.getDescription(),
@@ -36,10 +36,10 @@ public class ChatMapper {
         );
     }
 
-    public static CacheChat toCache(CreateGroupChatDTO chat) {
+    public static Cache.Chat toCache(CreateDto.GroupChat chat) {
         if (chat == null) return null;
 
-        return new CacheChat(
+        return new Cache.Chat(
             chat.getId(),
             chat.getName(),
             chat.getDescription(),
@@ -54,10 +54,10 @@ public class ChatMapper {
         );
     }
 
-    public static CacheChat toCache(CreatePersonalChatDTO chat) {
+    public static Cache.Chat toCache(CreateDto.PersonalChat chat) {
         if (chat == null) return null;
 
-        return new CacheChat(
+        return new Cache.Chat(
             chat.getId(),
             chat.getName(),
             chat.getDescription(),
@@ -72,10 +72,10 @@ public class ChatMapper {
         );
     }
 
-    public static CacheChat toCache(ChatProfileResult chat) {
+    public static Cache.Chat toCache(ChatProfileResult chat) {
         if (chat == null) return null;
 
-        return new CacheChat(
+        return new Cache.Chat(
             chat.getId(),
             chat.getName(),
             chat.getDescription(),
@@ -90,10 +90,10 @@ public class ChatMapper {
         );
     }
 
-    public static CacheChat toCache(UserChatResult chat) {
+    public static Cache.Chat toCache(UserChatResult chat) {
         if (chat == null) return null;
 
-        return new CacheChat(
+        return new Cache.Chat(
             chat.getId(),
             chat.getName(),
             chat.getDescription(),
@@ -108,17 +108,17 @@ public class ChatMapper {
         );
     }
 
-    public static List<CacheChat> toCaches(Collection<UserChatResult> items) {
+    public static List<Cache.Chat> toCaches(Collection<UserChatResult> items) {
         if (items == null) return Collections.emptyList();
 
-        List<CacheChat> cached = new ArrayList<>(items.size());
+        List<Cache.Chat> cached = new ArrayList<>(items.size());
         for (UserChatResult item : items) {
             cached.add(toCache(item));
         }
         return cached;
     }
 
-    public static Chat toEntity(CreateGroupChatDTO chat) {
+    public static Chat toEntity(CreateDto.GroupChat chat) {
         if (chat == null) return null;
 
         return new Chat(
@@ -136,7 +136,7 @@ public class ChatMapper {
         );
     }
 
-    public static Chat toEntity(CreatePersonalChatDTO chat) {
+    public static Chat toEntity(CreateDto.PersonalChat chat) {
         if (chat == null) return null;
 
         return new Chat(
@@ -154,10 +154,10 @@ public class ChatMapper {
         );
     }
 
-    public static ChatSecurityDTO toSecurityDTO(ChatProfileResult chat) {
+    public static Dto.ChatSecurity toSecurityDTO(ChatProfileResult chat) {
         if (chat == null) return null;
 
-        return new ChatSecurityDTO(
+        return new Dto.ChatSecurity(
             chat.getId(),
             ChatType.valueOf(chat.getChatType()),
             chat.getMembersCount(),
@@ -168,10 +168,10 @@ public class ChatMapper {
         );
     }
 
-    public static ChatSecurityDTO toSecurityDTO(CacheChat chat) {
+    public static Dto.ChatSecurity toSecurityDTO(Cache.Chat chat) {
         if (chat == null) return null;
 
-        return new ChatSecurityDTO(
+        return new Dto.ChatSecurity(
             chat.getId(),
             chat.getChatType(),
             chat.getMembersCount(),
@@ -182,10 +182,10 @@ public class ChatMapper {
         );
     }
 
-    public static ChatMetaDTO toMetaDTO(ChatMetaResult chat) {
+    public static Dto.ChatMeta toMetaDTO(ChatMetaResult chat) {
         if (chat == null) return null;
 
-        return new ChatMetaDTO(
+        return new Dto.ChatMeta(
             chat.getChatId(),
             chat.getIsPinned(),
             chat.getLastMsgId(),
@@ -194,10 +194,10 @@ public class ChatMapper {
         );
     }
 
-    public static ChatProfileDTO toProfileDTO(UserChatResult chat, long userId) {
+    public static Dto.ChatProfile toProfileDTO(UserChatResult chat, long userId) {
         if (chat == null) return null;
 
-        return new ChatProfileDTO(
+        return new Dto.ChatProfile(
             chat.getId(),
             chat.getName() != null ? chat.getName() : chat.getOpponentName(),
             chat.getDescription(),
@@ -215,10 +215,10 @@ public class ChatMapper {
         );
     }
 
-    public static List<ChatProfileDTO> toProfileDTOs(Collection<UserChatResult> chats, long userId) {
+    public static List<Dto.ChatProfile> toProfileDTOs(Collection<UserChatResult> chats, long userId) {
         if (chats == null) return null;
 
-        List<ChatProfileDTO> resultMap = new LinkedList<>();
+        List<Dto.ChatProfile> resultMap = new LinkedList<>();
         for (UserChatResult chat : chats) {
             resultMap.add(toProfileDTO(chat, userId));
         }

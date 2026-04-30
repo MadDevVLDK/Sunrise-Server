@@ -2,15 +2,12 @@ package com.sunrise.core.service;
 
 import com.sunrise.notifier.WebSocketNotifier;
 import com.sunrise.orchestrator.DataValidator;
-import com.sunrise.orchestrator.result.MessageReadStatusDTO;
-import com.sunrise.orchestrator.result.MessagesPageDTO;
-import com.sunrise.orchestrator.result.UserMessageDTO;
-import com.sunrise.orchestrator.result.UserProfileLightDTO;
+import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.MessageOrchestrator;
 import com.sunrise.orchestrator.service.UserOrchestrator;
 import com.sunrise.orchestrator.type.Direction;
 import com.sunrise.orchestrator.type.MessageType;
-import com.sunrise.core.creation.CreateMessageDTO;
+import com.sunrise.core.creation.CreateDto;
 import com.sunrise.core.result.*;
 import com.sunrise.helpclass.SimpleSnowflakeId;
 import com.sunrise.helpclass.ValidationException;
@@ -53,17 +50,17 @@ public class MessageService {
 
             validator.validateActiveChatMemberInActiveChat(chatId, senderId);
 
-            UserProfileLightDTO user = userOrchestrator.getUserProfileLight(senderId)
+            UserProfileLight user = userOrchestrator.getUserProfileLight(senderId)
                     .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
 
-            CreateMessageDTO message = new CreateMessageDTO(
+            CreateDto.Message message = new CreateDto.Message(
                 SimpleSnowflakeId.nextId(), chatId, senderId,
                 MessageType.COMMON, text, Instant.now()
             );
             messageOrchestrator.save(message);
 
             // уведомить всех надо об этом
-            wsNotify.notifyMessageNew(tempId, message, user.getProfileUpdatedAt());
+            wsNotify.notifyMessageNew(tempId, message, user.profileUpdatedAt());
 
             log.info("[🔧] ✅ User {} send public message {} in chat {}", senderId, message.getId(), chatId);
             return ResultOneArg.success(message.getId());
@@ -92,16 +89,16 @@ public class MessageService {
 
             validator.validateActiveChatMemberInActiveChat(chatId, senderId);
 
-            UserProfileLightDTO user = userOrchestrator.getUserProfileLight(senderId)
+            UserProfileLight user = userOrchestrator.getUserProfileLight(senderId)
                     .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
 
-            CreateMessageDTO message = new CreateMessageDTO(
+            CreateDto.Message message = new CreateDto.Message(
                 SimpleSnowflakeId.nextId(), chatId, senderId,
                 MessageType.COMMON, text, Instant.now()
             );
 
             // уведомить всех надо об этом
-            wsNotify.notifyMessagePrivateNew(tempId, message, user.getProfileUpdatedAt(), userToSend);
+            wsNotify.notifyMessagePrivateNew(tempId, message, user.profileUpdatedAt(), userToSend);
 
             log.info("[🔧] ✅ User {} send private message {} to user {} in chat {}", senderId, message.getId(), userToSend, chatId);
             return ResultOneArg.success(message.getId());
@@ -188,11 +185,11 @@ public class MessageService {
         }
     }
 
-    public ResultOneArg<UserMessageDTO> getMessage(long chatId, long userId, long messageId) {
+    public ResultOneArg<Message> getMessage(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            Optional<UserMessageDTO> message = messageOrchestrator.getActiveWithReadStatusInChat(chatId, userId, messageId);
+            Optional<Message> message = messageOrchestrator.getActiveWithReadStatusInChat(chatId, userId, messageId);
             if (message.isEmpty()) {
                 throw new ValidationException("Message not found");
             }
@@ -210,11 +207,11 @@ public class MessageService {
         }
     }
 
-    public ResultOneArg<List<UserMessageDTO>> getMessageBatch(long chatId, long userId, Set<Long> messageIds) {
+    public ResultOneArg<List<Message>> getMessageBatch(long chatId, long userId, Set<Long> messageIds) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            List<UserMessageDTO> messages = messageOrchestrator.getActiveWithReadStatusInChatBatch(chatId, userId, messageIds);
+            List<Message> messages = messageOrchestrator.getActiveWithReadStatusInChatBatch(chatId, userId, messageIds);
 
             log.info("[🔧] ✅ User {} got {} messages in chat {}", userId, messages.size(), chatId);
             return ResultOneArg.success(messages);
@@ -229,11 +226,11 @@ public class MessageService {
         }
     }
 
-    public ResultOneArg<MessagesPageDTO> getMessagePagination(long chatId, long userId, Long cursor, int limit, Direction direction) {
+    public ResultOneArg<MessagesPage> getMessagePagination(long chatId, long userId, Long cursor, int limit, Direction direction) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            MessagesPageDTO pagination = messageOrchestrator.getPage(chatId, userId, cursor, limit, direction);
+            MessagesPage pagination = messageOrchestrator.getPage(chatId, userId, cursor, limit, direction);
 
             log.info("[🔧] ✅ User {} got {} messages in chat {}", userId, pagination.messages().size(), chatId);
             return ResultOneArg.success(pagination);
@@ -248,12 +245,12 @@ public class MessageService {
         }
     }
 
-    public ResultOneArg<List<MessageReadStatusDTO>> getMessageReads(long chatId, long userId, long messageId) {
+    public ResultOneArg<List<MessageReadStatus>> getMessageReads(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
             validator.validateActiveMessageInChat(chatId, messageId);
 
-            List<MessageReadStatusDTO> message = messageOrchestrator.getMessageReaders(messageId);
+            List<MessageReadStatus> message = messageOrchestrator.getMessageReaders(messageId);
 
             log.info("[🔧] ✅ User {} got {} reads of {} message in chat {}", userId, message.size(), messageId, chatId);
             return ResultOneArg.success(message);

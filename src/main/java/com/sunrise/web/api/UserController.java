@@ -5,7 +5,7 @@ import com.sunrise.web.payload.ApiRequest;
 import com.sunrise.web.payload.ApiResponse;
 import com.sunrise.core.result.ResultOneArg;
 import com.sunrise.core.service.UserService;
-import com.sunrise.orchestrator.result.UsersPageDTO;
+import com.sunrise.orchestrator.result.Dto.UsersPage;
 
 import jakarta.validation.Valid;
 
@@ -25,7 +25,7 @@ public class UserController {
     @GetMapping
     public ResponseEntity<?> getActiveUsersPage(@Valid ApiRequest.UserPagination request, @CurrentUserId long userId) {
 
-        ResultOneArg<UsersPageDTO> result = userService.getActiveUsersPage(userId, request.getFilter(), request.cursor(), request.getLimit());
+        ResultOneArg<UsersPage> result = userService.getActiveUsersPage(userId, request.getFilter(), request.cursor(), request.getLimit());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :

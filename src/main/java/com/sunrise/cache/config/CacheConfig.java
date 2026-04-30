@@ -2,7 +2,8 @@ package com.sunrise.cache.config;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.sunrise.cache.entity.*;
+import com.sunrise.cache.entity.Cache.*;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -83,7 +84,7 @@ public class CacheConfig {
     // ==================== USER SECURITY CACHE ====================
 
     @Bean
-    public Cache<Long, CacheUserSecurity> userSecurityCache() {
+    public Cache<Long, UserSecurity> userSecurityCache() {
         log.info("[⚙️] Initializing User Security Cache (max-size: {}, ttl: {} min)", userCacheMaxSize, userCacheTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(userCacheMaxSize)
@@ -93,7 +94,7 @@ public class CacheConfig {
     }
 
     @Bean
-    public Cache<Long, CacheUserProfile> userProfileCache() {
+    public Cache<Long, UserProfile> userProfileCache() {
         log.info("[⚙️] Initializing User Profile Cache (max-size: {}, ttl: {} min)", userCacheMaxSize, userCacheTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(userCacheMaxSize)
@@ -129,7 +130,7 @@ public class CacheConfig {
     // ==================== CHAT CACHES ====================
 
     @Bean
-    public Cache<Long, CacheChat> chatInfoCache() {
+    public Cache<Long, Chat> chatInfoCache() {
         log.info("[⚙️] Initializing Chat Info Cache (max-size: {}, ttl: {} min)", chatCacheMaxSize, chatCacheTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(chatCacheMaxSize)
@@ -152,7 +153,7 @@ public class CacheConfig {
     // ==================== CHAT MEMBERS CACHE ====================
 
     @Bean
-    public Cache<String, CacheChatMember> chatMembersCache() {
+    public Cache<String, ChatMember> chatMembersCache() {
         log.info("[⚙️] Initializing Chat Members Cache (max-size: {}, ttl: {} min)", chatMembersMaxSize, chatMembersTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(chatMembersMaxSize)
@@ -174,7 +175,7 @@ public class CacheConfig {
     // ==================== MESSAGE CACHE ====================
 
     @Bean
-    public Cache<Long, CacheMessage> messageCache() {
+    public Cache<Long, Message> messageCache() {
         log.info("[⚙️] Initializing Message Cache (max-size: {}, ttl: {} min)", chatCacheMaxSize, chatCacheTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(chatCacheMaxSize)
@@ -196,7 +197,7 @@ public class CacheConfig {
     // ==================== VERIFICATION TOKEN CACHE ====================
 
     @Bean
-    public Cache<String, CacheVerificationToken> verificationTokenCache() {
+    public Cache<String, VerificationToken> verificationTokenCache() {
         log.info("[⚙️] Initializing Verification Token Cache (max-size: {}, ttl: {} min)", verificationTokenCacheMaxSize, verificationTokenCacheTtlMinutes);
         return Caffeine.newBuilder()
                 .maximumSize(verificationTokenCacheMaxSize)

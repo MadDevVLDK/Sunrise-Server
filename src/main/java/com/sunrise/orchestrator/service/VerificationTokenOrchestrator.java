@@ -2,14 +2,14 @@ package com.sunrise.orchestrator.service;
 
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
-import com.sunrise.cache.CacheEvent;
-import com.sunrise.cache.entity.CacheVerificationToken;
+import com.sunrise.cache.entity.Cache;
+import com.sunrise.cache.event.CacheEvent;
 import com.sunrise.cache.service.VerificationTokenCacheService;
-import com.sunrise.core.creation.CreateVerificationTokenDTO;
+import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.entity.VerificationToken;
 import com.sunrise.db.service.VerificationTokenDbService;
 import com.sunrise.helpclass.mapper.VerificationTokenMapper;
-import com.sunrise.orchestrator.result.VerificationTokenDTO;
+import com.sunrise.orchestrator.result.Dto;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +40,7 @@ public class VerificationTokenOrchestrator {
     // Основные методы
 
     @Transactional(propagation = REQUIRES_NEW)
-    public void saveVerificationToken(@NonNull CreateVerificationTokenDTO verificationToken) {
+    public void saveVerificationToken(@NonNull CreateDto.VerificationToken verificationToken) {
         // синхронно в бд
         dbVerificationTokenService.save(
             VerificationTokenMapper.toEntity(verificationToken)
@@ -66,9 +66,9 @@ public class VerificationTokenOrchestrator {
 
     // Вспомогательные методы
 
-    public Optional<VerificationTokenDTO> getVerificationToken(@NonNull String token) {
+    public Optional<Dto.VerificationToken> getVerificationToken(@NonNull String token) {
         // пробуем кеш
-        Optional<CacheVerificationToken> optToken = cacheVerificationTokenService.get(token);
+        Optional<Cache.VerificationToken> optToken = cacheVerificationTokenService.get(token);
         if(optToken.isPresent())
             return optToken.map(VerificationTokenMapper::toDTO);
 

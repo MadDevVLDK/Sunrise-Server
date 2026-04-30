@@ -1,7 +1,7 @@
 package com.sunrise.cache.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.sunrise.cache.entity.CacheChatMember;
+import com.sunrise.cache.entity.Cache.ChatMember;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
 
 import lombok.extern.slf4j.Slf4j;
@@ -17,15 +17,15 @@ import java.util.concurrent.ConcurrentSkipListSet;
 @Service
 public class ChatMemberCacheService {
 
-    private final Cache<String, CacheChatMember> chatMembersCache;
+    private final Cache<String, ChatMember> chatMembersCache;
     private final Cache<Long, NavigableSet<Long>> recentChatMembersIdsCache;
     private final int maxMembersPerChat;
 
-    public ChatMemberCacheService(Cache<String, CacheChatMember> chatMembersCache,
+    public ChatMemberCacheService(Cache<String, ChatMember> chatMembersCache,
                                   @Qualifier("recentChatMembersIdsCache") Cache<Long, NavigableSet<Long>> recentChatMembersIdsCache,
                                   @Value("${app.cache.max-per-chat.chat-members:500}") int maxMembersPerChat) {
         
-                                    this.chatMembersCache = chatMembersCache;
+        this.chatMembersCache = chatMembersCache;
         this.recentChatMembersIdsCache = recentChatMembersIdsCache;
         this.maxMembersPerChat = maxMembersPerChat;
     }
@@ -33,33 +33,33 @@ public class ChatMemberCacheService {
 
     // ========== CHAT MEMBER METHODS ==========
 
-    public void saveBatch(long chatId, Collection<CacheChatMember> members)  {
-        for (CacheChatMember member : members) {
-            chatMembersCache.put(getKey(member.getChatId(), member.getUserId()), ChatMemberMapper.copy(member));
+    public void saveBatch(long chatId, Collection<ChatMember> members)  {
+        for (ChatMember member : members) {
+            chatMembersCache.put(getKey(member.chatId(), member.userId()), ChatMemberMapper.copy(member));
         }
         log.debug("[⚡] 📦👥 Batch saved {} chat members in chat {}", members.size(), chatId);
     }
     
-    public void save(CacheChatMember member) {
-        chatMembersCache.put(getKey(member.getChatId(), member.getUserId()), ChatMemberMapper.copy(member));
-        log.debug("[⚡] 📦👤 Saved chat member {} in chat {}", member.getUserId(), member.getChatId());
+    public void save(ChatMember member) {
+        chatMembersCache.put(getKey(member.chatId(), member.userId()), ChatMemberMapper.copy(member));
+        log.debug("[⚡] 📦👤 Saved chat member {} in chat {}", member.userId(), member.chatId());
     }
 
     public void invalidate(long chatId, long userId) {
         chatMembersCache.invalidate(getKey(chatId, userId));
     }
 
-    public Optional<CacheChatMember> get(long chatId, long userId) {
+    public Optional<ChatMember> get(long chatId, long userId) {
         return Optional.ofNullable(ChatMemberMapper.copy(chatMembersCache.getIfPresent(getKey(chatId, userId))));
     }
-    public Optional<CacheChatMember> getLink(long chatId, long userId) {
+    public Optional<ChatMember> getLink(long chatId, long userId) {
         return Optional.ofNullable(chatMembersCache.getIfPresent(getKey(chatId, userId)));
     }
 
-    public Map<Long, CacheChatMember> getBatch(long chatId, Collection<Long> userIds, Collection<Long> missingIds) {
-        Map<Long, CacheChatMember> result = new HashMap<>(userIds.size());
+    public Map<Long, ChatMember> getBatch(long chatId, Collection<Long> userIds, Collection<Long> missingIds) {
+        Map<Long, ChatMember> result = new HashMap<>(userIds.size());
         for (long userId : userIds) {
-            Optional<CacheChatMember> member = getLink(chatId, userId);
+            Optional<ChatMember> member = getLink(chatId, userId);
             if (member.isPresent()) {
                 result.put(userId, member.get());
             } else {
@@ -75,7 +75,7 @@ public class ChatMemberCacheService {
     }
 
     public Optional<Boolean> hasActive(long chatId, long userId) {
-        return getLink(chatId, userId).map(member -> member.isActive());
+        return getLink(chatId, userId).map(ChatMember::isActive);
     }
 
     public Optional<Boolean> isActiveAdmin(long chatId, long userId) {

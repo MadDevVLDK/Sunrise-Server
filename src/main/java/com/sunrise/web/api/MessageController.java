@@ -6,9 +6,7 @@ import com.sunrise.web.payload.ApiRequest;
 import com.sunrise.web.payload.ApiResponse;
 import com.sunrise.core.result.*;
 import com.sunrise.core.service.MessageService;
-import com.sunrise.orchestrator.result.MessageReadStatusDTO;
-import com.sunrise.orchestrator.result.MessagesPageDTO;
-import com.sunrise.orchestrator.result.UserMessageDTO;
+import com.sunrise.orchestrator.result.Dto.*;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -93,7 +91,7 @@ public class MessageController {
     public ResponseEntity<?> getMessageReads(@PathVariable("chatId") @ValidId long chatId, @PathVariable("messageId") @ValidId long messageId, 
                                              @CurrentUserId long userId) {
 
-        ResultOneArg<List<MessageReadStatusDTO>> result = messageService.getMessageReads(chatId, userId, messageId);
+        ResultOneArg<List<MessageReadStatus>> result = messageService.getMessageReads(chatId, userId, messageId);
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -104,7 +102,7 @@ public class MessageController {
     public ResponseEntity<?> getMessage(@PathVariable("chatId") @ValidId long chatId, @PathVariable("messageId") @ValidId long messageId, 
                                         @CurrentUserId long userId) {
 
-        ResultOneArg<UserMessageDTO> result = messageService.getMessage(chatId, userId, messageId);
+        ResultOneArg<Message> result = messageService.getMessage(chatId, userId, messageId);
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -115,7 +113,7 @@ public class MessageController {
     public ResponseEntity<?> getMessage(@PathVariable("chatId") @ValidId long chatId, @Valid ApiRequest.Batch request, 
                                         @CurrentUserId long userId) {
 
-        ResultOneArg<List<UserMessageDTO>> result = messageService.getMessageBatch(chatId, userId, request.ids());
+        ResultOneArg<List<Message>> result = messageService.getMessageBatch(chatId, userId, request.ids());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :
@@ -126,7 +124,7 @@ public class MessageController {
     public ResponseEntity<?> getMessagesPage(@PathVariable("chatId") @ValidId long chatId, 
                                              @Valid ApiRequest.MessagePagination request, @CurrentUserId long userId) {
 
-        ResultOneArg<MessagesPageDTO> result = messageService.getMessagePagination(chatId, userId, request.cursor(), request.getLimit(), request.direction());
+        ResultOneArg<MessagesPage> result = messageService.getMessagePagination(chatId, userId, request.cursor(), request.getLimit(), request.direction());
 
         return result.isSuccess() ?
                 ApiResponse.success(result.getResult()) :

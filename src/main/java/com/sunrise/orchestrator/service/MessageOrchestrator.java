@@ -2,12 +2,12 @@ package com.sunrise.orchestrator.service;
 
 import static org.springframework.transaction.annotation.Propagation.MANDATORY;
 
-import com.sunrise.cache.CacheEvent;
 import com.sunrise.cache.entity.*;
+import com.sunrise.cache.event.CacheEvent;
 import com.sunrise.cache.service.ChatMemberCacheService;
 import com.sunrise.cache.service.MessageCacheService;
 import com.sunrise.cache.service.UserCacheService;
-import com.sunrise.core.creation.CreateMessageDTO;
+import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.entity.ChatMember;
 import com.sunrise.db.entity.Message;
 import com.sunrise.db.event.ChatEvent;
@@ -23,11 +23,7 @@ import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.helpclass.mapper.MessageMapper;
 import com.sunrise.helpclass.mapper.OtherMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
-import com.sunrise.orchestrator.result.ChatMemberProfileDTO;
-import com.sunrise.orchestrator.result.MessageReadStatusDTO;
-import com.sunrise.orchestrator.result.MessagesPageDTO;
-import com.sunrise.orchestrator.result.UserMessageDTO;
-import com.sunrise.orchestrator.result.UserProfileLightDTO;
+import com.sunrise.orchestrator.result.Dto;
 import com.sunrise.orchestrator.type.Direction;
 
 import lombok.RequiredArgsConstructor;
@@ -68,7 +64,7 @@ public class MessageOrchestrator {
     // Основные методы
 
     @Transactional(propagation = MANDATORY)
-    public void save(CreateMessageDTO message) {
+    public void save(CreateDto.Message message) {
         // синхронно в бд
         dbMessageService.save(MessageMapper.toEntity(message));
 
@@ -133,9 +129,9 @@ public class MessageOrchestrator {
 
     public boolean isActiveInChat(long chatId, long messageId) {
         // пробуем кеш
-        Optional<CacheMessage> cacheMessage = cacheMessageService.get(messageId);
+        Optional<Cache.Message> cacheMessage = cacheMessageService.get(messageId);
         if (cacheMessage.isPresent())
-            return cacheMessage.filter(msg -> msg.isActive() && msg.getChatId() == chatId).isPresent();
+            return cacheMessage.filter(msg -> msg.isActive() && msg.chatId() == chatId).isPresent();
 
         // грузим из бд
         Optional<Message> dbMessage = dbMessageService.get(chatId, messageId);
@@ -150,9 +146,9 @@ public class MessageOrchestrator {
 
     public boolean isActiveInChatAndBySender(long chatId, long userId, long messageId) {
         // пробуем кеш
-        Optional<CacheMessage> cacheMessage = cacheMessageService.get(messageId);
+        Optional<Cache.Message> cacheMessage = cacheMessageService.get(messageId);
         if (cacheMessage.isPresent())
-            return cacheMessage.filter(msg -> msg.isActive() && msg.getChatId() == chatId && msg.getSenderId() == userId).isPresent();
+            return cacheMessage.filter(msg -> msg.isActive() && msg.chatId() == chatId && msg.senderId() == userId).isPresent();
 
         // грузим из бд
         Optional<Message> dbMessage = dbMessageService.get(chatId, messageId);
@@ -165,7 +161,7 @@ public class MessageOrchestrator {
         return dbMessage.filter(Message::isActive).filter(msg -> msg.getSenderId() == userId).isPresent();
     }
 
-    public Optional<UserMessageDTO> getActiveWithReadStatusInChat(long chatId, long userId, long messageId) {
+    public Optional<Dto.Message> getActiveWithReadStatusInChat(long chatId, long userId, long messageId) {
         // грузим из бд
         Optional<UserMessageResult> dbMessage = dbMessageService.getUserMessage(chatId, userId, messageId);
         dbMessage.ifPresent(msg -> {
@@ -177,7 +173,7 @@ public class MessageOrchestrator {
         return dbMessage.map(MessageMapper::toUserDTO);
     }
     
-    public List<UserMessageDTO> getActiveWithReadStatusInChatBatch(long chatId, long userId, Set<Long> messageIds) {
+    public List<Dto.Message> getActiveWithReadStatusInChatBatch(long chatId, long userId, Set<Long> messageIds) {
         // грузим из бд
         List<UserMessageResult> dbMessages = dbMessageService.getUserMessageBatch(chatId, userId, messageIds);
         if (!dbMessages.isEmpty()){
@@ -189,7 +185,7 @@ public class MessageOrchestrator {
         return dbMessages.stream().map(MessageMapper::toUserDTO).toList();
     }
 
-    public List<MessageReadStatusDTO> getMessageReaders(long messageId){
+    public List<Dto.MessageReadStatus> getMessageReaders(long messageId){
         // грузим из бд
         List<MessageReadStatusResult> reads = dbMessageService.getMessageReaders(messageId);
         return OtherMapper.toMessageReadDTOs(reads);
@@ -198,7 +194,7 @@ public class MessageOrchestrator {
 
     // ПАГИНАЦИЯ !!!!!!!!!
 
-    public MessagesPageDTO getPage(long chatId, long userId, Long cursor, int limit, Direction direction) {
+    public Dto.MessagesPage getPage(long chatId, long userId, Long cursor, int limit, Direction direction) {
         // Проверяем наличие кеша последних ID для чата
         if (!cacheMessageService.hasRecentIds(chatId)) {
             // публикуем для обновления кеша после коммита
@@ -213,7 +209,7 @@ public class MessageOrchestrator {
         // Получаем limit + 1 ID из кеша (с учётом курсора и направления)
         List<Long> neededIds = cacheMessageService.getRecentIdsRange(chatId, cursor, limit + 1, direction);
         if (neededIds.isEmpty()) {
-            return new MessagesPageDTO(Collections.emptyList(), null);
+            return new Dto.MessagesPage(Collections.emptyList(), null);
         }
 
         // Если кеш не полон, то используем кеш
@@ -231,10 +227,10 @@ public class MessageOrchestrator {
         }
     }
 
-    private MessagesPageDTO buildFromDbResultWithoutCache(long chatId, long userId, Long cursor, int limit, Direction direction){
+    private Dto.MessagesPage buildFromDbResultWithoutCache(long chatId, long userId, Long cursor, int limit, Direction direction){
         List<UserMessageResult> dbResult = dbMessageService.getPage(chatId, userId, cursor, limit + 1, direction);
         if (dbResult.isEmpty()) {
-            return new MessagesPageDTO(Collections.emptyList(), null);
+            return new Dto.MessagesPage(Collections.emptyList(), null);
         }
 
         Long nextCursor = null;
@@ -248,46 +244,46 @@ public class MessageOrchestrator {
             }
         }
 
-        List<UserMessageDTO> result = dbResult.stream().map(MessageMapper::toUserDTO).toList();
-        return new MessagesPageDTO(result, nextCursor);
+        List<Dto.Message> result = dbResult.stream().map(MessageMapper::toUserDTO).toList();
+        return new Dto.MessagesPage(result, nextCursor);
     }
 
-    private MessagesPageDTO buildPageFromRecentIds(long chatId, List<Long> ids, int limit, Direction direction) {
-        List<UserMessageDTO> result = new LinkedList<>();
+    private Dto.MessagesPage buildPageFromRecentIds(long chatId, List<Long> ids, int limit, Direction direction) {
+        List<Dto.Message> result = new LinkedList<>();
         if (ids.isEmpty()) {
-            return new MessagesPageDTO(result, null);
+            return new Dto.MessagesPage(result, null);
         }
 
         // Получаем объекты сообщений (из кеша или БД)
-        List<CacheMessage> messages = loadMessagesFromCacheOrDb(ids);
+        List<Cache.Message> messages = loadMessagesFromCacheOrDb(ids);
         
         // Сортируем в соответствии с порядком ids (который уже правильный)
-        Map<Long, CacheMessage> messageMap = messages.stream()
-                .collect(Collectors.toMap(CacheMessage::getId, Function.identity()));
+        Map<Long, Cache.Message> messageMap = messages.stream()
+                .collect(Collectors.toMap(Cache.Message::id, Function.identity()));
                 
-        List<CacheMessage> orderedMessages = ids.stream()
+        List<Cache.Message> orderedMessages = ids.stream()
                 .map(messageMap::get)
                 .filter(Objects::nonNull).toList();
 
         // Получаем senderId пользователей, чтобы позже их загрузить
         Set<Long> senderIds = orderedMessages.stream()
-                .map(CacheMessage::getSenderId).collect(Collectors.toSet());
+                .map(Cache.Message::senderId).collect(Collectors.toSet());
 
         // Пакетно загружаем профили пользователей
-        Map<Long, UserProfileLightDTO> userProfileMap = loadUserProfilesFromCacheOrDb(senderIds);
+        Map<Long, Dto.UserProfileLight> userProfileMap = loadUserProfilesFromCacheOrDb(senderIds);
 
         // Пакетно загружаем профили участников чата
-        Map<Long, ChatMemberProfileDTO> memberProfileMap = loadChatMemberProfilesFromCacheOrDb(chatId, senderIds);
+        Map<Long, Dto.ChatMemberProfile> memberProfileMap = loadChatMemberProfilesFromCacheOrDb(chatId, senderIds);
 
         // Формируем результат
-        for (CacheMessage msg : orderedMessages) {
-            UserProfileLightDTO userProfile = userProfileMap.get(msg.getSenderId());
-            ChatMemberProfileDTO memberProfile = memberProfileMap.get(msg.getSenderId());
+        for (Cache.Message msg : orderedMessages) {
+            Dto.UserProfileLight userProfile = userProfileMap.get(msg.senderId());
+            Dto.ChatMemberProfile memberProfile = memberProfileMap.get(msg.senderId());
 
-            Instant profileUpdatedAt = userProfile != null ? userProfile.getProfileUpdatedAt() : null;
-            Instant memberUpdatedAt = memberProfile != null ? memberProfile.getUpdatedAt() : null;
+            Instant profileUpdatedAt = userProfile != null ? userProfile.profileUpdatedAt() : null;
+            Instant memberUpdatedAt = memberProfile != null ? memberProfile.updatedAt() : null;
 
-            result.add(MessageMapper.toUserDTO(msg, profileUpdatedAt, memberUpdatedAt, msg.isDeleted()));
+            result.add(MessageMapper.toUserDTO(msg, profileUpdatedAt, memberUpdatedAt));
         }
 
         // Для направления FORWARD переворачиваем
@@ -300,21 +296,21 @@ public class MessageOrchestrator {
         if (result.size() == limit + 1) {
             if (direction == Direction.FORWARD) {
                 result = result.subList(0, limit);
-                nextCursor = result.getLast().getId();
+                nextCursor = result.getLast().id();
             } else {
                 result = result.subList(result.size() - limit, result.size());
-                nextCursor = result.getFirst().getId();
+                nextCursor = result.getFirst().id();
             }
         }
-        return new MessagesPageDTO(result, nextCursor);
+        return new Dto.MessagesPage(result, nextCursor);
     }
 
-    private List<CacheMessage> loadMessagesFromCacheOrDb(List<Long> ids) {
+    private List<Cache.Message> loadMessagesFromCacheOrDb(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return Collections.emptyList();
         }
 
-        List<CacheMessage> result = new ArrayList<>(ids.size());
+        List<Cache.Message> result = new ArrayList<>(ids.size());
         List<Long> missingIds = new ArrayList<>();
 
         for (Long id : ids) {
@@ -325,7 +321,7 @@ public class MessageOrchestrator {
         }
 
         if (!missingIds.isEmpty()) {
-            List<CacheMessage> cacheMessages = dbMessageService.getMessagesByIds(missingIds)
+            List<Cache.Message> cacheMessages = dbMessageService.getMessagesByIds(missingIds)
                         .stream().map(m -> MessageMapper.toCache(m)).toList();
 
             if (!cacheMessages.isEmpty()){
@@ -340,8 +336,8 @@ public class MessageOrchestrator {
         return result;
     }
 
-    private Map<Long, UserProfileLightDTO> loadUserProfilesFromCacheOrDb(Set<Long> userIds) {
-        Map<Long, UserProfileLightDTO> result = new HashMap<>();
+    private Map<Long, Dto.UserProfileLight> loadUserProfilesFromCacheOrDb(Set<Long> userIds) {
+        Map<Long, Dto.UserProfileLight> result = new HashMap<>();
         if (userIds.isEmpty()) {
             return result;
         }
@@ -361,7 +357,7 @@ public class MessageOrchestrator {
         // Недостающие грузим из БД одной пачкой
         if (!missingIds.isEmpty()) {
             List<UserProfileResult> dbProfiles = dbUserService.getUserProfilesByIds(new ArrayList<>(missingIds));
-            List<CacheUserProfile> toCache = new ArrayList<>();
+            List<Cache.UserProfile> toCache = new ArrayList<>();
             for (UserProfileResult profile : dbProfiles) {
                 toCache.add(UserMapper.toProfileCache(profile));
                 result.put(profile.getId(), UserMapper.toProfileLightDTO(profile));
@@ -377,8 +373,8 @@ public class MessageOrchestrator {
         return result;
     }
     
-    private Map<Long, ChatMemberProfileDTO> loadChatMemberProfilesFromCacheOrDb(long chatId, Set<Long> userIds) {
-        Map<Long, ChatMemberProfileDTO> result = new HashMap<>();
+    private Map<Long, Dto.ChatMemberProfile> loadChatMemberProfilesFromCacheOrDb(long chatId, Set<Long> userIds) {
+        Map<Long, Dto.ChatMemberProfile> result = new HashMap<>();
         if (userIds.isEmpty()) {
             return result;
         }
@@ -398,9 +394,9 @@ public class MessageOrchestrator {
         // Недостающие из БД
         if (!missingIds.isEmpty()) {
             List<ChatMember> dbMembers = dbChatMemberService.getBatchByChatAndIds(chatId, new ArrayList<>(missingIds));
-            List<CacheChatMember> toCache = new ArrayList<>();
+            List<Cache.ChatMember> toCache = new ArrayList<>();
             for (ChatMember member : dbMembers) {
-                CacheChatMember cacheMember = ChatMemberMapper.toCache(member);
+                Cache.ChatMember cacheMember = ChatMemberMapper.toCache(member);
                 toCache.add(cacheMember);
                 result.put(member.getUserId(), ChatMemberMapper.toProfileDTO(member));
             }
