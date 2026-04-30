@@ -43,8 +43,8 @@ public class ChatService {
             if (optChat.isPresent()){
                 ChatSecurity chat = optChat.get();
                 if (chat.isDeleted()) {
-                    boolean restored = chatOrchestrator.restore(chat.id(), createdAt);
-                    if (restored) {
+                    Optional<Long> seqChatEvent = chatOrchestrator.restore(chat.id(), createdAt);
+                    if (seqChatEvent.isPresent()) {
                         log.info("[🔧] ✅ Restored personal chat {} between users {} and {}", chat.id(), creatorId, opponentId);
                     }
                 }
@@ -100,7 +100,10 @@ public class ChatService {
                 chatMembers.add(new CreateDto.ChatMember(chatId, userId, createdAt, false)); // остальные без прав
             }
 
-            chatOrchestrator.saveGroupChatAndAddMembers(chat, creator, chatMembers);
+            Optional<Long> seqChatEvent = chatOrchestrator.saveGroupChatAndAddMembers(chat, creator, chatMembers);
+            if (seqChatEvent.isEmpty()) {
+                throw new ValidationException("Failed to create a group chat");
+            }
 
             // уведомить надо
             var usersToNotify = new HashSet<>(usersToAddIds);
@@ -126,10 +129,10 @@ public class ChatService {
             validator.validateCanUpdateChatInfo(chatId, userId);
 
             Instant updatedAt = Instant.now();
-            boolean changed = chatOrchestrator.updateChatProfile(chatId, newName, newDescription, updatedAt);
-            if (changed) {
+            Optional<Long> seqChatEvent = chatOrchestrator.updateChatProfile(chatId, newName, newDescription, updatedAt);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
-                wsNotify.notifyChatInfoUpdated(chatId, newName, newDescription, updatedAt);
+                wsNotify.notifyChatUpdated(chatId, newName, newDescription, updatedAt);
                 log.info("[🔧] ✅ Chat info changed for chat {} by user {}", chatId, userId);
             }
             return ResultNoArgs.success();
@@ -148,8 +151,8 @@ public class ChatService {
             validator.validateCanDeleteChat(chatId, userId);
 
             Instant deletedAt = Instant.now();
-            boolean deleted = chatOrchestrator.delete(chatId, deletedAt);
-            if (deleted) {
+            Optional<Long> seqChatEvent = chatOrchestrator.delete(chatId, deletedAt);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
                 wsNotify.notifyChatDeleted(chatId, deletedAt);
                 log.info("[🔧] ✅ Admin {} deleted chat {}", userId, chatId);

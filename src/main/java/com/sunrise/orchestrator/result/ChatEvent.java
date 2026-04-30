@@ -14,10 +14,23 @@ public class ChatEvent {
     
     // ==================== СОБЫТИЯ СООБЩЕНИЙ ====================
 
-    public record MessageCreated(
+    public record PublicMessageCreated(
         long chatId,
         long messageId,
         long senderId,
+        String text,
+        Instant sentAt,
+        Instant createdAt
+    ) implements IChatEvent {
+        @Override public long getChatId() { return chatId; }
+        @Override public Instant getCreatedAtDb() { return createdAt; }
+    }
+
+    public record PrivateMessageCreated(
+        long chatId,
+        long messageId,
+        long senderId,
+        long receiverId,
         String text,
         Instant sentAt,
         Instant createdAt
@@ -112,22 +125,6 @@ public class ChatEvent {
 
     // ==================== СОБЫТИЯ ЧАТА ====================
 
-    public record ChatCreatedWithMembers(
-        long chatId,
-        String name,
-        String description,
-        String chatType,
-        Long opponentId,
-        int membersCount,
-        long createdBy,
-        List<MemberInfo> members,
-        Instant createdAt
-    ) implements IChatEvent {
-        @Override public long getChatId() { return chatId; }
-        @Override public Instant getCreatedAtDb() { return createdAt; }
-
-        public record MemberInfo(long userId, boolean isAdmin, Instant joinedAt) {}
-    }
 
     public record ChatUpdated(
         long chatId,

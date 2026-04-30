@@ -24,6 +24,7 @@ import com.sunrise.helpclass.mapper.OtherMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
 import com.sunrise.orchestrator.result.ChatEvent;
 import com.sunrise.orchestrator.result.Dto;
+import com.sunrise.orchestrator.type.ChatEventType;
 import com.sunrise.orchestrator.type.Direction;
 
 import lombok.RequiredArgsConstructor;
@@ -63,65 +64,77 @@ public class MessageOrchestrator {
 
     // Основные методы
 
-    @Transactional(propagation = MANDATORY)
-    public void save(CreateDto.Message message) {
+        @Transactional(propagation = MANDATORY)
+    public Optional<Long> save(CreateDto.Message message) {
         // синхронно в бд
         dbMessageService.save(MessageMapper.toEntity(message));
 
-        var event = new ChatEvent.MessageCreated(
+        var event = new ChatEvent.PublicMessageCreated(
             message.getChatId(), message.getId(), 
             message.getSenderId(), message.getText(), 
             message.getSentAt(), Instant.now()
         );
-        chatEventDbService.save(ChatEventMapper.toEntity(event));
+        long seq = chatEventDbService.saveAndReturnSeq(
+            ChatEventMapper.toEntity(event, ChatEventType.MESSAGE_CREATED)
+        );
 
         // публикуем для обновления кеша после коммита
         eventPublisher.publishEvent(new CacheEvent.MessageCreated(
             MessageMapper.toCache(message)
         ));
+        return Optional.of(seq);
     }
 
     @Transactional(propagation = MANDATORY)
-    public boolean update(long chatId, long messageId, String newText, Instant updatedAt) {
+    public Optional<Long> update(long chatId, long messageId, String newText, Instant updatedAt) {
         // синхронно в бд
         int updated = dbMessageService.update(messageId, newText, updatedAt);
         if (updated > 0) {
             var event = new ChatEvent.MessageUpdated(
                 chatId, messageId, newText, updatedAt
             );
-            chatEventDbService.save(ChatEventMapper.toEntity(event));
+            long seq = chatEventDbService.saveAndReturnSeq(
+                ChatEventMapper.toEntity(event, ChatEventType.MESSAGE_UPDATED)
+            );
 
             // публикуем для обновления кеша после коммита
             eventPublisher.publishEvent(new CacheEvent.MessageInvalidated(messageId));
+            return Optional.of(seq);
         }
-        return updated > 0;
+        return Optional.empty();
     }
 
     @Transactional(propagation = MANDATORY)
-    public void markMessagesUpToRead(long chatId, long userId, long messageId, Instant readAt) {
-        // синхронно в бд
-        dbMessageService.markMessagesUpToRead(chatId, userId, messageId, readAt);
-
-        var event = new ChatEvent.MessagesReadUpTo(
-            chatId, userId, messageId, readAt
-        );
-        chatEventDbService.save(ChatEventMapper.toEntity(event));
-    }
-
-    @Transactional(propagation = MANDATORY)
-    public boolean delete(long chatId, long messageId, Instant updatedAt) {
+    public Optional<Long> delete(long chatId, long messageId, Instant updatedAt) {
         // синхронно в бд
         int updated = dbMessageService.delete(messageId, updatedAt);
         if (updated > 0) {
             var event = new ChatEvent.MessageDeleted(
                 chatId, messageId, updatedAt
             );
-            chatEventDbService.save(ChatEventMapper.toEntity(event));
+            long seq = chatEventDbService.saveAndReturnSeq(
+                ChatEventMapper.toEntity(event, ChatEventType.MESSAGE_DELETED)
+            );
 
             // публикуем для обновления кеша после коммита
             eventPublisher.publishEvent(new CacheEvent.MessageInvalidated(messageId));
+            return Optional.of(seq);
         }
-        return updated > 0;
+        return Optional.empty();
+    }
+
+    @Transactional(propagation = MANDATORY)
+    public Optional<Long> markMessagesUpToRead(long chatId, long userId, long messageId, Instant readAt) {
+        // синхронно в бд
+        dbMessageService.markMessagesUpToRead(chatId, userId, messageId, readAt);
+
+        var event = new ChatEvent.MessagesReadUpTo(
+            chatId, userId, messageId, readAt
+        );
+        long seq = chatEventDbService.saveAndReturnSeq(
+            ChatEventMapper.toEntity(event, ChatEventType.MESSAGES_READ_UP_TO)
+        );
+        return Optional.of(seq);
     }
 
 

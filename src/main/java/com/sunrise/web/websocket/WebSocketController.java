@@ -33,6 +33,7 @@ public class WebSocketController {
 
 
     // =========================== MESSAGE ===========================
+    
     @MessageMapping("/chats/{chatId}/messages/send")
     public void sendMessage(@DestinationVariable long chatId, @Payload ApiRequest.PublicMessage request,
                             @WsCurrentUserId long userId, Principal principal, @Header("simpDestination") String errorUrl) {

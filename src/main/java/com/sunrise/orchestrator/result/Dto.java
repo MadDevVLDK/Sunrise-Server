@@ -1,6 +1,7 @@
 package com.sunrise.orchestrator.result;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.sunrise.orchestrator.result.Dto.GlobalChatEvent;
 import com.sunrise.orchestrator.type.ChatType;
 import com.sunrise.orchestrator.type.MessageType;
 import com.sunrise.orchestrator.type.TokenType;
@@ -173,6 +174,17 @@ public final class Dto {
 
 
     // ==================== СОБЫТИЯ ====================
+
+    public record GlobalUserEvent(
+        long seq, 
+        String type, 
+        UserEvent.IUserEvent event
+    ) {}
+
+    public record GlobalUserSync(
+        List<GlobalUserEvent> events, 
+        boolean hasMore
+    ) {}
 
     public record GlobalChatEvent(
         long seq, 

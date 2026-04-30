@@ -14,6 +14,7 @@ import com.sunrise.helpclass.mapper.ChatEventMapper;
 import com.sunrise.helpclass.mapper.ChatMapper;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.orchestrator.result.*;
+import com.sunrise.orchestrator.type.ChatEventType;
 import com.sunrise.orchestrator.type.ChatType;
 
 import lombok.RequiredArgsConstructor;
@@ -42,14 +43,13 @@ public class ChatOrchestrator {
 
     // Основные методы
 
-    @Transactional(propagation = MANDATORY)
-    public void savePersonalChatAndAddMembers(CreateDto.PersonalChat chat, 
+        @Transactional(propagation = MANDATORY)
+    public Optional<Long> savePersonalChatAndAddMembers(CreateDto.PersonalChat chat, 
                                               CreateDto.ChatMember creator, CreateDto.ChatMember opponent) {
         // синхронно в бд
         dbChatService.savePersonalChat(
             ChatMapper.toEntity(chat), opponent.getUserId()
         );
-
 
         var members = List.of(
             new ChatEvent.ChatCreatedWithMembers.MemberInfo(creator.getUserId(), creator.isAdmin(), creator.getJoinedAt()),
@@ -62,103 +62,52 @@ public class ChatOrchestrator {
             chat.getOpponentId(), chat.getMembersCount(),
             chat.getCreatedBy(), members, chat.getCreatedAt()
         );
-        chatEventDbService.save(ChatEventMapper.toEntity(event));
-
+        long seq = chatEventDbService.saveAndReturnSeq(
+            ChatEventMapper.toEntity(event, ChatEventType.CHAT_CREATED_WITH_MEMBERS)
+        );
 
         // публикуем для обновления кеша после коммита
         eventPublisher.publishEvent(new CacheEvent.ChatWithMembersCreated(
             ChatMapper.toCache(chat),
             List.of(ChatMemberMapper.toCache(creator), ChatMemberMapper.toCache(opponent))
         ));
+        return Optional.of(seq);
     }
 
     @Transactional(propagation = MANDATORY)
-    public void saveGroupChatAndAddMembers(CreateDto.GroupChat chat, 
-                                           CreateDto.ChatMember creator, List<CreateDto.ChatMember> chatMembers) {
-        // конвертируем
-        List<Cache.ChatMember> membersWithCreator = new ArrayList<>(chatMembers.size() + 1);
-        membersWithCreator.add(ChatMemberMapper.toCache(creator));
-
-        Long[] membersWithoutCreatorIds = new Long[chatMembers.size()];
-        for (int i = 0; i < chatMembers.size(); i++) {
-            membersWithCreator.add(ChatMemberMapper.toCache(chatMembers.get(i)));
-            membersWithoutCreatorIds[i] = chatMembers.get(i).getUserId();
-        }
-
-        // синхронно в бд
-        dbChatService.saveGroupChat(ChatMapper.toEntity(chat), membersWithoutCreatorIds);
-
-
-        List<ChatEvent.ChatCreatedWithMembers.MemberInfo> allMembers = new ArrayList<>();
-        allMembers.add(new ChatEvent.ChatCreatedWithMembers.MemberInfo(
-            creator.getUserId(), creator.isAdmin(), creator.getJoinedAt()
-        ));
-        for (CreateDto.ChatMember m : chatMembers) {
-            allMembers.add(new ChatEvent.ChatCreatedWithMembers.MemberInfo(
-                m.getUserId(), m.isAdmin(), m.getJoinedAt()
-            ));
-        }
-
-        var event = new ChatEvent.ChatCreatedWithMembers(
-            chat.getId(), chat.getName(), 
-            chat.getDescription(),
-            chat.getChatType().name(),
-            chat.getOpponentId(), chat.getMembersCount(),
-            chat.getCreatedBy(), allMembers, chat.getCreatedAt()
-        );
-        chatEventDbService.save(ChatEventMapper.toEntity(event));
-
-
-
-        // публикуем для обновления кеша после коммита
-        eventPublisher.publishEvent(new CacheEvent.ChatWithMembersCreated(
-            ChatMapper.toCache(chat),
-            membersWithCreator
-        ));
-    }
-
-    @Transactional(propagation = MANDATORY)
-    public boolean updateChatProfile(long chatId, String newName, String newDescription, Instant updatedAt) {
+    public Optional<Long> updateChatProfile(long chatId, String newName, String newDescription, Instant updatedAt) {
         // синхронно в бд
         int updated = dbChatService.updateProfile(chatId, newName, newDescription, updatedAt);
         if (updated > 0) {
             var event = new ChatEvent.ChatUpdated(
                 chatId, newName, newDescription, updatedAt
             );
-            chatEventDbService.save(ChatEventMapper.toEntity(event));
+            long seq = chatEventDbService.saveAndReturnSeq(
+                ChatEventMapper.toEntity(event, ChatEventType.CHAT_UPDATED)
+            );
 
             // публикуем для обновления кеша после коммита
             eventPublisher.publishEvent(new CacheEvent.ChatInvalidated(chatId));
+            return Optional.of(seq);
         }
-        return updated > 0;
+        return Optional.empty();
     }
 
     @Transactional(propagation = MANDATORY)
-    public boolean restore(long chatId, Instant updatedAt) {
-        // синхронно в бд
-        int updated = dbChatService.restore(chatId, updatedAt);
-        if (updated > 0) {
-            var event = new ChatEvent.ChatRestored(chatId, updatedAt);
-            chatEventDbService.save(ChatEventMapper.toEntity(event));
-
-            // публикуем для обновления кеша после коммита
-            eventPublisher.publishEvent(new CacheEvent.ChatInvalidated(chatId));
-        }
-        return updated > 0;
-    }
-
-    @Transactional(propagation = MANDATORY)
-    public boolean delete(long chatId, Instant updatedAt) {
+    public Optional<Long> delete(long chatId, Instant updatedAt) {
         // синхронно в бд
         int updated = dbChatService.delete(chatId, updatedAt);
         if (updated > 0) {
             var event = new ChatEvent.ChatDeleted(chatId, updatedAt);
-            chatEventDbService.save(ChatEventMapper.toEntity(event));
+            long seq = chatEventDbService.saveAndReturnSeq(
+                ChatEventMapper.toEntity(event, ChatEventType.CHAT_DELETED)
+            );
 
             // публикуем для обновления кеша после коммита
             eventPublisher.publishEvent(new CacheEvent.ChatInvalidated(chatId));
+            return Optional.of(seq);
         }
-        return updated > 0;
+        return Optional.empty();
     }
     
     

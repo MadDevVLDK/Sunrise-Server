@@ -2,6 +2,7 @@ package com.sunrise.core.service;
 
 import com.sunrise.notifier.WebSocketNotifier;
 import com.sunrise.orchestrator.DataValidator;
+import com.sunrise.orchestrator.result.ChatEvent.PublicMessageCreated;
 import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.MessageOrchestrator;
 import com.sunrise.orchestrator.service.UserOrchestrator;
@@ -57,9 +58,13 @@ public class MessageService {
                 SimpleSnowflakeId.nextId(), chatId, senderId,
                 MessageType.COMMON, text, Instant.now()
             );
-            messageOrchestrator.save(message);
+            Optional<Long> seqChatEvent = messageOrchestrator.save(message);
+            if (seqChatEvent.isEmpty()) {
+                throw new ValidationException("failed to make message");
+            }
 
             // уведомить всех надо об этом
+            PublicMessageCreated notify = new PublicMessageCreated(chatId, chatId, senderId, text, null, null);
             wsNotify.notifyMessageNew(tempId, message, user.profileUpdatedAt());
 
             log.info("[🔧] ✅ User {} send public message {} in chat {}", senderId, message.getId(), chatId);
@@ -119,8 +124,8 @@ public class MessageService {
             validator.validateCanUpdateMessage(chatId, userId, messageId);
 
             Instant updatedAt = Instant.now();
-            boolean changed = messageOrchestrator.update(chatId, messageId, newText, updatedAt);
-            if (changed) {
+            Optional<Long> seqChatEvent = messageOrchestrator.update(chatId, messageId, newText, updatedAt);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
                 wsNotify.notifyMessageInfoUpdated(chatId, messageId, newText, updatedAt);
                 log.info("[🔧] ✅ User {} updated message {} in chat {}", userId, messageId, chatId);
@@ -143,8 +148,8 @@ public class MessageService {
             validator.validateCanDeleteMessage(chatId, userId, messageId);
 
             Instant updatedAt = Instant.now();
-            boolean deleted = messageOrchestrator.delete(chatId, messageId, updatedAt);
-            if (deleted) {
+            Optional<Long> seqChatEvent = messageOrchestrator.delete(chatId, messageId, updatedAt);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
                 wsNotify.notifyMessageDeleted(chatId, messageId, updatedAt);
                 log.info("[🔧] ✅ User {} deleted message {} in chat {}", userId, messageId, chatId);
@@ -167,11 +172,11 @@ public class MessageService {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
             Instant readAt = Instant.now();
-            messageOrchestrator.markMessagesUpToRead(chatId, userId, messageId, readAt);
-
-            // уведомить всех надо об этом
-            wsNotify.notifyMessageReadUpTo(chatId, userId, messageId, readAt);
-
+            Optional<Long> seqChatEvent = messageOrchestrator.markMessagesUpToRead(chatId, userId, messageId, readAt);
+            if (seqChatEvent.isPresent()) {
+                // уведомить всех надо об этом
+                wsNotify.notifyMessageReadUpTo(chatId, userId, messageId, readAt);
+            }
             log.info("[🔧] ✅ User {} marked message as read {} in chat {}", userId, messageId, chatId);
             return ResultNoArgs.success();
         }

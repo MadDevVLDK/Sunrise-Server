@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
@@ -45,8 +46,8 @@ public class ChatMemberService {
                 chatId, opponentId, Instant.now(), false
             );
 
-            boolean changed = chatMemberOrchestrator.saveOrRestore(member);
-            if (changed) {
+            Optional<Long> seqChatEvent = chatMemberOrchestrator.saveOrRestore(member);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
                 wsNotify.notifyChatMemberNew(member);
                 log.info("[🔧] ✅ User {} added user {} to group chat {}", inviterId, opponentId, chatId);
@@ -106,8 +107,8 @@ public class ChatMemberService {
             validator.validateCanUpdateChatMemberInfo(chatId, adminId, userToUpdateId);
 
             Instant updatedAt = Instant.now();
-            boolean changed = chatMemberOrchestrator.updateProfile(chatId, adminId, tag, updatedAt);
-            if (changed) {
+            Optional<Long> seqChatEvent = chatMemberOrchestrator.updateProfile(chatId, adminId, tag, updatedAt);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
                 wsNotify.notifyChatMemberInfoUpdated(chatId, adminId, tag, updatedAt);
                 log.info("[🔧] ✅ Updated member info for user {} by admin {} in chat {}", userToUpdateId, adminId, chatId);
@@ -130,8 +131,8 @@ public class ChatMemberService {
             validator.validateCanUpdateChatMemberRights(chatId, adminId, userToUpdateId);
 
             Instant updatedAt = Instant.now();
-            boolean changed = chatMemberOrchestrator.updateAdminRights(chatId, userToUpdateId, isAdmin, updatedAt);
-            if (changed) {
+            Optional<Long> seqChatEvent = chatMemberOrchestrator.updateAdminRights(chatId, userToUpdateId, isAdmin, updatedAt);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
                 wsNotify.notifyChatMemberAdminRightsUpdated(chatId, userToUpdateId, isAdmin, updatedAt);
                 log.info("[🔧] ✅ Updated admin rights for user {} by admin {} in group chat {}", userToUpdateId, adminId, chatId);
@@ -154,8 +155,8 @@ public class ChatMemberService {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
             Instant updatedAt = Instant.now();
-            boolean changed = chatMemberOrchestrator.updateSettings(chatId, userId, isPinned, updatedAt);
-            if (changed) {
+            Optional<Long> seqChatEvent = chatMemberOrchestrator.updateSettings(chatId, userId, isPinned, updatedAt);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
                 wsNotify.notifySelfChatSettingsUpdated(chatId, userId, isPinned, updatedAt);
                 log.info("[🔧] ✅ Updated self settings for user {} in chat {}", userId, chatId);
@@ -178,8 +179,8 @@ public class ChatMemberService {
             validator.validateCanKickChatMember(chatId, adminId, userToKickId);
 
             Instant updatedAt = Instant.now();
-            boolean removed = chatMemberOrchestrator.remove(chatId, userToKickId, updatedAt);
-            if (removed) {
+            Optional<Long> seqChatEvent = chatMemberOrchestrator.remove(chatId, userToKickId, updatedAt);
+            if (seqChatEvent.isPresent()) {
                 // уведомить всех надо об этом
                 wsNotify.notifyChatMemberDeleted(chatId, userToKickId, updatedAt);
                 log.info("[🔧] ✅ User {} kicked from chat {} by user {}", userToKickId, chatId, adminId);
@@ -204,16 +205,16 @@ public class ChatMemberService {
             if (chat.chatType().isPersonal()) {
                 if (chat.membersCount() > 1) {
                     // Удаляем пользователя из чата
-                    boolean removed = chatMemberOrchestrator.remove(chatId, userId, updatedAt);
-                    if (removed) {
+                    Optional<Long> seqChatEvent = chatMemberOrchestrator.remove(chatId, userId, updatedAt);
+                    if (seqChatEvent.isPresent()) {
                         // уведомить всех надо об этом
                         wsNotify.notifyChatMemberDeleted(chatId, userId, updatedAt);
                         log.info("[🔧] ✅ User {} left group chat {}", userId, chatId);
                     }
                 } else {
                     // Удаляем чат
-                    boolean deleted = chatOrchestrator.delete(chatId, updatedAt);
-                    if (deleted) {
+                    Optional<Long> seqChatEvent = chatOrchestrator.delete(chatId, updatedAt);
+                    if (seqChatEvent.isPresent()) {
                         // уведомить всех надо об этом
                         wsNotify.notifyChatDeleted(chatId, updatedAt);
                         log.info("[🔧] ✅ Last admin {} left group chat {}, chat deleted", userId, chatId);
@@ -221,8 +222,8 @@ public class ChatMemberService {
                 }
             } else {
                 // Удаляем личный чат
-                boolean deleted = chatOrchestrator.delete(chatId, updatedAt);
-                if (deleted) {
+                Optional<Long> seqChatEvent = chatOrchestrator.delete(chatId, updatedAt);
+                if (seqChatEvent.isPresent()) {
                     // уведомить всех надо об этом
                     wsNotify.notifyChatDeleted(chatId, updatedAt);
                     log.info("[🔧] ✅ User {} deleted personal chat {}", userId, chatId);
@@ -258,6 +259,7 @@ public class ChatMemberService {
             return ResultOneArg.error("getChatMembers failed due to server error");
         }
     }
+    
     public ResultOneArg<List<ChatMemberProfile>> getChatMemberByIds(long chatId, long userId, Set<Long> userIds) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
