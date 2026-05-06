@@ -1,9 +1,10 @@
 package com.sunrise.web.websocket.config;
 
-import com.sunrise.web.jwt.JwtHandshakeInterceptor;
 import com.sunrise.web.websocket.annotation.WsUserIdArgumentResolver;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.handler.invocation.HandlerMethodArgumentResolver;
@@ -18,11 +19,13 @@ import java.util.List;
 
 @Configuration
 @EnableWebSocketMessageBroker
+@EnableConfigurationProperties(WsRateLimitProperties.class)
 @RequiredArgsConstructor
 public class WsConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WsSubscriptionInterceptor subscriptionInterceptor;
-    private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
+    private final WsRateLimitInterceptor rateLimitInterceptor;
+    private final WsJwtHandshakeInterceptor jwtHandshakeInterceptor;
     private final WsHandshakeHandler wsHandshakeHandler;
     private final WsUserIdArgumentResolver wsUserIdArgumentResolver;
 
@@ -36,6 +39,7 @@ public class WsConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
         registration.interceptors(subscriptionInterceptor);
+        registration.interceptors(rateLimitInterceptor);
     }
 
     @Override

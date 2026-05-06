@@ -81,7 +81,6 @@ const API = {
 
     getChatsBatch: async (chatIds) => {
         const token = localStorage.getItem('authToken');
-        // chatIds — массив строк
         const idsParam = chatIds.join(',');
         const response = await fetch(getApiPath(`/chats/batch?ids=${idsParam}`), {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -122,6 +121,44 @@ const API = {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ tempId, otherUserId })
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+
+    // Синхронизация событий чатов
+    syncChats: async (cursors) => {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(getApiPath('/chats/sync'), {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ cursors })
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+
+    // Синхронизация пользовательских событий
+    syncUserEvents: async (cursor) => {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(getApiPath(`/users/sync?cursor=${cursor}`), {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    },
+
+        // Добавить в объект API после остальных методов
+    getMessages: async (chatId, cursor, limit, direction) => {
+        const token = localStorage.getItem('authToken');
+        let url = getApiPath(`/chats/${chatId}/messages?limit=${limit}&direction=${direction}`);
+        if (cursor) url += `&cursor=${cursor}`;
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();

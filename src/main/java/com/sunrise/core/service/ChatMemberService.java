@@ -3,7 +3,6 @@ package com.sunrise.core.service;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.core.result.ResultNoArgs;
 import com.sunrise.core.result.ResultOneArg;
-import com.sunrise.notifier.WebSocketNotifier;
 import com.sunrise.orchestrator.DataValidator;
 import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.ChatMemberOrchestrator;
@@ -19,22 +18,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
-@RequiredArgsConstructor
 @Service
+@RequiredArgsConstructor
 public class ChatMemberService {
 
     private final ChatMemberOrchestrator chatMemberOrchestrator;
     private final ChatOrchestrator chatOrchestrator;
 
     private final DataValidator validator;
-
-    private final WebSocketNotifier wsNotify;
 
 
     @Transactional
@@ -46,13 +41,9 @@ public class ChatMemberService {
                 chatId, opponentId, Instant.now(), false
             );
 
-            Optional<Long> seqChatEvent = chatMemberOrchestrator.saveOrRestore(member);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyChatMemberNew(member);
+            boolean isUpdated = chatMemberOrchestrator.saveOrRestore(member);
+            if (isUpdated) {
                 log.info("[🔧] ✅ User {} added user {} to group chat {}", inviterId, opponentId, chatId);
-            } else {
-                log.debug("[🔧] User {} was already active in chat {}", opponentId, chatId);
             }
             return ResultNoArgs.success();
         }
@@ -80,14 +71,7 @@ public class ChatMemberService {
 
             Long[] addedIds = chatMemberOrchestrator.saveOrRestoreBatch(chatId, members);
             if (addedIds.length > 0) {
-                List<CreateDto.ChatMember> addedMembers = members.stream()
-                    .filter(m -> Arrays.asList(addedIds).contains(m.getUserId())).toList();
-
-                 // уведомить всех надо об этом
-                wsNotify.notifyChatMembersNew(addedMembers);
                 log.info("[🔧] ✅ User {} added {} users to chat {}", inviterId, addedIds.length, chatId);
-            } else {
-                log.debug("[🔧] No new members were added to chat {}", chatId);
             }
             return ResultNoArgs.success();
         }
@@ -107,10 +91,8 @@ public class ChatMemberService {
             validator.validateCanUpdateChatMemberInfo(chatId, adminId, userToUpdateId);
 
             Instant updatedAt = Instant.now();
-            Optional<Long> seqChatEvent = chatMemberOrchestrator.updateProfile(chatId, adminId, tag, updatedAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyChatMemberInfoUpdated(chatId, adminId, tag, updatedAt);
+            boolean isUpdated = chatMemberOrchestrator.updateProfile(chatId, adminId, tag, updatedAt);
+            if (isUpdated) {
                 log.info("[🔧] ✅ Updated member info for user {} by admin {} in chat {}", userToUpdateId, adminId, chatId);
             }
             return ResultNoArgs.success();
@@ -131,10 +113,8 @@ public class ChatMemberService {
             validator.validateCanUpdateChatMemberRights(chatId, adminId, userToUpdateId);
 
             Instant updatedAt = Instant.now();
-            Optional<Long> seqChatEvent = chatMemberOrchestrator.updateAdminRights(chatId, userToUpdateId, isAdmin, updatedAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyChatMemberAdminRightsUpdated(chatId, userToUpdateId, isAdmin, updatedAt);
+            boolean isUpdated = chatMemberOrchestrator.updateAdminRights(chatId, userToUpdateId, isAdmin, updatedAt);
+            if (isUpdated) {
                 log.info("[🔧] ✅ Updated admin rights for user {} by admin {} in group chat {}", userToUpdateId, adminId, chatId);
             }            
             return ResultNoArgs.success();
@@ -155,10 +135,8 @@ public class ChatMemberService {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
             Instant updatedAt = Instant.now();
-            Optional<Long> seqChatEvent = chatMemberOrchestrator.updateSettings(chatId, userId, isPinned, updatedAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifySelfChatSettingsUpdated(chatId, userId, isPinned, updatedAt);
+            boolean isUpdated = chatMemberOrchestrator.updateSettings(chatId, userId, isPinned, updatedAt);
+            if (isUpdated) {
                 log.info("[🔧] ✅ Updated self settings for user {} in chat {}", userId, chatId);
             }
             return ResultNoArgs.success();
@@ -179,10 +157,8 @@ public class ChatMemberService {
             validator.validateCanKickChatMember(chatId, adminId, userToKickId);
 
             Instant updatedAt = Instant.now();
-            Optional<Long> seqChatEvent = chatMemberOrchestrator.remove(chatId, userToKickId, updatedAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyChatMemberDeleted(chatId, userToKickId, updatedAt);
+            boolean isUpdated = chatMemberOrchestrator.remove(chatId, userToKickId, updatedAt);
+            if (isUpdated) {
                 log.info("[🔧] ✅ User {} kicked from chat {} by user {}", userToKickId, chatId, adminId);
             }
             return ResultNoArgs.success();
@@ -205,27 +181,21 @@ public class ChatMemberService {
             if (chat.chatType().isPersonal()) {
                 if (chat.membersCount() > 1) {
                     // Удаляем пользователя из чата
-                    Optional<Long> seqChatEvent = chatMemberOrchestrator.remove(chatId, userId, updatedAt);
-                    if (seqChatEvent.isPresent()) {
-                        // уведомить всех надо об этом
-                        wsNotify.notifyChatMemberDeleted(chatId, userId, updatedAt);
+                    boolean isUpdated = chatMemberOrchestrator.remove(chatId, userId, updatedAt);
+                    if (isUpdated) {
                         log.info("[🔧] ✅ User {} left group chat {}", userId, chatId);
                     }
                 } else {
                     // Удаляем чат
-                    Optional<Long> seqChatEvent = chatOrchestrator.delete(chatId, updatedAt);
-                    if (seqChatEvent.isPresent()) {
-                        // уведомить всех надо об этом
-                        wsNotify.notifyChatDeleted(chatId, updatedAt);
+                    boolean isUpdated = chatOrchestrator.delete(chatId, updatedAt);
+                    if (isUpdated) {
                         log.info("[🔧] ✅ Last admin {} left group chat {}, chat deleted", userId, chatId);
                     }                    
                 }
             } else {
                 // Удаляем личный чат
-                Optional<Long> seqChatEvent = chatOrchestrator.delete(chatId, updatedAt);
-                if (seqChatEvent.isPresent()) {
-                    // уведомить всех надо об этом
-                    wsNotify.notifyChatDeleted(chatId, updatedAt);
+                boolean isUpdated = chatOrchestrator.delete(chatId, updatedAt);
+                if (isUpdated) {
                     log.info("[🔧] ✅ User {} deleted personal chat {}", userId, chatId);
                 }
             }
@@ -241,6 +211,7 @@ public class ChatMemberService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<ChatMembersPage> getChatMemberPage(long chatId, long userId, Long cursor, int limit) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
@@ -260,6 +231,7 @@ public class ChatMemberService {
         }
     }
     
+    @Transactional(readOnly = true)
     public ResultOneArg<List<ChatMemberProfile>> getChatMemberByIds(long chatId, long userId, Set<Long> userIds) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);

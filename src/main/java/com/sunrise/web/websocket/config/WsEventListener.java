@@ -1,16 +1,20 @@
 package com.sunrise.web.websocket.config;
 
-import com.sunrise.notifier.SessionRegistry;
-import com.sunrise.web.websocket.UserGlobalStatusKeeper;
+import com.sunrise.web.websocket.service.SessionRegistry;
+import com.sunrise.web.websocket.service.UserGlobalStatusKeeper;
+import com.sunrise.web.websocket.service.WebSocketNotifier;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
+
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import java.util.Map;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -19,15 +23,15 @@ public class WsEventListener {
 
     private final SessionRegistry sessionRegistry;
     private final UserGlobalStatusKeeper userGlobalStatusKeeper;
+    private final WebSocketNotifier wsNotify;
 
     @EventListener
     public void handleSessionConnected(SessionConnectedEvent event) {
         SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.wrap(event.getMessage());
-
         String sessionId = accessor.getSessionId();
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+    
         Long userId = null;
-
-        Map<String, Object> sessionAttributes = accessor.getSessionAttributes(); // userId лежит в атрибутах сессии
         if (sessionAttributes != null) {
             Object userIdObj = sessionAttributes.get("userId");
             if (userIdObj instanceof Long) {
@@ -51,8 +55,12 @@ public class WsEventListener {
         Long userId = sessionRegistry.getUserId(sessionId);
 
         if (userId != null) {
+            boolean noMoreSessions = !sessionRegistry.userHasSessions(userId);
             sessionRegistry.unregister(sessionId);
-            userGlobalStatusKeeper.unsubscribeUserGlobalStatus(userId, sessionId);
+            if (noMoreSessions && userGlobalStatusKeeper.updateUserStatus(userId, "offline")) {
+                wsNotify.notifyUserStatusChange(userId, "offline");
+                userGlobalStatusKeeper.removeUserActions(userId);  // только если пользователь полностью оффлайн
+            }
             log.info("[🗝️] ❌ WebSocket disconnected: sessionId={}, userId={}", sessionId, userId);
         }
     }

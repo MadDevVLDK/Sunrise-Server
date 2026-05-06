@@ -11,12 +11,10 @@ import java.util.Map;
 
 @Component
 public class WsHandshakeHandler extends DefaultHandshakeHandler {
+    
     @Override
     protected Principal determineUser(@NonNull ServerHttpRequest request, @NonNull WebSocketHandler wsHandler, @NonNull Map<String, Object> attributes) {
-        String sessionId = (String) attributes.get("sessionId");
-        if (sessionId != null) {
-            return () -> sessionId;
-        }
-        return null;
+        Long userId = (Long) attributes.get("userId");
+        return userId != null ? () -> userId.toString() : null;
     }
 }

@@ -33,7 +33,7 @@ public class Message {
 
     @Min(0)
     @Column(name = "read_count", nullable = false)
-    private long readCount;
+    private int readCount;
 
     @Column(name = "sent_at", nullable = false)
     private Instant sentAt;

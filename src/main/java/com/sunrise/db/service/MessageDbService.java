@@ -33,9 +33,9 @@ public class MessageDbService {
     }
 
     @Transactional
-    public void markMessagesUpToRead(long chatId, long userId, long messageId, Instant readAt) {
+    public List<Long> markMessagesUpToRead(long chatId, long userId, long messageId, Instant readAt) {
         log.debug("[🗄️] 👁️ Marking messages up to {} as read: chatId={}, userId={}", messageId, chatId, userId);
-        messageRepository.markMessagesUpToRead(chatId, userId, messageId, readAt);
+        return messageRepository.markMessagesUpToRead(chatId, userId, messageId, readAt);
     }
 
     @Transactional
@@ -75,6 +75,7 @@ public class MessageDbService {
         }
         return messageRepository.getPageBefore(chatId, userId, cursor, PageRequest.of(0, limit));
     }
+    
 
     @Transactional(readOnly = true)
     public Optional<Message> get(long chatId, long messageId) {

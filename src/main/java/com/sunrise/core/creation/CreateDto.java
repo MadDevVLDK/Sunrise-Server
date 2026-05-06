@@ -124,7 +124,7 @@ public class CreateDto {
         private final long senderId;
         private final MessageType messageType;
         private final String text;
-        private final long readCount = 0L;
+        private final int readCount = 0;
         private final Instant sentAt;
         private final Instant updatedAt;
         private final Instant deletedAt = null;

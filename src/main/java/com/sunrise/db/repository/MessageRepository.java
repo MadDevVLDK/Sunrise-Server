@@ -152,8 +152,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
 
     @Transactional
-    @Query(value = "SELECT mark_messages_up_to_read(:chatId, :userId, :messageId, :readAt)", nativeQuery = true)
-    void markMessagesUpToRead(@Param("chatId") long chatId, @Param("userId") long userId, @Param("messageId") long messageId, @Param("readAt") Instant readAt);
+    @Query(value = "SELECT * FROM mark_messages_up_to_read(:chatId, :userId, :messageId, :readAt)", nativeQuery = true)
+    List<Long> markMessagesUpToRead(@Param("chatId") long chatId, @Param("userId") long userId, @Param("messageId") long messageId, @Param("readAt") Instant readAt);
 
     @Modifying
     @Transactional

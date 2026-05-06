@@ -87,11 +87,11 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
               c.deletedAt AS deletedAt,
               c.isDeleted AS isDeleted
             FROM Chat c
-            INNER JOIN ChatMember cm1 ON cm1.id.chatId = c.id AND cm1.id.userId = :userId1 AND cm1.isDeleted = false
-            INNER JOIN ChatMember cm2 ON cm2.id.chatId = c.id AND cm2.id.userId = :userId2 AND cm2.isDeleted = false
-            WHERE c.chatType = :chatType
+            INNER JOIN ChatMember cm1 ON cm1.id.chatId = c.id AND cm1.id.userId = :userId1 AND cm1.isDeleted = FALSE
+            INNER JOIN ChatMember cm2 ON cm2.id.chatId = c.id AND cm2.id.userId = :userId2 AND cm2.isDeleted = FALSE
+            WHERE c.chatType = :chatType AND c.isDeleted = FALSE
            """)
-    Optional<ChatProfileResult> getPersonalChat(@Param("userId1") long userId1, @Param("userId2") long userId2, @Param("chatType") ChatType chatType);
+    Optional<ChatProfileResult> getActivePersonalChat(@Param("userId1") long userId1, @Param("userId2") long userId2, @Param("chatType") ChatType chatType);
 
     @Query(value = 
         """
@@ -109,16 +109,14 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                 SELECT COUNT(*)
                 FROM messages m
                 WHERE m.chat_id = c.id
-                AND (ucrs.last_read_message_id IS NULL OR m.id > ucrs.last_read_message_id)
-            ), 0) AS unreadCount,
-            COALESCE(cs.current_seq, 0) AS seq
+                    AND (ucrs.last_read_message_id IS NULL OR m.id > ucrs.last_read_message_id)
+                    AND m.sender_id != :userId
+            ), 0) AS unreadCount
         FROM chats c
-        JOIN chat_members cm 
+        JOIN chat_members cm
             ON cm.chat_id = c.id AND cm.user_id = :userId AND cm.is_deleted = FALSE
-        LEFT JOIN user_chat_read_state ucrs 
+        LEFT JOIN user_chat_read_state ucrs
             ON ucrs.chat_id = c.id AND ucrs.user_id = :userId
-        LEFT JOIN chat_seq cs
-            ON cs.chat_id = c.id
         WHERE c.is_deleted = FALSE
         ORDER BY cm.is_pinned DESC, lastMsgId DESC NULLS LAST, c.id DESC
         """, nativeQuery = true)

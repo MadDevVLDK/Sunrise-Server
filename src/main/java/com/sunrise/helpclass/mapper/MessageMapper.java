@@ -3,6 +3,7 @@ package com.sunrise.helpclass.mapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.sunrise.cache.entity.*;
 import com.sunrise.core.creation.*;
@@ -43,7 +44,7 @@ public class MessageMapper {
             message.getMessageType(),
             message.getSenderId(),
             message.getText(),
-            message.getReadCount(),
+            new AtomicInteger(message.getReadCount()),
             message.getSentAt(),
             message.getUpdatedAt(),
             message.getDeletedAt(),
@@ -60,7 +61,7 @@ public class MessageMapper {
             MessageType.valueOf(message.getMessageType()),
             message.getSenderId(),
             message.getText(),
-            message.getReadCount(),
+            new AtomicInteger(message.getReadCount()),
             message.getSentAt(),
             message.getUpdatedAt(),
             message.getDeletedAt(),
@@ -87,7 +88,7 @@ public class MessageMapper {
             message.getMessageType(),
             message.getSenderId(),
             message.getText(),
-            message.getReadCount(),
+            new AtomicInteger(message.getReadCount()),
             message.getSentAt(),
             message.getUpdatedAt(),
             message.getDeletedAt(),
@@ -123,7 +124,7 @@ public class MessageMapper {
             profileUpdatedAt,
             memberUpdatedAt,
             message.text(),
-            message.readCount(),
+            message.readCount().get(),
             message.sentAt(),
             message.updatedAt(),
             message.deletedAt(),

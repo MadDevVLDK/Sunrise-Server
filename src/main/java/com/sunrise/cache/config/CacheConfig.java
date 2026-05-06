@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 public class CacheConfig {
 
+
     // ==================== USER CACHES ====================
 
     @Value("${app.cache.max-size.user:100000}")
@@ -35,6 +36,7 @@ public class CacheConfig {
 
     @Value("${app.cache.ttl.user-email-index:60}")
     private int emailIndexTtlMinutes;
+
 
     // ==================== CHAT CACHES ====================
 
@@ -56,6 +58,7 @@ public class CacheConfig {
     @Value("${app.cache.ttl.chat-members:240}")
     private int chatMembersTtlMinutes;
 
+
     // ==================== CHAT MEMBER CACHES ====================
 
     @Value("${app.cache.max-size.recent-chat-members-ids:50000}")
@@ -63,6 +66,7 @@ public class CacheConfig {
 
     @Value("${app.cache.ttl.recent-chat-members-ids:20}")
     private int recentChatMembersIdsTtlMinutes;
+
 
     // ==================== MESSAGES CACHES ====================
 
@@ -72,6 +76,7 @@ public class CacheConfig {
     @Value("${app.cache.ttl.recent-messages-ids:20}")
     private int recentMessagesIdsTtlMinutes;
 
+    
     // ==================== VERIFICATION TOKEN CACHE ====================
 
     @Value("${app.cache.max-size.verification-tokens:100000}")
@@ -111,7 +116,6 @@ public class CacheConfig {
         return Caffeine.newBuilder()
                 .maximumSize(usernameIndexMaxSize)
                 .expireAfterAccess(usernameIndexTtlMinutes, TimeUnit.MINUTES)
-                .softValues()
                 .recordStats()
                 .build();
     }
@@ -122,7 +126,6 @@ public class CacheConfig {
         return Caffeine.newBuilder()
                 .maximumSize(emailIndexMaxSize)
                 .expireAfterAccess(emailIndexTtlMinutes, TimeUnit.MINUTES)
-                .softValues()
                 .recordStats()
                 .build();
     }
@@ -145,7 +148,6 @@ public class CacheConfig {
         return Caffeine.newBuilder()
                 .maximumSize(personalChatIndexMaxSize)
                 .expireAfterAccess(personalChatIndexTtlMinutes, TimeUnit.MINUTES)
-                .softValues()
                 .recordStats()
                 .build();
     }

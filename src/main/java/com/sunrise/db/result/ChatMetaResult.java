@@ -5,5 +5,4 @@ public interface ChatMetaResult {
     Boolean getIsPinned();
     Long getLastMsgId();
     Integer getUnreadCount();
-    Long getSeq();
 }

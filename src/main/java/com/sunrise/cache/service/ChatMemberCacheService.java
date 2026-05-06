@@ -92,15 +92,23 @@ public class ChatMemberCacheService {
         log.debug("[⚡] 📦 Saved {} member IDs for chat {}", ids.size(), chatId);
     }
     
-    public void addToRecentIds(long chatId, long messageId) {
+    public void addToRecentIds(long chatId, long memberId) {
         NavigableSet<Long> set = recentChatMembersIdsCache.getIfPresent(chatId);
         if (set == null) return; // кеша для этого чата нет — ничего не делаем
 
-        set.add(messageId);
+        set.add(memberId);
         while (set.size() > maxMembersPerChat) {
             set.pollLast();
         }
-        log.debug("[⚡] ✉️ Added member id {} to recent cache for chat {}, new size={}", messageId, chatId, set.size());
+        log.debug("[⚡] ✉️ Added member id {} to recent cache for chat {}, new size={}", memberId, chatId, set.size());
+    }
+
+    public void removeFromRecentIds(long chatId, long memberId) {
+        NavigableSet<Long> set = recentChatMembersIdsCache.getIfPresent(chatId);
+        if (set == null) return; // кеша для этого чата нет — ничего не делаем
+
+        set.remove(memberId);
+        log.debug("[⚡] ✉️ Removed member id {} from recent cache for chat {}, new size={}", memberId, chatId, set.size());
     }
 
     public List<Long> getRecentIdsRange(long chatId, Long cursor, int limit) {

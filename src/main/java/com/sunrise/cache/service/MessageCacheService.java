@@ -51,6 +51,13 @@ public class MessageCacheService {
         log.debug("[⚡] ✉️ Batch saved {} messages to cache", messages.size());
     }
 
+    public void incrementReadCountBatch(List<Long> messageIds) {
+        for (long messageId : messageIds) {
+            getLink(messageId).ifPresent(msg -> msg.readCount().incrementAndGet());
+        }
+        log.debug("[⚡] ✉️ Batch incremented readCount for {} messages to cache", messageIds.size());
+    }
+
     public void invalidate(long messageId) {
         messageCache.invalidate(messageId);
         log.debug("[⚡] ✉️🚫 Invalidated message {} in cache", messageId);
@@ -58,6 +65,10 @@ public class MessageCacheService {
 
     public Optional<Message> get(long messageId) {
         return Optional.ofNullable(MessageMapper.copy(messageCache.getIfPresent(messageId)));
+    }
+
+    public Optional<Message> getLink(long messageId) {
+        return Optional.ofNullable(messageCache.getIfPresent(messageId));
     }
 
 

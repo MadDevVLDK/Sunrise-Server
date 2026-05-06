@@ -1,17 +1,17 @@
 package com.sunrise.core.service;
 
-import com.sunrise.notifier.AsyncEvent;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.core.result.*;
-import com.sunrise.notifier.EmailNotifier;
 import com.sunrise.orchestrator.DataValidator;
+import com.sunrise.orchestrator.event.AsyncEvent;
 import com.sunrise.orchestrator.result.Dto;
 import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.UserOrchestrator;
 import com.sunrise.orchestrator.service.VerificationTokenOrchestrator;
 import com.sunrise.orchestrator.type.TokenType;
-import com.sunrise.web.jwt.JwtUtil;
-import com.sunrise.helpclass.SimpleSnowflakeId;
+import com.sunrise.web.email.EmailNotifier;
+import com.sunrise.helpclass.JwtUtil;
+import com.sunrise.helpclass.SnowflakeId;
 import com.sunrise.helpclass.ValidationException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -60,15 +60,15 @@ public class AuthService {
 
             Instant createdAt = Instant.now();
             CreateDto.User user = new CreateDto.User(
-                SimpleSnowflakeId.nextId(), username, name, email,
+                SnowflakeId.next(), username, name, email,
                 passwordEncoder.encode(password), createdAt
             );
             userOrchestrator.saveUser(user);
 
             // публикуем событие на сохранение токена
             CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
-                SimpleSnowflakeId.nextId(), user.getId(), generateBase64String(),
-                TokenType.EMAIL_UPDATE, createdAt, 24 // 24 часа
+                SnowflakeId.next(), user.getId(), generateBase64String(),
+                TokenType.REGISTRATION, createdAt, 24 // 24 часа
             );
             eventPublisher.publishEvent(new AsyncEvent.SaveVerificationToken(verificationToken));
 
@@ -100,7 +100,7 @@ public class AuthService {
 
             // публикуем событие на сохранение истории логинов и обновление последнего логина
             CreateDto.LoginHistory loginHistory = new CreateDto.LoginHistory(
-                SimpleSnowflakeId.nextId(), user.id(), extractClientIp(httpRequest), 
+                SnowflakeId.next(), user.id(), extractClientIp(httpRequest), 
                 httpRequest.getHeader("User-Agent"), Instant.now()
             );
             eventPublisher.publishEvent(new AsyncEvent.SaveUserLoginHistory(username, loginHistory));
@@ -131,7 +131,7 @@ public class AuthService {
             TokenType tokenType = TokenType.EMAIL_UPDATE;
             Instant now = Instant.now();
             CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
-                SimpleSnowflakeId.nextId(), userId, token, tokenType, now, 24 // 24 часа
+                SnowflakeId.next(), userId, token, tokenType, now, 24 // 24 часа
             );
             verificationTokenOrchestrator.saveVerificationToken(verificationToken);
 
@@ -160,7 +160,7 @@ public class AuthService {
             TokenType tokenType = TokenType.PASSWORD_UPDATE;
             Instant now = Instant.now();
             CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
-                SimpleSnowflakeId.nextId(), user.id(), token, tokenType, now, 1 // 1 час
+                SnowflakeId.next(), user.id(), token, tokenType, now, 1 // 1 час
             );
             verificationTokenOrchestrator.saveVerificationToken(verificationToken);
 

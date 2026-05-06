@@ -8,11 +8,15 @@ import com.sunrise.cache.event.CacheEvent;
 import com.sunrise.cache.service.UserCacheService;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.result.*;
+import com.sunrise.db.service.EventDbService;
 import com.sunrise.db.service.LoginHistoryDbService;
 import com.sunrise.db.service.UserDbService;
 import com.sunrise.helpclass.mapper.OtherMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
+import com.sunrise.orchestrator.event.EventType;
 import com.sunrise.orchestrator.result.*;
+import com.sunrise.orchestrator.result.Dto.GlobalEvent;
+import com.sunrise.orchestrator.result.Dto.GlobalEventSync;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,9 +38,10 @@ public class UserOrchestrator {
     private final ApplicationEventPublisher eventPublisher;
     
     private final UserCacheService cacheUserService;
-    private final UserDbService dbUserService;
     
+    private final UserDbService dbUserService;
     private final LoginHistoryDbService dbLoginHistoryService;
+    private final EventDbService dbEventService;
 
 
     // ========== USER METHODS ==========
@@ -62,7 +67,7 @@ public class UserOrchestrator {
         int updated = dbUserService.updateUserProfile(userId, username, name, updatedAt);
         if (updated > 0) {
             // публикуем для обновления кеша после коммита
-            eventPublisher.publishEvent(new CacheEvent.UserProfileUpdated(userId, oldUsername, username));
+            eventPublisher.publishEvent(new CacheEvent.UserProfileUpdated(userId, oldUsername));
         }
         return updated > 0;
     }
@@ -73,7 +78,7 @@ public class UserOrchestrator {
         int updated = dbUserService.updateUserEmail(userId, email, updatedAt);
         if (updated > 0) {
             // публикуем для обновления кеша после коммита
-            eventPublisher.publishEvent(new CacheEvent.UserEmailUpdated(userId, oldEmail, email));
+            eventPublisher.publishEvent(new CacheEvent.UserEmailUpdated(userId, oldEmail));
         }
         return updated > 0;
     }
@@ -135,6 +140,7 @@ public class UserOrchestrator {
 
     // Вспомогательные методы
     
+    @Transactional(readOnly = true)
     public boolean existsUserByUsername(String username) {
         // проверяем в кеше
         if (cacheUserService.existsByUsername(username))
@@ -151,6 +157,7 @@ public class UserOrchestrator {
         return dbUser.isPresent();
     }
 
+    @Transactional(readOnly = true)
     public boolean existsUserByEmail(String email)  {
         // проверяем в кеше
         if (cacheUserService.existsByEmail(email))
@@ -167,6 +174,7 @@ public class UserOrchestrator {
         return dbUser.isPresent();
     }
 
+    @Transactional(readOnly = true)
     public boolean isActiveUser(long userId) {
         // пробуем кеш
         Optional<Cache.UserSecurity> cached = cacheUserService.getSecurity(userId);
@@ -184,6 +192,7 @@ public class UserOrchestrator {
         return dbUser.filter(us -> us.getIsEnabled() && !us.getIsDeleted()).isPresent();
     }
     
+    @Transactional(readOnly = true)
     public Optional<Dto.UserSecurity> getUserSecurity(long userId) {
         // пробуем кеш
         Optional<Cache.UserSecurity> cached = cacheUserService.getSecurity(userId);
@@ -201,6 +210,7 @@ public class UserOrchestrator {
         return dbUser.map(UserMapper::toSecurityDTO);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Dto.UserSecurity> getActiveUserSecurity(long userId) {
         // пробуем кеш
         Optional<Cache.UserSecurity> cached = cacheUserService.getSecurity(userId);
@@ -218,6 +228,7 @@ public class UserOrchestrator {
         return dbUser.filter(us -> us.getIsEnabled() && !us.getIsDeleted()).map(UserMapper::toSecurityDTO);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Dto.UserSecurity> getActiveUserSecurityByUsername(String username) {
         // пробуем кеш
         Optional<Cache.UserSecurity> cached = cacheUserService.getSecurityByUsername(username);
@@ -235,6 +246,7 @@ public class UserOrchestrator {
         return dbUser.filter(us -> us.getIsEnabled() && !us.getIsDeleted()).map(UserMapper::toSecurityDTO);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Dto.UserSecurity> getActiveUserSecurityByEmail(String email) {
         // пробуем кеш
         Optional<Cache.UserSecurity> cached = cacheUserService.getSecurityByEmail(email);
@@ -252,6 +264,7 @@ public class UserOrchestrator {
         return dbUser.filter(us -> us.getIsEnabled() && !us.getIsDeleted()).map(UserMapper::toSecurityDTO);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Dto.UserProfileLight> getUserProfileLight(long userId) {
         // пробуем кеш
         Optional<Cache.UserProfile> cached = cacheUserService.getProfile(userId);
@@ -269,6 +282,7 @@ public class UserOrchestrator {
         return dbUser.map(UserMapper::toProfileLightDTO);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Dto.UserProfileFull> getUserProfileFull(long userId) {
         // пробуем кеш
         Optional<Cache.UserProfile> cached = cacheUserService.getProfile(userId);
@@ -286,6 +300,7 @@ public class UserOrchestrator {
         return dbUser.map(UserMapper::toProfileFullDTO);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Integer> getUserJwtVersion(long userId) {
         // пробуем кеш
         Optional<Cache.UserSecurity> cached = cacheUserService.getSecurity(userId);
@@ -306,6 +321,27 @@ public class UserOrchestrator {
 
     // Вспомогательный метод для загрузки профилей пользователей с кешем
 
+    private static final int MAX_DELTA_USER_EVENTS = 2000;
+
+    @Transactional(readOnly = true)
+    public GlobalEventSync getSyncUser(long userId, long cursor) {
+        if (dbEventService.isUserSyncResetRequired(userId, cursor, MAX_DELTA_USER_EVENTS)) {
+            return new GlobalEventSync(Collections.emptyList(), false, true);
+        } 
+
+        List<UserEventResult> events = dbEventService.getUserEventsAfter(userId, cursor, 101); // +1
+        List<GlobalEvent> clientEvents = events.stream()
+            .map(proj -> new Dto.GlobalEvent(
+                proj.getEventId(),
+                EventType.valueOf(proj.getEventType()),
+                dbEventService.deserializeEvent(proj.getEventType(), proj.getPayload()),
+                proj.getCreatedAt()
+            )).limit(100).toList();
+
+        return new GlobalEventSync(clientEvents, events.size() > 100, false);
+    }
+
+    @Transactional(readOnly = true)
     public Dto.UsersPage getActiveUserProfileLightsPage(String filter, Long cursor, int limit) {
         // получаем пагинацию из бд
         List<UserProfileResult> rows = dbUserService.getActiveUsersPage(filter, cursor, limit + 1); // берем на одну больше
@@ -318,6 +354,7 @@ public class UserOrchestrator {
         return new Dto.UsersPage(users, nextCursor);
     }
     
+    @Transactional(readOnly = true)
     public List<Dto.UserProfileLight> getUserProfileLightsByIds(Set<Long> userIds) {
         if (userIds.isEmpty()) {
             return Collections.emptyList();

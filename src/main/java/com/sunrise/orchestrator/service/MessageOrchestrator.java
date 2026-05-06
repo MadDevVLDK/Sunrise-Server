@@ -13,19 +13,21 @@ import com.sunrise.db.entity.Message;
 import com.sunrise.db.result.MessageReadStatusResult;
 import com.sunrise.db.result.UserMessageResult;
 import com.sunrise.db.result.UserProfileResult;
-import com.sunrise.db.service.ChatEventDbService;
 import com.sunrise.db.service.ChatMemberDbService;
+import com.sunrise.db.service.EventDbService;
 import com.sunrise.db.service.MessageDbService;
 import com.sunrise.db.service.UserDbService;
-import com.sunrise.helpclass.mapper.ChatEventMapper;
+import com.sunrise.db.service.EventDbService.ChatEvent;
+import com.sunrise.db.service.EventDbService.ChatUsersEvents;
+import com.sunrise.db.service.EventDbService.UserEvent;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.helpclass.mapper.MessageMapper;
 import com.sunrise.helpclass.mapper.OtherMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
-import com.sunrise.orchestrator.result.ChatEvent;
+import com.sunrise.orchestrator.event.IDomainEvent;
 import com.sunrise.orchestrator.result.Dto;
-import com.sunrise.orchestrator.type.ChatEventType;
 import com.sunrise.orchestrator.type.Direction;
+import com.sunrise.web.websocket.event.WsAppEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +58,7 @@ public class MessageOrchestrator {
     private final ChatMemberCacheService cacheChatMemberService;
     private final ChatMemberDbService dbChatMemberService;
 
-    private final ChatEventDbService chatEventDbService;
+    private final EventDbService eventDbService;
 
 
     // ========== MESSAGE METHODS ==========
@@ -64,82 +66,89 @@ public class MessageOrchestrator {
 
     // Основные методы
 
-        @Transactional(propagation = MANDATORY)
-    public Optional<Long> save(CreateDto.Message message) {
-        // синхронно в бд
+    @Transactional(propagation = MANDATORY)
+    public boolean save(String tempId, Instant userProfileUpdatedAt, CreateDto.Message message) {
         dbMessageService.save(MessageMapper.toEntity(message));
+        
+        List<Long> memberIds = dbChatMemberService.getAllActiveMemberIds(message.getChatId());
 
-        var event = new ChatEvent.PublicMessageCreated(
-            message.getChatId(), message.getId(), 
-            message.getSenderId(), message.getText(), 
-            message.getSentAt(), Instant.now()
+        var chatEvent = new IDomainEvent.MessageCreated(
+            tempId, message.getChatId(), 
+            message.getId(), message.getSentAt()
         );
-        long seq = chatEventDbService.saveAndReturnSeq(
-            ChatEventMapper.toEntity(event, ChatEventType.MESSAGE_CREATED)
+        var usersEvent = new IDomainEvent.UserChatMessageSent(
+            message.getChatId(), message.getId(), message.getSentAt()
         );
-
-        // публикуем для обновления кеша после коммита
-        eventPublisher.publishEvent(new CacheEvent.MessageCreated(
-            MessageMapper.toCache(message)
+        ChatUsersEvents seq = eventDbService.saveForChatAndAllUsersShared(
+            message.getChatId(), memberIds, chatEvent, usersEvent
+        );
+        
+        eventPublisher.publishEvent(new CacheEvent.MessageCreated(MessageMapper.toCache(message)));
+        eventPublisher.publishEvent(new WsAppEvent.MessageCreatedFull(
+            seq.chatEvent(), new IDomainEvent.MessageCreatedFull(
+                tempId, message.getChatId(), message.getId(),
+                message.getSenderId(), message.getText(),
+                userProfileUpdatedAt, message.getSentAt()
+            )
         ));
-        return Optional.of(seq);
+        
+        // для пагинации, чтобы клиенту не перезапрашивать 
+        for (UserEvent userSeq : seq.usersEvent()) {
+            eventPublisher.publishEvent(new WsAppEvent.UserChatMessageSent(userSeq, usersEvent));
+        }
+        return true;
     }
 
     @Transactional(propagation = MANDATORY)
-    public Optional<Long> update(long chatId, long messageId, String newText, Instant updatedAt) {
-        // синхронно в бд
+    public boolean update(long chatId, long messageId, String newText, Instant updatedAt) {
         int updated = dbMessageService.update(messageId, newText, updatedAt);
         if (updated > 0) {
-            var event = new ChatEvent.MessageUpdated(
+            var chatEvent = new IDomainEvent.MessageUpdated(
                 chatId, messageId, newText, updatedAt
             );
-            long seq = chatEventDbService.saveAndReturnSeq(
-                ChatEventMapper.toEntity(event, ChatEventType.MESSAGE_UPDATED)
+            ChatEvent seq = eventDbService.saveChatEvent(
+                chatId, chatEvent
             );
-
-            // публикуем для обновления кеша после коммита
             eventPublisher.publishEvent(new CacheEvent.MessageInvalidated(messageId));
-            return Optional.of(seq);
+            eventPublisher.publishEvent(new WsAppEvent.MessageInfoUpdated(seq, chatEvent));
         }
-        return Optional.empty();
+        return updated > 0;
     }
 
     @Transactional(propagation = MANDATORY)
-    public Optional<Long> delete(long chatId, long messageId, Instant updatedAt) {
-        // синхронно в бд
+    public boolean delete(long chatId, long messageId, Instant updatedAt) {
         int updated = dbMessageService.delete(messageId, updatedAt);
         if (updated > 0) {
-            var event = new ChatEvent.MessageDeleted(
+            var chatEvent = new IDomainEvent.MessageDeleted(
                 chatId, messageId, updatedAt
             );
-            long seq = chatEventDbService.saveAndReturnSeq(
-                ChatEventMapper.toEntity(event, ChatEventType.MESSAGE_DELETED)
+            ChatEvent seq = eventDbService.saveChatEvent(
+                chatId, chatEvent
             );
-
-            // публикуем для обновления кеша после коммита
             eventPublisher.publishEvent(new CacheEvent.MessageInvalidated(messageId));
-            return Optional.of(seq);
+            eventPublisher.publishEvent(new WsAppEvent.MessageDeleted(seq, chatEvent));
         }
-        return Optional.empty();
+        return updated > 0;
     }
 
     @Transactional(propagation = MANDATORY)
-    public Optional<Long> markMessagesUpToRead(long chatId, long userId, long messageId, Instant readAt) {
-        // синхронно в бд
-        dbMessageService.markMessagesUpToRead(chatId, userId, messageId, readAt);
-
-        var event = new ChatEvent.MessagesReadUpTo(
-            chatId, userId, messageId, readAt
+    public boolean markMessagesUpToRead(long chatId, long userId, long upToMessageId, Instant readAt) {
+        List<Long> affectedMessageIds = dbMessageService.markMessagesUpToRead(chatId, userId, upToMessageId, readAt);
+        var chatEvent = new IDomainEvent.MessagesReadUpTo(
+            chatId, userId, upToMessageId, readAt
         );
-        long seq = chatEventDbService.saveAndReturnSeq(
-            ChatEventMapper.toEntity(event, ChatEventType.MESSAGES_READ_UP_TO)
+        ChatEvent seq = eventDbService.saveChatEvent(
+            chatId, chatEvent
         );
-        return Optional.of(seq);
+        eventPublisher.publishEvent(new WsAppEvent.MessagesReadUpTo(seq, chatEvent));
+        eventPublisher.publishEvent(new CacheEvent.MessagesReadCountIncremented(affectedMessageIds));
+        return true;
     }
 
 
     // Вспомогательные методы
 
+    @Transactional(readOnly = true)
     public boolean isActiveInChat(long chatId, long messageId) {
         // пробуем кеш
         Optional<Cache.Message> cacheMessage = cacheMessageService.get(messageId);
@@ -157,6 +166,7 @@ public class MessageOrchestrator {
         return dbMessage.filter(Message::isActive).isPresent();
     }
 
+    @Transactional(readOnly = true)
     public boolean isActiveInChatAndBySender(long chatId, long userId, long messageId) {
         // пробуем кеш
         Optional<Cache.Message> cacheMessage = cacheMessageService.get(messageId);
@@ -174,6 +184,7 @@ public class MessageOrchestrator {
         return dbMessage.filter(Message::isActive).filter(msg -> msg.getSenderId() == userId).isPresent();
     }
 
+    @Transactional(readOnly = true)
     public Optional<Dto.Message> getActiveWithReadStatusInChat(long chatId, long userId, long messageId) {
         // грузим из бд
         Optional<UserMessageResult> dbMessage = dbMessageService.getUserMessage(chatId, userId, messageId);
@@ -186,6 +197,7 @@ public class MessageOrchestrator {
         return dbMessage.map(MessageMapper::toUserDTO);
     }
     
+    @Transactional(readOnly = true)
     public List<Dto.Message> getActiveWithReadStatusInChatBatch(long chatId, long userId, Set<Long> messageIds) {
         // грузим из бд
         List<UserMessageResult> dbMessages = dbMessageService.getUserMessageBatch(chatId, userId, messageIds);
@@ -198,6 +210,7 @@ public class MessageOrchestrator {
         return dbMessages.stream().map(MessageMapper::toUserDTO).toList();
     }
 
+    @Transactional(readOnly = true)
     public List<Dto.MessageReadStatus> getMessageReaders(long messageId){
         // грузим из бд
         List<MessageReadStatusResult> reads = dbMessageService.getMessageReaders(messageId);
@@ -207,6 +220,7 @@ public class MessageOrchestrator {
 
     // ПАГИНАЦИЯ !!!!!!!!!
 
+    @Transactional(readOnly = true)
     public Dto.MessagesPage getPage(long chatId, long userId, Long cursor, int limit, Direction direction) {
         // Проверяем наличие кеша последних ID для чата
         if (!cacheMessageService.hasRecentIds(chatId)) {

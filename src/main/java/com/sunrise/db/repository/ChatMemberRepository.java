@@ -61,6 +61,9 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, ChatMemb
            "WHERE cm.id.chatId = :chatId AND cm.id.userId IN :userIds")
     List<ChatMember> getBatch(@Param("chatId") long chatId, @Param("userIds") List<Long> userIds);
 
+    @Query("SELECT cm.id.userId FROM ChatMember cm WHERE cm.id.chatId = :chatId AND cm.isDeleted = false")
+    List<Long> getAllActiveMemberIds(@Param("chatId") long chatId);
+
     @Query("SELECT cm FROM ChatMember cm " +
            "WHERE cm.id.chatId = :chatId AND cm.id.userId IN :userIds AND cm.isDeleted = false")
     List<ChatMember> getActiveBatch(@Param("chatId") long chatId, @Param("userIds") List<Long> userIds);

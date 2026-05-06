@@ -2,12 +2,11 @@ package com.sunrise.core.service;
 
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.core.result.*;
-import com.sunrise.db.result.ChatStatsResult; // TODO: Колхоз, потом сделаю отдельный класс, щас он просто не нужен
-import com.sunrise.notifier.WebSocketNotifier;
 import com.sunrise.orchestrator.DataValidator;
 import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.ChatOrchestrator;
-import com.sunrise.helpclass.SimpleSnowflakeId;
+import com.sunrise.web.payload.ApiRequest.ChatSyncUnit;
+import com.sunrise.helpclass.SnowflakeId;
 import com.sunrise.helpclass.ValidationException;
 
 import org.springframework.lang.NonNull;
@@ -30,28 +29,20 @@ public class ChatService {
 
     private final DataValidator validator;
 
-    private final WebSocketNotifier wsNotify;
-
 
     @Transactional
-    public ResultOneArg<Long> createPersonalChat(long tempId, long creatorId, long opponentId) {
+    public ResultOneArg<Long> createPersonalChat(String tempId, long creatorId, long opponentId) {
         try {
             validator.validateActiveUsers(creatorId, opponentId);
 
             Instant createdAt = Instant.now();
-            Optional<ChatSecurity> optChat = chatOrchestrator.getPersonalChat(creatorId, opponentId);
-            if (optChat.isPresent()){
-                ChatSecurity chat = optChat.get();
-                if (chat.isDeleted()) {
-                    Optional<Long> seqChatEvent = chatOrchestrator.restore(chat.id(), createdAt);
-                    if (seqChatEvent.isPresent()) {
-                        log.info("[🔧] ✅ Restored personal chat {} between users {} and {}", chat.id(), creatorId, opponentId);
-                    }
-                }
-                return ResultOneArg.success(chat.id());
+            Optional<ChatSecurity> optActiveChat = chatOrchestrator.getActivePersonalChat(creatorId, opponentId);
+            if (optActiveChat.isPresent()){
+                log.info("[🔧] ✅ Get personal chat {} between users {} and {}", optActiveChat.get().id(), creatorId, opponentId);
+                return ResultOneArg.success(optActiveChat.get().id());
             }
 
-            long chatId = SimpleSnowflakeId.nextId();
+            long chatId = SnowflakeId.next();
 
             CreateDto.PersonalChat chat = new CreateDto.PersonalChat(
                 chatId, opponentId, createdAt, creatorId
@@ -64,10 +55,7 @@ public class ChatService {
                 chatId, opponentId, createdAt, false
             );
 
-            chatOrchestrator.savePersonalChatAndAddMembers(chat, creator, opponent);
-
-            // уведомить надо
-            wsNotify.notifyPersonalChatNew(tempId, chat, Set.of(creatorId, opponentId));
+            chatOrchestrator.savePersonalChatAndAddMembers(tempId, chat, creator, opponent);
 
             log.info("[🔧] ✅ Created personal chat {} between users {} and {}", chatId, creatorId, opponentId);
             return ResultOneArg.success(chatId);
@@ -83,12 +71,12 @@ public class ChatService {
     }
 
     @Transactional
-    public ResultOneArg<Long> createGroupChat(long tempId, long creatorId, @NonNull String chatName, @NonNull String chatDescription, @NonNull Set<Long> usersToAddIds) {
+    public ResultOneArg<Long> createGroupChat(String tempId, long creatorId, @NonNull String chatName, @NonNull String chatDescription, @NonNull Set<Long> usersToAddIds) {
         try {
             validator.validateCanCreateGroupChat(creatorId, usersToAddIds);
 
             int membersCount = usersToAddIds.size() + 1;
-            long chatId = SimpleSnowflakeId.nextId();
+            long chatId = SnowflakeId.next();
             Instant createdAt = Instant.now();
 
             CreateDto.GroupChat chat = new CreateDto.GroupChat(chatId, chatName, chatDescription, membersCount, createdAt, creatorId);
@@ -100,15 +88,7 @@ public class ChatService {
                 chatMembers.add(new CreateDto.ChatMember(chatId, userId, createdAt, false)); // остальные без прав
             }
 
-            Optional<Long> seqChatEvent = chatOrchestrator.saveGroupChatAndAddMembers(chat, creator, chatMembers);
-            if (seqChatEvent.isEmpty()) {
-                throw new ValidationException("Failed to create a group chat");
-            }
-
-            // уведомить надо
-            var usersToNotify = new HashSet<>(usersToAddIds);
-            usersToNotify.add(creatorId);
-            wsNotify.notifyGroupChatNew(tempId, chat, usersToNotify);
+            chatOrchestrator.saveGroupChatAndAddMembers(tempId, chat, creator, chatMembers);
 
             log.info("[🔧] ✅ Created group chat {} '{}' with {} members by creator {}", chatId, chatName, usersToAddIds.size(), creatorId);
             return ResultOneArg.success(chatId);
@@ -129,10 +109,8 @@ public class ChatService {
             validator.validateCanUpdateChatInfo(chatId, userId);
 
             Instant updatedAt = Instant.now();
-            Optional<Long> seqChatEvent = chatOrchestrator.updateChatProfile(chatId, newName, newDescription, updatedAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyChatUpdated(chatId, newName, newDescription, updatedAt);
+            boolean isUpdated = chatOrchestrator.updateChatProfile(chatId, newName, newDescription, updatedAt);
+            if (isUpdated) {
                 log.info("[🔧] ✅ Chat info changed for chat {} by user {}", chatId, userId);
             }
             return ResultNoArgs.success();
@@ -151,10 +129,8 @@ public class ChatService {
             validator.validateCanDeleteChat(chatId, userId);
 
             Instant deletedAt = Instant.now();
-            Optional<Long> seqChatEvent = chatOrchestrator.delete(chatId, deletedAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyChatDeleted(chatId, deletedAt);
+            boolean isUpdated = chatOrchestrator.delete(chatId, deletedAt);
+            if (isUpdated) {
                 log.info("[🔧] ✅ Admin {} deleted chat {}", userId, chatId);
             }
             return ResultNoArgs.success();
@@ -169,14 +145,15 @@ public class ChatService {
         }
     }
 
-    public ResultOneArg<Map<Long, GlobalChatSync>> syncChats(long userId, Map<Long, Long> chatSeqIds) {
+    @Transactional(readOnly = true)
+    public ResultOneArg<Map<Long, GlobalEventSync>> syncChats(long userId, List<ChatSyncUnit> cursors) {
         try {
             validator.validateActiveUser(userId);
-            for (long chatId : chatSeqIds.keySet()) {
-                validator.validateActiveChatMemberInActiveChat(chatId, userId);
+            for (ChatSyncUnit cursor : cursors) {
+                validator.validateActiveChatMemberInActiveChat(cursor.chatId(), userId);
             }
 
-            Map<Long, GlobalChatSync> result = chatOrchestrator.getSyncChats(chatSeqIds);
+            Map<Long, GlobalEventSync> result = chatOrchestrator.getSyncChats(cursors);
 
             log.debug("[🔧] ✅ User {} got sync for {} chats", userId, result.size());
             return ResultOneArg.success(result);
@@ -189,6 +166,7 @@ public class ChatService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<List<ChatMeta>> getUserChatsMeta(long userId) {
         try {
             validator.validateActiveUser(userId);
@@ -206,6 +184,7 @@ public class ChatService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<List<ChatProfile>> getUserChatsByIds(long userId, Set<Long> chatIds) {
         try {
             validator.validateActiveUser(userId);
@@ -227,6 +206,7 @@ public class ChatService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<ChatProfile> getUserChat(long chatId, long userId) {
         try {
             validator.validateActiveUser(userId);
@@ -247,6 +227,7 @@ public class ChatService {
         }
     }
     
+    @Transactional(readOnly = true)
     public ResultOneArg<ChatStatsResult> getChatStats(long chatId, long userId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
@@ -266,6 +247,7 @@ public class ChatService {
         }
     }
     
+    @Transactional(readOnly = true)
     public ResultOneArg<Boolean> isActionsEnabledForChat(long chatId, long userId) {
         try {
             ChatSecurity chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);

@@ -78,9 +78,9 @@ public class ChatDbService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<ChatProfileResult> getPersonalChat(long userId1, long userId2) {
+    public Optional<ChatProfileResult> getActivePersonalChat(long userId1, long userId2) {
         log.debug("[🗄️] 🔍 Getting personal chat between {} and {}", userId1, userId2);
-        return chatRepository.getPersonalChat(userId1, userId2, ChatType.PERSONAL);
+        return chatRepository.getActivePersonalChat(userId1, userId2, ChatType.PERSONAL);
     }
 
     @Transactional(readOnly = true)

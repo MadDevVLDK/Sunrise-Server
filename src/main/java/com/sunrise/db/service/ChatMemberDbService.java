@@ -93,6 +93,11 @@ public class ChatMemberDbService {
     }
 
     @Transactional(readOnly = true)
+    public List<Long> getAllActiveMemberIds(long chatId) {
+        return chatMemberRepository.getAllActiveMemberIds(chatId);
+    }
+
+    @Transactional(readOnly = true)
     public List<ChatMember> getBatchByChatAndIds(long chatId, List<Long> userIds) {
         return chatMemberRepository.getBatch(chatId, userIds);
     }

@@ -3,9 +3,10 @@ package com.sunrise.web.payload;
 import com.sunrise.web.api.annotation.ValidId;
 import com.sunrise.orchestrator.type.Direction;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 
 public final class ApiRequest {
@@ -71,21 +72,25 @@ public final class ApiRequest {
     ) {}
 
     public record CreateGroupChat(
-        @ValidId Long tempId,
+        @NotBlank 
+        String tempId,
+
         @NotBlank(message = "chatName is required")
         @Size(min = 4, max = 30, message = "chatName must be between 4 and 30 characters")
         @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "chatName must contain only letters, digits, and underscores")
         String chatName,
+
         @Size(max = 500, message = "chatDescription mustn`t be more than 500 characters")
         String chatDescription,
+
         @NotNull(message = "members is required")
         @Size(max = 100, message = "Group cannot have more than 100 members")
         Set<@ValidId Long> members
     ) {}
 
     public record CreatePersonalChat(
-        @ValidId 
-        Long tempId,
+        @NotBlank 
+        String tempId,
 
         @ValidId 
         Long otherUserId
@@ -117,22 +122,9 @@ public final class ApiRequest {
         Boolean isPinned
     ) {}
 
-
-    public record PrivateMessage(
-        @ValidId 
-        Long tempId,
-
+    public record Message(
         @NotBlank 
-        @Size(max = 10000) 
-        String text,
-
-        @ValidId 
-        Long receiverId
-    ) {}
-
-    public record PublicMessage(
-        @ValidId 
-        Long tempId,
+        String tempId,
 
         @NotBlank 
         @Size(max = 10000) 
@@ -169,23 +161,6 @@ public final class ApiRequest {
         }
     }
 
-    public record ChatPagination(
-        Boolean isPinnedCursor,
-
-        @Positive 
-        Long lastMsgIdCursor,
-
-        @Positive 
-        Long chatIdCursor,
-
-        @Min(10) 
-        @Max(100) 
-        Integer limit) {
-        public Integer getLimit() {
-            return limit != null ? limit : 20;
-        }
-    }
-
     public record ChatMemberPagination(
         @Positive 
         Long cursor,
@@ -215,5 +190,23 @@ public final class ApiRequest {
         }
     }
 
-    public record SyncRequest(Map<Long, Long> chatSeqs) {}
+    public record ChatSyncUnit(
+        @NotNull 
+        @ValidId 
+        long chatId, 
+
+        @Positive 
+        long lastEventId
+    ) {}
+
+    public record ChatSyncRequest(
+        @NotNull
+        @NotEmpty
+        List<@Valid ChatSyncUnit> cursors
+    ) {}
+
+    public record UserSyncRequest(
+        @Positive 
+        long cursor
+    ) {}
 }

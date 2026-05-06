@@ -9,15 +9,18 @@ import com.sunrise.cache.service.UserCacheService;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.db.entity.ChatMember;
 import com.sunrise.db.result.UserProfileResult;
-import com.sunrise.db.service.ChatEventDbService;
 import com.sunrise.db.service.ChatMemberDbService;
+import com.sunrise.db.service.EventDbService;
 import com.sunrise.db.service.UserDbService;
-import com.sunrise.helpclass.mapper.ChatEventMapper;
+import com.sunrise.db.service.EventDbService.ChatEvent;
+import com.sunrise.db.service.EventDbService.ChatUserEvents;
+import com.sunrise.db.service.EventDbService.ChatUsersEvents;
+import com.sunrise.db.service.EventDbService.UserEvent;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
-import com.sunrise.orchestrator.result.ChatEvent;
+import com.sunrise.web.websocket.event.WsAppEvent;
+import com.sunrise.orchestrator.event.IDomainEvent;
 import com.sunrise.orchestrator.result.Dto;
-import com.sunrise.orchestrator.type.ChatEventType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +46,7 @@ public class ChatMemberOrchestrator {
     private final UserCacheService cacheUserService;
     private final UserDbService dbUserService;
 
-    private final ChatEventDbService chatEventDbService;
+    private final EventDbService eventDbService;
 
 
     // ========== CHAT MEMBER METHODS ==========
@@ -52,132 +55,132 @@ public class ChatMemberOrchestrator {
     // Основные методы
 
     @Transactional(propagation = MANDATORY)
-    public Optional<Long> saveOrRestore(@NonNull CreateDto.ChatMember chatMember) {
-        // синхронно в бд
+    public boolean saveOrRestore(@NonNull CreateDto.ChatMember chatMember) {
         boolean saved = dbChatMemberService.saveOrRestore(ChatMemberMapper.toEntity(chatMember));
         if (saved) {
-            var event = new ChatEvent.ChatMemberAdded(
-                chatMember.getChatId(), chatMember.getUserId(), 
-                chatMember.isAdmin(), chatMember.getJoinedAt(), 
-                chatMember.getJoinedAt()
+            var chatEvent = new IDomainEvent.ChatMemberAdded(
+                chatMember.getChatId(), chatMember.getUserId(), chatMember.isAdmin(), chatMember.getJoinedAt()
             );
-            long seq = chatEventDbService.saveAndReturnSeq(
-                ChatEventMapper.toEntity(event, ChatEventType.CHAT_MEMBER_ADDED)
+            var usersEvent = new IDomainEvent.UserChatAdded(
+                chatMember.getChatId(), chatMember.getJoinedAt()
             );
-
-            // публикуем для обновления кеша после коммита
-            eventPublisher.publishEvent(new CacheEvent.ChatMemberAdded(
-                ChatMemberMapper.toCache(chatMember)
-            ));
-            return Optional.of(seq);
+            ChatUserEvents seq = eventDbService.saveForChatAndUser(
+                chatMember.getChatId(), chatMember.getUserId(), chatEvent, usersEvent
+            );
+            eventPublisher.publishEvent(new CacheEvent.ChatMemberAdded(ChatMemberMapper.toCache(chatMember)));
+            eventPublisher.publishEvent(new WsAppEvent.ChatMemberAdded(seq.chatEvent(), chatEvent));
+            eventPublisher.publishEvent(new WsAppEvent.UserChatAdded(seq.userEvent(), usersEvent));
         }
-        return Optional.empty();
+        return saved;
     }
 
     @Transactional(propagation = MANDATORY)
-    public Optional<Long[]> saveOrRestoreBatch(long chatId, @NonNull List<CreateDto.ChatMember> chatMembers) {
-        // конвертируем
+    public Long[] saveOrRestoreBatch(long chatId, @NonNull List<CreateDto.ChatMember> chatMembers) {
         Instant joinedAt = chatMembers.getFirst().getJoinedAt();
-        Long[] memberIds = new Long[chatMembers.size()];
-        for (int i = 0; i < chatMembers.size(); i++) {
-            memberIds[i] = chatMembers.get(i).getUserId();
-        }
-
-        // синхронно в бд
+        Long[] memberIds = chatMembers.stream()
+            .map(CreateDto.ChatMember::getUserId).toArray(Long[]::new);
+        
         Long[] addedIds = dbChatMemberService.saveOrRestoreBatch(chatId, memberIds, joinedAt);
         if (addedIds.length > 0) {
-            // Фильтруем только тех, кто реально добавлен/восстановлен
             List<Long> addedUserIds = Arrays.asList(addedIds);
-            List<Boolean> admins = chatMembers.stream()
+            List<Boolean> adminFlags = chatMembers.stream()
                 .filter(m -> addedUserIds.contains(m.getUserId()))
                 .map(CreateDto.ChatMember::isAdmin).toList();
 
-            var event = new ChatEvent.ChatMembersAdded(
-                chatId, addedUserIds,
-                admins, joinedAt, Instant.now()
+            var chatEvent = new IDomainEvent.ChatMembersAdded(
+                chatId, addedUserIds, adminFlags, joinedAt
             );
-            long seq = chatEventDbService.saveAndReturnSeq(
-                ChatEventMapper.toEntity(event, ChatEventType.CHAT_MEMBERS_ADDED)
+            var usersEvent = new IDomainEvent.UserChatAdded(
+                chatId, joinedAt
             );
-
-            // Фильтруем только тех, кто реально добавлен/восстановлен
+            ChatUsersEvents seq = eventDbService.saveForChatAndAllUsersShared(
+                chatId, addedUserIds, chatEvent, usersEvent
+            );
             List<CreateDto.ChatMember> addedMembers = chatMembers.stream()
-                    .filter(m -> Arrays.asList(addedIds).contains(m.getUserId())).toList();
+                    .filter(m -> addedUserIds.contains(m.getUserId())).toList();
 
-            // публикуем для обновления кеша после коммита
-            eventPublisher.publishEvent(new CacheEvent.ChatMembersAdded(
-                chatId, ChatMemberMapper.toCaches(addedMembers)
-            ));
-            return Optional.of(new Long[]{seq});
+            eventPublisher.publishEvent(new CacheEvent.ChatMembersAdded(chatId, ChatMemberMapper.toCaches(addedMembers)));
+            eventPublisher.publishEvent(new WsAppEvent.ChatMembersAdded(seq.chatEvent(), chatEvent));
+            for (UserEvent userSeq : seq.usersEvent()) {
+                eventPublisher.publishEvent(new WsAppEvent.UserChatAdded(userSeq, usersEvent));
+            }
         }
-        return Optional.empty();
+        return addedIds;
     }
 
     @Transactional(propagation = MANDATORY)
-    public Optional<Long> updateProfile(long chatId, long userId, String tag, Instant updatedAt) {
-        // синхронно в бд
+    public boolean updateProfile(long chatId, long userId, String tag, Instant updatedAt) {
         int updated = dbChatMemberService.updateProfile(chatId, userId, tag, updatedAt);
         if (updated > 0) {
-            var event = new ChatEvent.ChatMemberInfoUpdate(
+            var chatEvent = new IDomainEvent.ChatMemberInfoUpdate(
                 chatId, userId, tag, updatedAt
             );
-            long seq = chatEventDbService.saveAndReturnSeq(
-                ChatEventMapper.toEntity(event, ChatEventType.CHAT_MEMBER_INFO_UPDATE)
+            ChatEvent seq = eventDbService.saveChatEvent(
+                chatId, chatEvent
             );
-
-            // публикуем для обновления кеша после коммита
-            eventPublisher.publishEvent(
-                new CacheEvent.ChatMemberInvalidated(chatId, userId)
-            );
-            return Optional.of(seq);
+            eventPublisher.publishEvent(new CacheEvent.ChatMemberInvalidated(chatId, userId));
+            eventPublisher.publishEvent(new WsAppEvent.ChatMemberInfoUpdated(seq, chatEvent));
         }
-        return Optional.empty();
+        return updated > 0;
     }
 
     @Transactional(propagation = MANDATORY)
-    public Optional<Long> updateAdminRights(long chatId, long userId, boolean isAdmin, Instant updatedAt) {
-        // синхронно в бд
+    public boolean updateAdminRights(long chatId, long userId, boolean isAdmin, Instant updatedAt) {
         int updated = dbChatMemberService.updateAdminRights(chatId, userId, isAdmin, updatedAt);
         if (updated > 0) {
-            var event = new ChatEvent.ChatMemberAdminUpdated(
+            var chatEvent = new IDomainEvent.ChatMemberAdminUpdated(
                 chatId, userId, isAdmin, updatedAt
             );
-            long seq = chatEventDbService.saveAndReturnSeq(
-                ChatEventMapper.toEntity(event, ChatEventType.CHAT_MEMBER_ADMIN_UPDATED)
+            ChatEvent seq = eventDbService.saveChatEvent(
+                chatId, chatEvent
             );
-
-            // публикуем для обновления кеша после коммита
-            eventPublisher.publishEvent(
-                new CacheEvent.ChatMemberInvalidated(chatId, userId)
-            );
-            return Optional.of(seq);
+            eventPublisher.publishEvent(new CacheEvent.ChatMemberInvalidated(chatId, userId));
+            eventPublisher.publishEvent(new WsAppEvent.ChatMemberAdminUpdated(seq, chatEvent));
         }
-        return Optional.empty();
+        return updated > 0;
     }
 
     @Transactional(propagation = MANDATORY)
-    public Optional<Long> remove(long chatId, long userId, Instant updatedAt) {
-        // синхронно в бд
+    public boolean updateSettings(long chatId, long userId, boolean isPinned, Instant updatedAt) {
+        int updated = dbChatMemberService.updateSettings(chatId, userId, isPinned, updatedAt);
+        if (updated > 0) {
+            var usersEvent = new IDomainEvent.UserChatSettingsChanged(
+                chatId, isPinned, updatedAt
+            );
+            UserEvent userSeq = eventDbService.saveUserEvent(
+                userId, usersEvent
+            );
+            eventPublisher.publishEvent(new CacheEvent.ChatMemberInvalidated(chatId, userId));
+            eventPublisher.publishEvent(new WsAppEvent.UserChatSettingsChanged(userSeq, usersEvent));
+        }
+        return updated > 0;
+    }
+
+    @Transactional(propagation = MANDATORY)
+    public boolean remove(long chatId, long userId, Instant updatedAt) {
         boolean removed = dbChatMemberService.remove(userId, chatId, updatedAt);
         if (removed) {
-            var event = new ChatEvent.ChatMemberRemoved(
+            var chatEvent = new IDomainEvent.ChatMemberRemoved(
                 chatId, userId, updatedAt
             );
-            long seq = chatEventDbService.saveAndReturnSeq(
-                ChatEventMapper.toEntity(event, ChatEventType.CHAT_MEMBER_REMOVED)
+            var usersEvent = new IDomainEvent.UserChatRemoved(
+                chatId, updatedAt
             );
-
-            // публикуем для обновления кеша после коммита
-            eventPublisher.publishEvent(
-                new CacheEvent.ChatMemberInvalidated(chatId, userId)
+            ChatUserEvents seq = eventDbService.saveForChatAndUser(
+                chatId, userId, chatEvent, usersEvent
             );
-            return Optional.of(seq);
+            eventPublisher.publishEvent(new CacheEvent.ChatMemberRemoved(chatId, userId));
+            eventPublisher.publishEvent(new CacheEvent.CleanUserChatAction(chatId, userId));
+            eventPublisher.publishEvent(new WsAppEvent.ChatMemberRemoved(seq.chatEvent(), chatEvent));
+            eventPublisher.publishEvent(new WsAppEvent.UserChatRemoved(seq.userEvent(), usersEvent));
         }
-        return Optional.empty();
+        return removed;
     }
+
 
     // Вспомогательные методы
     
+    @Transactional(readOnly = true)
     public boolean hasActive(long chatId, long userId) {
         // проверка в кеше
         Optional<Boolean> hasActiveChatMember = cacheChatMemberService.hasActive(chatId, userId);
@@ -195,6 +198,7 @@ public class ChatMemberOrchestrator {
         return dbMember.map(ChatMember::isActive).orElse(false);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Boolean> isActiveAdmin(long chatId, long userId) {
         // пробуем кеш
         Optional<Boolean> cached = cacheChatMemberService.isActiveAdmin(chatId, userId);
@@ -212,6 +216,7 @@ public class ChatMemberOrchestrator {
         return dbMember.map(ChatMember::isAdmin);
     }
 
+    @Transactional(readOnly = true)
     public List<Dto.ChatMemberProfile> getProfilesByIds(long chatId, @NonNull Set<Long> userIds) {
         if (userIds.isEmpty()) {
             return Collections.emptyList();
@@ -259,6 +264,7 @@ public class ChatMemberOrchestrator {
         return result;
     }
 
+    @Transactional(readOnly = true)
     public Dto.ChatMembersPage getPage(long chatId, Long cursor, int limit) {
         if (!cacheChatMemberService.hasResentIds(chatId)) {
             // Публикуем событие для фоновой инициализации после коммита

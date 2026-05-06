@@ -1,5 +1,11 @@
 package com.sunrise.cache.event;
 
+import com.sunrise.cache.event.CacheEvent.*;
+import com.sunrise.cache.service.*;
+import com.sunrise.db.service.ChatMemberDbService;
+import com.sunrise.db.service.MessageDbService;
+import com.sunrise.web.websocket.service.UserGlobalStatusKeeper;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -9,249 +15,245 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import com.sunrise.cache.entity.Cache.ChatMember;
-import com.sunrise.cache.entity.Cache.Message;
-import com.sunrise.cache.event.CacheEvent.MessagesRecentIdsInit;
-import com.sunrise.cache.service.ChatCacheService;
-import com.sunrise.cache.service.ChatMemberCacheService;
-import com.sunrise.cache.service.MessageCacheService;
-import com.sunrise.cache.service.UserCacheService;
-import com.sunrise.cache.service.VerificationTokenCacheService;
-import com.sunrise.db.service.ChatMemberDbService;
-import com.sunrise.db.service.MessageDbService;
-
-
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CacheEventListener {
 
-    private final UserCacheService userCacheService;
-    private final ChatCacheService chatCacheService;
-    private final ChatMemberCacheService chatMemberCacheService;
-    private final MessageCacheService messageCacheService;
-    private final VerificationTokenCacheService verificationTokenCacheService;
+    private final UserCacheService userCache;
+    private final ChatCacheService chatCache;
+    private final ChatMemberCacheService chatMemberCache;
+    private final MessageCacheService messageCache;
+    private final VerificationTokenCacheService verificationTokenCache;
 
-    private final MessageDbService messageDbService;
-    private final ChatMemberDbService chatMemberDbService;
+    private final MessageDbService messageDb;
+    private final ChatMemberDbService chatMemberDb;
+
+    private final UserGlobalStatusKeeper userGlobalStatusKeeper;
 
 
-    // ===== USER =====
+    // ========================= USER ===============================
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onUserCreated(CacheEvent.UserCreated event) {
+    public void onUserCreated(UserCreated event) {
         try {
-            userCacheService.saveProfile(event.profile());
-            userCacheService.saveSecurity(event.security());
+            userCache.saveProfile(event.profile());
+            userCache.saveSecurity(event.security());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache user after commit: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onUserProfileSave(CacheEvent.UserProfileSave event) {
+    public void onUserProfileSave(UserProfileSave event) {
         try {
-            userCacheService.saveProfile(event.profile());
+            userCache.saveProfile(event.profile());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache user profile after commit: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onUserProfilesSave(CacheEvent.UserProfilesSave event) {
+    public void onUserProfilesSave(UserProfilesSave event) {
         try {
-            userCacheService.saveProfiles(event.profiles());
+            userCache.saveProfiles(event.profiles());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache user profiles after commit: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onUserSecuritySave(CacheEvent.UserSecuritySave event) {
+    public void onUserSecuritySave(UserSecuritySave event) {
         try {
-            userCacheService.saveSecurity(event.security());
+            userCache.saveSecurity(event.security());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache user security after commit: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onUserProfileUpdated(CacheEvent.UserProfileUpdated event) {
+    public void onUserProfileUpdated(UserProfileUpdated event) {
         try {
-            userCacheService.invalidateProfileAndUsernameIndex(event.userId(), event.oldUsername());
+            userCache.invalidateProfileAndUsernameIndex(event.userId(), event.oldUsername());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to invalidate user profile cache: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onUserEmailUpdated(CacheEvent.UserEmailUpdated event) {
+    public void onUserEmailUpdated(UserEmailUpdated event) {
         try {
-            userCacheService.invalidateSecurityAndEmailIndex(event.userId(), event.oldEmail());
+            userCache.invalidateSecurityAndEmailIndex(event.userId(), event.oldEmail());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to invalidate user email cache: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onUserSecurityInvalidation(CacheEvent.UserSecurityAndProfileInvalidated event) {
+    public void onUserSecurityInvalidation(UserSecurityAndProfileInvalidated event) {
         try {
-            userCacheService.invalidateProfile(event.userId());
-            userCacheService.invalidateSecurity(event.userId());
+            userCache.invalidateProfile(event.userId());
+            userCache.invalidateSecurity(event.userId());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to invalidate user profile and security cache: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onUserSecurityInvalidation(CacheEvent.UserSecurityInvalidated event) {
+    public void onUserSecurityInvalidation(UserSecurityInvalidated event) {
         try {
-            userCacheService.invalidateSecurity(event.userId());
+            userCache.invalidateSecurity(event.userId());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to invalidate user security cache: {}", e.getMessage());
         }
     }
 
 
-    // ===== CHAT =====
+    // ====================== CHAT ===============================
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatCreated(CacheEvent.ChatWithMembersCreated event) {
+    public void onChatCreated(ChatWithMembersCreated event) {
         try {
-            chatCacheService.save(event.chat());
-            chatMemberCacheService.saveBatch(event.chat().getId(), event.members());
+            chatCache.save(event.chat());
+            chatMemberCache.saveBatch(event.chat().getId(), event.members());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache created chat: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatSave(CacheEvent.ChatSave event) {
+    public void onChatSave(ChatSave event) {
         try {
-            chatCacheService.save(event.chat());
+            chatCache.save(event.chat());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache chat: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatsSave(CacheEvent.ChatsSave event) {
+    public void onChatsSave(ChatsSave event) {
         try {
-            chatCacheService.saveBatch(event.chats());
+            chatCache.saveBatch(event.chats());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache chats: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatInvalidation(CacheEvent.ChatInvalidated event) {
+    public void onChatInvalidation(ChatInvalidated event) {
         try {
-            chatCacheService.invalidate(event.chatId());
+            chatCache.invalidate(event.chatId());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to invalidate chat cache: {}", e.getMessage());
         }
     }
 
 
-    // ===== CHAT MEMBER =====
+    // ====================== CHAT-MEMBER =========================
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatMemberAdded(CacheEvent.ChatMemberAdded event) {
+    public void onChatMemberAdded(ChatMemberAdded event) {
         try {
-            ChatMember member = event.member();
-            chatMemberCacheService.save(member);
-            chatCacheService.increaseChatMemberCounter(member.chatId(), 1);
-            chatMemberCacheService.addToRecentIds(member.chatId(), member.userId());
+            var member = event.member();
+            chatMemberCache.save(member);
+            chatCache.increaseChatMemberCounter(member.chatId(), 1);
+            chatMemberCache.addToRecentIds(member.chatId(), member.userId());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache chat member: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatMembersAdded(CacheEvent.ChatMembersAdded event) {
+    public void onChatMembersAdded(ChatMembersAdded event) {
         try {
-            chatMemberCacheService.saveBatch(event.chatId(), event.members());
-            chatCacheService.increaseChatMemberCounter(event.chatId(), event.members().size());
-            chatMemberCacheService.invalidateResentIds(event.chatId());
+            chatMemberCache.saveBatch(event.chatId(), event.members());
+            chatCache.increaseChatMemberCounter(event.chatId(), event.members().size());
+            chatMemberCache.invalidateResentIds(event.chatId());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache chat members: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatMemberSaved(CacheEvent.ChatMemberSave event) {
+    public void onChatMemberSaved(ChatMemberSave event) {
         try {
-            chatMemberCacheService.save(event.member());
+            chatMemberCache.save(event.member());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache chat member: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatMembersSaved(CacheEvent.ChatMembersSave event) {
+    public void onChatMembersSaved(ChatMembersSave event) {
         try {
-            chatMemberCacheService.saveBatch(event.chatId(), event.members());
+            chatMemberCache.saveBatch(event.chatId(), event.members());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache chat members: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatMembersIdsInit(CacheEvent.ChatMembersIdsInit event) {
+    public void onChatMemberRemoved(ChatMemberRemoved event) {
+        try {
+            chatMemberCache.invalidate(event.chatId(), event.userId());
+            chatMemberCache.removeFromRecentIds(event.chatId(), event.userId());
+        } catch (Exception e) {
+            log.error("[⚡] ❌ Failed to invalidate chat member resent: {}", e.getMessage());
+        }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onChatMembersIdsInit(ChatMembersIdsInit event) {
         try {
             long chatId = event.chatId();
-            if (chatMemberCacheService.hasResentIds(event.chatId())) {
+            if (chatMemberCache.hasResentIds(event.chatId())) {
                 return; // уже инициализирован
             }
 
-            // Загружаем до limit последних ID участников
-            int limit = chatMemberCacheService.getMaxMembersResentIdsPerChat();
-            List<Long> ids = chatMemberDbService.getIdsPage(chatId, null, limit);
-            
-            // сохраняем
-            chatMemberCacheService.saveResentIds(chatId, ids);
-            
+            int limit = chatMemberCache.getMaxMembersResentIdsPerChat();
+            List<Long> ids = chatMemberDb.getIdsPage(chatId, null, limit);
+            chatMemberCache.saveResentIds(chatId, ids);
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to init member IDs cache for chat {}: {}", event.chatId(), e.getMessage());
         }
     }
     
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onChatMemberInvalidation(CacheEvent.ChatMemberInvalidated event) {
+    public void onChatMemberInvalidation(ChatMemberInvalidated event) {
         try {
-            chatMemberCacheService.invalidate(event.chatId(), event.userId());
+            chatMemberCache.invalidate(event.chatId(), event.userId());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to invalidate chat member: {}", e.getMessage());
         }
     }
+    
 
-
-    // ===== MESSAGE =====
+    // ====================== MESSAGE ============================
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onMessageCreated(CacheEvent.MessageCreated event) {
+    public void onMessageCreated(MessageCreated event) {
         try {
-            Message message = event.message();
-            messageCacheService.save(message);
-            messageCacheService.addToRecentIds(message.chatId(), message.id());
+            var message = event.message();
+            messageCache.save(message);
+            messageCache.addToRecentIds(message.chatId(), message.id());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache new message: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onMessageSaved(CacheEvent.MessageSave event) {
+    public void onMessageSaved(MessageSave event) {
         try {
-            messageCacheService.save(event.message());
+            messageCache.save(event.message());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache message: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onMessagesSaved(CacheEvent.MessagesSave event) {
+    public void onMessagesSaved(MessagesSave event) {
         try {
-            messageCacheService.saveBatch(event.messages());
+            messageCache.saveBatch(event.messages());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache messages: {}", e.getMessage());
         }
@@ -260,58 +262,84 @@ public class CacheEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRecentMessagesIdsInit(MessagesRecentIdsInit event) {
         try {
-            if (messageCacheService.hasRecentIds(event.chatId())) {
-                return; // уже инициализирован
+            if (messageCache.hasRecentIds(event.chatId())) {
+                return;
             }
 
-            // загружаем последние N ID из БД
-            int limit = messageCacheService.getMaxMessagesResentIdsPerChat();
-            List<Long> idsFromDb = messageDbService.getLastMessageIds(event.chatId(), limit);
-            
-            // сохраняем
-            messageCacheService.saveRecentIds(event.chatId(), idsFromDb);
-
+            int limit = messageCache.getMaxMessagesResentIdsPerChat();
+            List<Long> idsFromDb = messageDb.getLastMessageIds(event.chatId(), limit);
+            messageCache.saveRecentIds(event.chatId(), idsFromDb);
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to init cache of recent chat messages: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onMessageInvalidation(CacheEvent.MessageInvalidated event) {
+    public void onMessageReadCountUpdated(MessagesReadCountIncremented event) {
         try {
-            messageCacheService.invalidate(event.messageId());
+            messageCache.incrementReadCountBatch(event.messageIds());
+        } catch (Exception e) {
+            log.error("[⚡] ❌ Failed to increment readCount for messages: {}", e.getMessage());
+        }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onMessageInvalidation(MessageInvalidated event) {
+        try {
+            messageCache.invalidate(event.messageId());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to invalidate message: {}", e.getMessage());
         }
     }
 
 
-    // ===== VERIFICATION TOKEN =====
+    // ================== VERIFICATION-TOKEN =======================
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onVerificationTokenCreated(CacheEvent.VerificationTokenCreated event) {
+    public void onVerificationTokenCreated(VerificationTokenCreated event) {
         try {
-            verificationTokenCacheService.save(event.token());
+            verificationTokenCache.save(event.token());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache verification token: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onVerificationTokenCreated(CacheEvent.VerificationTokenSave event) {
+    public void onVerificationTokenCreated(VerificationTokenSave event) {
         try {
-            verificationTokenCacheService.save(event.token());
+            verificationTokenCache.save(event.token());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to cache verification token: {}", e.getMessage());
         }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onVerificationTokenDeleted(CacheEvent.VerificationTokenDeleted event) {
+    public void onVerificationTokenDeleted(VerificationTokenDeleted event) {
         try {
-            verificationTokenCacheService.invalidate(event.token());
+            verificationTokenCache.invalidate(event.token());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to invalidate verification token: {}", e.getMessage());
+        }
+    }
+
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onCleanUserChatAction(CleanUserChatAction event) {
+        try {
+            userGlobalStatusKeeper.removeUserActionFromChat(event.chatId(), event.userId());
+            log.debug("[⚡] 🧹 Cleaned actions for user {} in chat {}", event.userId(), event.chatId());
+        } catch (Exception e) {
+            log.error("[⚡] ❌ Failed to clean user actions: {}", e.getMessage());
+        }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onCleanChatActions(CleanChatActions event) {
+        try {
+            userGlobalStatusKeeper.removeChatActions(event.chatId());
+            log.debug("[⚡] 🧹 Cleaned all actions for chat {}", event.chatId());
+        } catch (Exception e) {
+            log.error("[⚡] ❌ Failed to clean chat actions: {}", e.getMessage());
         }
     }
 }

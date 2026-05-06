@@ -42,11 +42,13 @@ spring:
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate.ddl-auto: ${SPRING_JPA_DDL_AUTO:validate}
     properties:
       hibernate:
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
         format_sql: ${SPRING_HIBERNATE_FORMAT_SQL:false}
         hibernate.transaction.jta.platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform # ЭТО ДО ТЕХ ПОР, ПОКА 1 БАЗА ДАННЫХ
     show-sql: ${SPRING_JPA_SHOW_SQL:false}
@@ -77,15 +79,41 @@ logging:
   level:
     com.sunrise: ${LOGGING_LEVEL_APP:DEBUG}
     org.hibernate.SQL: ${LOGGING_LEVEL_ORG_HIBERNATE_SQL:WARN}
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
 
 app:
   jwt:
     secret: ${JWT_SECRET:mysupersecretkeymysupersecretkeymysupersecretkey}
     expiration: ${APP_JWT_EXPIRATION:36000} # in seconds
     no-jwt-endpoints: /ping,/cache-status,/api/auth/login,/api/auth/register,/api/auth/change-password,/api/auth/reset-password,/forms/**,/static/**,/ws/**
-  rate-limit:
-    requests-per-minute: ${APP_RATE_LIMIT_REQUESTS_PER_MINUTE:500}
+  api:
+    rate-limit:
+      enabled: ${API_RATE_LIMIT_ENABLED:true}
+      default-limit: ${API_RATE_LIMIT_DEFAULT:300}
+      urls: # Поддерживаются точные пути, а также паттерны (Ant-стиль)
+        "/api/auth/login": ${API_RATE_LIMIT_LOGIN:10}
+        "/api/auth/register": ${API_RATE_LIMIT_REGISTER:5}
+        "/api/chats/create-personal": ${API_RATE_LIMIT_CREATE_PERSONAL:20}
+        "/api/chats/create-group": ${API_RATE_LIMIT_CREATE_GROUP:20}
+        "/api/chats/*/messages/send": ${API_RATE_LIMIT_SEND_MESSAGE:30}
+        "/api/chats/*/messages/*/edit": ${API_RATE_LIMIT_EDIT_MESSAGE:10}
+        "/api/chats/*/messages/*/delete": ${API_RATE_LIMIT_DELETE_MESSAGE:10}
+        "/api/chats/*/sync": ${API_RATE_LIMIT_CHAT_SYNC:60}
+        "/api/users/sync": ${API_RATE_LIMIT_USER_SYNC:30}
+        "/api/profiles/**": ${API_RATE_LIMIT_PROFILES:100}
+        "/actuator/**": 0   # 0 – без ограничений
+  websocket:
+    action-ttl-seconds: 30
+    rate-limit:
+      enabled: ${WS_RATE_LIMIT_ENABLED:true}
+      default-limit: ${WS_RATE_LIMIT_DEFAULT:60}   # лимит для команд, не перечисленных ниже
+      commands:
+        send_message: ${WS_RATE_LIMIT_SEND_MESSAGE:30}   
+        edit_message: ${WS_RATE_LIMIT_EDIT_MESSAGE:10}     
+        delete_message: ${WS_RATE_LIMIT_DELETE_MESSAGE:10}   
+        mark_read: ${WS_RATE_LIMIT_MARK_READ:60}          
+        user_action: ${WS_RATE_LIMIT_USER_ACTION:20}       
+        ping: ${WS_RATE_LIMIT_PING:5}                        
+        subscription: ${WS_RATE_LIMIT_SUBSCRIPTION:20}      
   mail:
     mail-address: ${MAIL_USERNAME}
     base-url: http://${SERVER_IP:localhost}:${SERVER_PORT:10610}${SERVER_BASE_PATH:/app}

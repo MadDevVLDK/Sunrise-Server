@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -17,6 +18,7 @@ public class ChatCacheService {
 
     private final Cache<Long, Chat> chatInfoCache;
     private final Cache<String, Long> personalChatIndex;
+    private final Map<Long, String> chatToPersonalKey = new ConcurrentHashMap<>();
 
     public ChatCacheService(Cache<Long, Chat> chatInfoCache, 
                             @Qualifier("personalChatIndex") Cache<String, Long> personalChatIndex) {
@@ -31,7 +33,7 @@ public class ChatCacheService {
     public void saveBatch(Collection<Chat> newChats) {
         for (Chat newChat : newChats) {
             chatInfoCache.put(newChat.getId(), ChatMapper.copy(newChat));
-            if (newChat.isPersonal()) {
+            if (newChat.isPersonal() && newChat.isActive()) {
                 savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
             }
         }
@@ -40,7 +42,7 @@ public class ChatCacheService {
 
     public void save(Chat newChat) {
         chatInfoCache.put(newChat.getId(), ChatMapper.copy(newChat));
-        if (newChat.isPersonal()) {
+        if (newChat.isPersonal() && newChat.isActive()) {
             savePersonalChatIndex(newChat.getId(), newChat.getCreatedBy(), newChat.getOpponentId());
         }
         log.debug("[⚡] 💬 Saved chat {} in cache and updated indexes", newChat.getId());
@@ -57,6 +59,7 @@ public class ChatCacheService {
 
     public void invalidate(long chatId) {
         chatInfoCache.invalidate(chatId);
+        invalidatePersonalChatIndex(chatId);
         log.debug("[⚡] 💬🚫 Invalidated chat {} in cache", chatId);
     }
 
@@ -69,8 +72,8 @@ public class ChatCacheService {
         }
         Optional<Chat> chat = getChatLink(chatId);
         if (chat.isEmpty()) {
-            personalChatIndex.invalidate(key);
-            log.debug("[⚡] 💬🔍 Personal chat index {} invalidated (chat not in cache)", key);
+            invalidatePersonalChatIndex(chatId);
+            log.debug("[⚡] 💬🚫 Invalidated chat {} in cache", chatId);
         }
         return chat;
     }
@@ -87,8 +90,14 @@ public class ChatCacheService {
         return Math.min(userId1, userId2) + ":" + Math.max(userId1, userId2);
     }
 
-    public void savePersonalChatIndex(long chatId, long creatorId, long opponentId) {
-        personalChatIndex.put(getPersonalChatKey(creatorId, opponentId), chatId);
-        log.debug("[⚡] 💬📌 Saved personal chat index for users {} and {} -> chat {}", creatorId, opponentId, chatId);
+    private void savePersonalChatIndex(long chatId, long creatorId, long opponentId) {
+        String key = getPersonalChatKey(creatorId, opponentId);
+        personalChatIndex.put(key, chatId);
+        chatToPersonalKey.put(chatId, key);
+    }
+
+    private void invalidatePersonalChatIndex(long chatId) {
+        String personalKey = chatToPersonalKey.remove(chatId);
+        if (personalKey != null) personalChatIndex.invalidate(personalKey);
     }
 }

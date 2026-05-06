@@ -189,8 +189,7 @@ public class ChatMapper {
             chat.getChatId(),
             chat.getIsPinned(),
             chat.getLastMsgId(),
-            chat.getUnreadCount(),
-            chat.getSeq()
+            chat.getUnreadCount()
         );
     }
 
@@ -208,7 +207,6 @@ public class ChatMapper {
             MessageMapper.toUserDTO(chat),
             chat.getLastReadMessageId(),
             chat.getUnreadCount(),
-            chat.getSeq(),
             chat.getUpdatedAt(),
             chat.getCreatedAt(),
             chat.getCreatedBy()
@@ -223,6 +221,16 @@ public class ChatMapper {
             resultMap.add(toProfileDTO(chat, userId));
         }
         return resultMap;
+    }
+
+    public static Dto.ChatStatsResult toChatStatsDTO(ChatStatsResult stats) {
+        if (stats == null) return null;
+
+        return new Dto.ChatStatsResult(
+            stats.getTotalMessages(),
+            stats.getDeletedForAll(),
+            stats.getCanDeleteForAll()
+        );
     }
 
     // ========== CHAT AVATAR (закомментировано) ==========

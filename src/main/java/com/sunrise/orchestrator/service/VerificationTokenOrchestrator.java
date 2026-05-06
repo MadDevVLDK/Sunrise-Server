@@ -66,6 +66,7 @@ public class VerificationTokenOrchestrator {
 
     // Вспомогательные методы
 
+    @Transactional(readOnly = true)
     public Optional<Dto.VerificationToken> getVerificationToken(@NonNull String token) {
         // пробуем кеш
         Optional<Cache.VerificationToken> optToken = cacheVerificationTokenService.get(token);

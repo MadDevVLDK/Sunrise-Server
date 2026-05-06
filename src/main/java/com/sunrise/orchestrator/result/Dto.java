@@ -1,7 +1,8 @@
 package com.sunrise.orchestrator.result;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.sunrise.orchestrator.result.Dto.GlobalChatEvent;
+import com.sunrise.orchestrator.event.EventType;
+import com.sunrise.orchestrator.event.IDomainEvent;
 import com.sunrise.orchestrator.type.ChatType;
 import com.sunrise.orchestrator.type.MessageType;
 import com.sunrise.orchestrator.type.TokenType;
@@ -18,8 +19,7 @@ public final class Dto {
         long id,
         @JsonProperty("isPinned") boolean isPinned,
         Long lastMsgId,
-        int unreadCount,
-        long seq
+        int unreadCount
     ) {}
 
     public record ChatProfile(
@@ -33,7 +33,6 @@ public final class Dto {
         Message lastMessage,
         Long lastReadMessageId,
         int unreadCount,
-        long seq,
         Instant updatedAt,
         Instant createdAt,
         long createdBy
@@ -109,7 +108,7 @@ public final class Dto {
         Instant profileUpdatedAt,
         Instant memberUpdatedAt,
         String text,
-        long readCount,
+        int readCount,
         Instant sentAt,
         Instant updatedAt,
         Instant deletedAt,
@@ -175,25 +174,16 @@ public final class Dto {
 
     // ==================== СОБЫТИЯ ====================
 
-    public record GlobalUserEvent(
-        long seq, 
-        String type, 
-        UserEvent.IUserEvent event
+    public record GlobalEvent(
+        long eventId,
+        EventType type,
+        IDomainEvent event,
+        Instant createdAt
     ) {}
 
-    public record GlobalUserSync(
-        List<GlobalUserEvent> events, 
-        boolean hasMore
-    ) {}
-
-    public record GlobalChatEvent(
-        long seq, 
-        String type, 
-        ChatEvent.IChatEvent event
-    ) {}
-
-    public record GlobalChatSync(
-        List<GlobalChatEvent> events, 
-        boolean hasMore
+    public record GlobalEventSync(
+        List<GlobalEvent> events,
+        boolean hasMore,
+        boolean isSyncRequired
     ) {}
 }

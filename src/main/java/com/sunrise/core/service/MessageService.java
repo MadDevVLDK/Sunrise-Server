@@ -1,8 +1,6 @@
 package com.sunrise.core.service;
 
-import com.sunrise.notifier.WebSocketNotifier;
 import com.sunrise.orchestrator.DataValidator;
-import com.sunrise.orchestrator.result.ChatEvent.PublicMessageCreated;
 import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.MessageOrchestrator;
 import com.sunrise.orchestrator.service.UserOrchestrator;
@@ -10,7 +8,7 @@ import com.sunrise.orchestrator.type.Direction;
 import com.sunrise.orchestrator.type.MessageType;
 import com.sunrise.core.creation.CreateDto;
 import com.sunrise.core.result.*;
-import com.sunrise.helpclass.SimpleSnowflakeId;
+import com.sunrise.helpclass.SnowflakeId;
 import com.sunrise.helpclass.ValidationException;
 
 import lombok.AllArgsConstructor;
@@ -35,11 +33,9 @@ public class MessageService {
 
     private final DataValidator validator;
 
-    private final WebSocketNotifier wsNotify;
-
 
     @Transactional
-    public ResultOneArg<Long> makePublicMessage(long tempId, long chatId, long senderId, String text) {
+    public ResultOneArg<Long> makePublicMessage(String tempId, long chatId, long senderId, String text) {
         try {
             if (text == null || text.trim().isEmpty()) {
                 throw new ValidationException("Message text cannot be empty");
@@ -55,17 +51,14 @@ public class MessageService {
                     .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
 
             CreateDto.Message message = new CreateDto.Message(
-                SimpleSnowflakeId.nextId(), chatId, senderId,
+                SnowflakeId.next(), chatId, senderId,
                 MessageType.COMMON, text, Instant.now()
             );
-            Optional<Long> seqChatEvent = messageOrchestrator.save(message);
-            if (seqChatEvent.isEmpty()) {
-                throw new ValidationException("failed to make message");
+            
+            boolean isUpdated = messageOrchestrator.save(tempId, user.profileUpdatedAt(), message);
+            if (!isUpdated) {
+                throw new ValidationException("Failed to make message");
             }
-
-            // уведомить всех надо об этом
-            PublicMessageCreated notify = new PublicMessageCreated(chatId, chatId, senderId, text, null, null);
-            wsNotify.notifyMessageNew(tempId, message, user.profileUpdatedAt());
 
             log.info("[🔧] ✅ User {} send public message {} in chat {}", senderId, message.getId(), chatId);
             return ResultOneArg.success(message.getId());
@@ -79,44 +72,6 @@ public class MessageService {
             return ResultOneArg.error("createPublicMessage failed due to server error");
         }
     }
-    
-    @Transactional
-    public ResultOneArg<Long> makePrivateMessage(long tempId, long chatId, long senderId, long userToSend, String text) {
-        try {
-            // Валидация текста сообщения
-            if (text == null || text.trim().isEmpty()) {
-                throw new ValidationException("Message text cannot be empty");
-            }
-
-            if (text.length() > 10000) {
-                throw new ValidationException("Message text is too long");
-            }
-
-            validator.validateActiveChatMemberInActiveChat(chatId, senderId);
-
-            UserProfileLight user = userOrchestrator.getUserProfileLight(senderId)
-                    .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
-
-            CreateDto.Message message = new CreateDto.Message(
-                SimpleSnowflakeId.nextId(), chatId, senderId,
-                MessageType.COMMON, text, Instant.now()
-            );
-
-            // уведомить всех надо об этом
-            wsNotify.notifyMessagePrivateNew(tempId, message, user.profileUpdatedAt(), userToSend);
-
-            log.info("[🔧] ✅ User {} send private message {} to user {} in chat {}", senderId, message.getId(), userToSend, chatId);
-            return ResultOneArg.success(message.getId());
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed making private message: {}", e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error making private message: {}", e.getMessage());
-            return ResultOneArg.error("createPrivateMessage failed due to server error");
-        }
-    }
 
     @Transactional
     public ResultNoArgs updateMessage(long chatId, long userId, long messageId, String newText) {
@@ -124,10 +79,8 @@ public class MessageService {
             validator.validateCanUpdateMessage(chatId, userId, messageId);
 
             Instant updatedAt = Instant.now();
-            Optional<Long> seqChatEvent = messageOrchestrator.update(chatId, messageId, newText, updatedAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyMessageInfoUpdated(chatId, messageId, newText, updatedAt);
+            boolean isUpdated = messageOrchestrator.update(chatId, messageId, newText, updatedAt);
+            if (isUpdated) {
                 log.info("[🔧] ✅ User {} updated message {} in chat {}", userId, messageId, chatId);
             }
             return ResultNoArgs.success();
@@ -148,10 +101,8 @@ public class MessageService {
             validator.validateCanDeleteMessage(chatId, userId, messageId);
 
             Instant updatedAt = Instant.now();
-            Optional<Long> seqChatEvent = messageOrchestrator.delete(chatId, messageId, updatedAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyMessageDeleted(chatId, messageId, updatedAt);
+            boolean isUpdated = messageOrchestrator.delete(chatId, messageId, updatedAt);
+            if (isUpdated) {
                 log.info("[🔧] ✅ User {} deleted message {} in chat {}", userId, messageId, chatId);
             }
             return ResultNoArgs.success();
@@ -172,12 +123,10 @@ public class MessageService {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
             Instant readAt = Instant.now();
-            Optional<Long> seqChatEvent = messageOrchestrator.markMessagesUpToRead(chatId, userId, messageId, readAt);
-            if (seqChatEvent.isPresent()) {
-                // уведомить всех надо об этом
-                wsNotify.notifyMessageReadUpTo(chatId, userId, messageId, readAt);
+            boolean isUpdated = messageOrchestrator.markMessagesUpToRead(chatId, userId, messageId, readAt);
+            if (isUpdated) {
+                log.info("[🔧] ✅ User {} marked message as read {} in chat {}", userId, messageId, chatId);
             }
-            log.info("[🔧] ✅ User {} marked message as read {} in chat {}", userId, messageId, chatId);
             return ResultNoArgs.success();
         }
         catch (ValidationException e) {
@@ -190,6 +139,7 @@ public class MessageService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<Message> getMessage(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
@@ -212,6 +162,7 @@ public class MessageService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<List<Message>> getMessageBatch(long chatId, long userId, Set<Long> messageIds) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
@@ -231,6 +182,7 @@ public class MessageService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<MessagesPage> getMessagePagination(long chatId, long userId, Long cursor, int limit, Direction direction) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
@@ -250,6 +202,7 @@ public class MessageService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<List<MessageReadStatus>> getMessageReads(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);

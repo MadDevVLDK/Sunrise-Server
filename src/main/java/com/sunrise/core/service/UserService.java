@@ -86,6 +86,7 @@ public class UserService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<UserProfileLight> getMyProfile(long userId) {
         try {
             validator.validateActiveUser(userId);
@@ -105,6 +106,8 @@ public class UserService {
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
+    
+    @Transactional(readOnly = true)
     public ResultOneArg<UserProfileLight> getOtherProfileLight(long currentUserId, long otherUserId) {
         try {
             validator.validateActiveUser(currentUserId);
@@ -125,6 +128,8 @@ public class UserService {
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
+    
+    @Transactional(readOnly = true)
     public ResultOneArg<UserProfileFull> getOtherProfileFull(long currentUserId, long otherUserId) {
         try {
             validator.validateActiveUser(currentUserId);
@@ -146,6 +151,7 @@ public class UserService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultOneArg<List<UserProfileLight>> getOtherProfileLightByIds(long currentUser, Set<Long> userIds) {
         try {
             validator.validateActiveUser(currentUser);
@@ -164,6 +170,8 @@ public class UserService {
             return ResultOneArg.error("Get profile failed due to server error");
         }
     }
+    
+    @Transactional(readOnly = true)
     public ResultOneArg<UsersPage> getActiveUsersPage(long userId, String filter, Long cursor, int limit) {
         try {
             validator.validateActiveUser(userId);
@@ -180,6 +188,21 @@ public class UserService {
         catch (Exception e) {
             log.error("[🔧] ⚠️ Error during getFilteredUsers: {}", e.getMessage());
             return ResultOneArg.error("Get filtered users failed due to server error");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ResultOneArg<GlobalEventSync> syncUserEvents(long userId, long cursor) {
+        try {
+            validator.validateActiveUser(userId);
+            GlobalEventSync sync = userOrchestrator.getSyncUser(userId, cursor);
+            return ResultOneArg.success(sync);
+        } catch (ValidationException e) {
+            log.warn("[🔧] ☝️ Failed to sync user events for user {}: {}", userId, e.getMessage());
+            return ResultOneArg.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("[🔧] ⚠️ Error syncing user events for user {}: {}", userId, e.getMessage());
+            return ResultOneArg.error("syncUserEvents failed due to server error");
         }
     }
 }
