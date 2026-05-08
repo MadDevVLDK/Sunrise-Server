@@ -1,38 +1,41 @@
 package com.sunrise.core.service;
 
-import com.sunrise.core.dataservice.type.MessageType;
-import com.sunrise.core.notifier.WebSocketNotifier;
-import com.sunrise.core.service.result.*;
-import com.sunrise.entity.dto.MessageReadStatusDTO;
-import com.sunrise.entity.dto.UserProfileLightDTO;
-import com.sunrise.entity.creation.CreateMessageDTO;
-import com.sunrise.entity.pagination.MessagesPageDTO;
-import com.sunrise.entity.dto.UserMessageDTO;
-import com.sunrise.core.dataservice.DataOrchestrator;
-import com.sunrise.core.dataservice.type.Direction;
-import com.sunrise.core.dataservice.DataValidator;
-import com.sunrise.helpclass.SimpleSnowflakeId;
+import com.sunrise.orchestrator.DataValidator;
+import com.sunrise.orchestrator.result.Dto.*;
+import com.sunrise.orchestrator.service.MessageOrchestrator;
+import com.sunrise.orchestrator.service.UserOrchestrator;
+import com.sunrise.orchestrator.type.Direction;
+import com.sunrise.orchestrator.type.MessageType;
+import com.sunrise.core.creation.CreateDto;
+import com.sunrise.core.result.*;
+import com.sunrise.helpclass.SnowflakeId;
 import com.sunrise.helpclass.ValidationException;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Map;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+
 
 @Slf4j
 @Service
 @AllArgsConstructor
 public class MessageService {
 
-    private final DataValidator validator;
-    private final DataOrchestrator dataOrchestrator;
-    private final WebSocketNotifier wsNotify;
+    private final MessageOrchestrator messageOrchestrator;
+    private final UserOrchestrator userOrchestrator;
 
-    public ResultOneArg<Long> makePublicMessage(long tempId, long chatId, long senderId, String text) {
+    private final DataValidator validator;
+
+
+    @Transactional
+    public ResultOneArg<Long> makePublicMessage(String tempId, long chatId, long senderId, String text) {
         try {
             if (text == null || text.trim().isEmpty()) {
                 throw new ValidationException("Message text cannot be empty");
@@ -42,18 +45,20 @@ public class MessageService {
                 throw new ValidationException("Message text is too long");
             }
 
-            validator.validateActiveChatMemberInActiveChatAndGet(chatId, senderId);
-            UserProfileLightDTO user = dataOrchestrator.getUserProfile(senderId)
+            validator.validateActiveChatMemberInActiveChat(chatId, senderId);
+
+            UserProfileLight user = userOrchestrator.getUserProfileLight(senderId)
                     .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
 
-            CreateMessageDTO message = new CreateMessageDTO(
-                SimpleSnowflakeId.nextId(), chatId, senderId,
-                MessageType.COMMON, text, LocalDateTime.now()
+            CreateDto.Message message = new CreateDto.Message(
+                SnowflakeId.next(), chatId, senderId,
+                MessageType.COMMON, text, Instant.now()
             );
-            dataOrchestrator.saveMessage(message);
-
-            // уведомить всех надо об этом
-            wsNotify.notifyMessageNew(tempId, message, user.getProfileUpdatedAt());
+            
+            boolean isUpdated = messageOrchestrator.save(tempId, user.profileUpdatedAt(), message);
+            if (!isUpdated) {
+                throw new ValidationException("Failed to make message");
+            }
 
             log.info("[🔧] ✅ User {} send public message {} in chat {}", senderId, message.getId(), chatId);
             return ResultOneArg.success(message.getId());
@@ -63,57 +68,21 @@ public class MessageService {
             return ResultOneArg.error(e.getMessage());
         }
         catch (Exception e) {
-            log.error("[🔧] ⚠️ Error making public message: {}", e.getMessage());
+            log.error("[🔧] ⚠️ Error making public message: {}", e.getMessage(), e);
             return ResultOneArg.error("createPublicMessage failed due to server error");
         }
     }
-    public ResultOneArg<Long> makePrivateMessage(long tempId, long chatId, long senderId, long userToSend, String text) {
-        try {
-            // Валидация текста сообщения
-            if (text == null || text.trim().isEmpty()) {
-                throw new ValidationException("Message text cannot be empty");
-            }
 
-            if (text.length() > 10000) {
-                throw new ValidationException("Message text is too long");
-            }
-
-            validator.validateActiveChatMemberInActiveChatAndGet(chatId, senderId);
-            UserProfileLightDTO user = dataOrchestrator.getUserProfile(senderId)
-                    .orElseThrow(() -> new ValidationException("User not found -> " + senderId));
-
-            CreateMessageDTO message = new CreateMessageDTO(
-                SimpleSnowflakeId.nextId(), chatId, senderId,
-                MessageType.COMMON, text, LocalDateTime.now()
-            );
-
-            // уведомить всех надо об этом
-            wsNotify.notifyMessagePrivateNew(tempId, message, user.getProfileUpdatedAt(), userToSend);
-
-            log.info("[🔧] ✅ User {} send private message {} to user {} in chat {}", senderId, message.getId(), userToSend, chatId);
-            return ResultOneArg.success(message.getId());
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed making private message: {}", e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error making private message: {}", e.getMessage());
-            return ResultOneArg.error("createPrivateMessage failed due to server error");
-        }
-    }
-
+    @Transactional
     public ResultNoArgs updateMessage(long chatId, long userId, long messageId, String newText) {
         try {
             validator.validateCanUpdateMessage(chatId, userId, messageId);
 
-            LocalDateTime updatedAt = LocalDateTime.now();
-            dataOrchestrator.updateMessage(messageId, newText, updatedAt);
-
-            // уведомить всех надо об этом
-            wsNotify.notifyMessageInfoUpdated(chatId, messageId, newText, updatedAt);
-
-            log.info("[🔧] ✅ User {} updated message {} in chat {}", userId, messageId, chatId);
+            Instant updatedAt = Instant.now();
+            boolean isUpdated = messageOrchestrator.update(chatId, messageId, newText, updatedAt);
+            if (isUpdated) {
+                log.info("[🔧] ✅ User {} updated message {} in chat {}", userId, messageId, chatId);
+            }
             return ResultNoArgs.success();
         }
         catch (ValidationException e) {
@@ -125,17 +94,17 @@ public class MessageService {
             return ResultNoArgs.error("updateMessage failed due to server error");
         }
     }
+    
+    @Transactional
     public ResultNoArgs deleteMessage(long chatId, long userId, long messageId) {
         try {
             validator.validateCanDeleteMessage(chatId, userId, messageId);
 
-            LocalDateTime updatedAt = LocalDateTime.now();
-            dataOrchestrator.deleteMessage(messageId, updatedAt);
-
-            // уведомить всех надо об этом
-            wsNotify.notifyMessageDeleted(chatId, messageId, updatedAt);
-
-            log.info("[🔧] ✅ User {} deleted message {} in chat {}", userId, messageId, chatId);
+            Instant updatedAt = Instant.now();
+            boolean isUpdated = messageOrchestrator.delete(chatId, messageId, updatedAt);
+            if (isUpdated) {
+                log.info("[🔧] ✅ User {} deleted message {} in chat {}", userId, messageId, chatId);
+            }
             return ResultNoArgs.success();
         }
         catch (ValidationException e) {
@@ -148,17 +117,16 @@ public class MessageService {
         }
     }
 
+    @Transactional
     public ResultNoArgs markMessagesUpToRead(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            LocalDateTime readAt = LocalDateTime.now();
-            dataOrchestrator.markMessagesUpToRead(chatId, userId, messageId, readAt);
-
-            // уведомить всех надо об этом
-            wsNotify.notifyMessageReadUpTo(chatId, userId, messageId, readAt);
-
-            log.info("[🔧] ✅ User {} marked message as read {} in chat {}", userId, messageId, chatId);
+            Instant readAt = Instant.now();
+            boolean isUpdated = messageOrchestrator.markMessagesUpToRead(chatId, userId, messageId, readAt);
+            if (isUpdated) {
+                log.info("[🔧] ✅ User {} marked message as read {} in chat {}", userId, messageId, chatId);
+            }
             return ResultNoArgs.success();
         }
         catch (ValidationException e) {
@@ -171,29 +139,12 @@ public class MessageService {
         }
     }
 
-    public ResultOneArg<MessagesPageDTO> getMessagePagination(long chatId, long userId, Long cursor, int limit, Direction direction) {
+    @Transactional(readOnly = true)
+    public ResultOneArg<Message> getMessage(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            MessagesPageDTO pagination = dataOrchestrator.getChatMessagesPage(chatId, userId, cursor, limit, direction);
-
-            log.info("[🔧] ✅ User {} got {} messages in chat {}", userId, pagination.messages().size(), chatId);
-            return ResultOneArg.success(pagination);
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed getting {} messages {}: {}", limit, direction.name(), e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error getting {} messages {}: {}", limit, direction.name(), e.getMessage());
-            return ResultOneArg.error("getChatMessagesAfter failed due to server error");
-        }
-    }
-    public ResultOneArg<UserMessageDTO> getMessage(long chatId, long userId, long messageId) {
-        try {
-            validator.validateActiveChatMemberInActiveChat(chatId, userId);
-
-            Optional<UserMessageDTO> message = dataOrchestrator.getActiveMessageWithReadStatusInChat(chatId, userId, messageId);
+            Optional<Message> message = messageOrchestrator.getActiveWithReadStatusInChat(chatId, userId, messageId);
             if (message.isEmpty()) {
                 throw new ValidationException("Message not found");
             }
@@ -210,12 +161,54 @@ public class MessageService {
             return ResultOneArg.error("getMessage failed due to server error");
         }
     }
-    public ResultOneArg<Map<Long, MessageReadStatusDTO>> getMessageReads(long chatId, long userId, long messageId) {
+
+    @Transactional(readOnly = true)
+    public ResultOneArg<List<Message>> getMessageBatch(long chatId, long userId, Set<Long> messageIds) {
+        try {
+            validator.validateActiveChatMemberInActiveChat(chatId, userId);
+
+            List<Message> messages = messageOrchestrator.getActiveWithReadStatusInChatBatch(chatId, userId, messageIds);
+
+            log.info("[🔧] ✅ User {} got {} messages in chat {}", userId, messages.size(), chatId);
+            return ResultOneArg.success(messages);
+        }
+        catch (ValidationException e) {
+            log.warn("[🔧] ☝️ Failed getting messages for user {} in chat {}: {}", userId, chatId, e.getMessage());
+            return ResultOneArg.error(e.getMessage());
+        }
+        catch (Exception e) {
+            log.error("[🔧] ⚠️ Error getting message for user {} in chat {}: {}", userId, chatId, e.getMessage());
+            return ResultOneArg.error("getMessage failed due to server error");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ResultOneArg<MessagesPage> getMessagePagination(long chatId, long userId, Long cursor, int limit, Direction direction) {
+        try {
+            validator.validateActiveChatMemberInActiveChat(chatId, userId);
+
+            MessagesPage pagination = messageOrchestrator.getPage(chatId, userId, cursor, limit, direction);
+
+            log.info("[🔧] ✅ User {} got {} messages in chat {}", userId, pagination.messages().size(), chatId);
+            return ResultOneArg.success(pagination);
+        }
+        catch (ValidationException e) {
+            log.warn("[🔧] ☝️ Failed getting {} messages {}: {}", limit, direction.name(), e.getMessage());
+            return ResultOneArg.error(e.getMessage());
+        }
+        catch (Exception e) {
+            log.error("[🔧] ⚠️ Error getting {} messages {}: {}", limit, direction.name(), e.getMessage());
+            return ResultOneArg.error("getChatMessagesAfter failed due to server error");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ResultOneArg<List<MessageReadStatus>> getMessageReads(long chatId, long userId, long messageId) {
         try {
             validator.validateActiveChatMemberInActiveChat(chatId, userId);
             validator.validateActiveMessageInChat(chatId, messageId);
 
-            Map<Long, MessageReadStatusDTO> message = dataOrchestrator.getMessageReads(messageId);
+            List<MessageReadStatus> message = messageOrchestrator.getMessageReaders(messageId);
 
             log.info("[🔧] ✅ User {} got {} reads of {} message in chat {}", userId, message.size(), messageId, chatId);
             return ResultOneArg.success(message);
