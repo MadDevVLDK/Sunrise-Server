@@ -1,4 +1,4 @@
-# 🌅 Sunrise Messenger Server
+# 🌅 Sunrise Messenger Server (Разработка заброшена)
 
 <div align="center">
 
