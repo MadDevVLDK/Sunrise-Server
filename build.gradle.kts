@@ -41,6 +41,13 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine")
 
     runtimeOnly("org.postgresql:postgresql")
+
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // testImplementation("org.assertj:assertj-core")
+    testImplementation("org.testcontainers:testcontainers:1.19.3")
+    // testImplementation("org.testcontainers:postgresql:1.19.3")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.3")
 }
 
 // tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {

@@ -1,8 +1,7 @@
-/**
- * Компонент боковой панели (меню + список чатов)
- */
-const Sidebar = ({ user, chats, selectedChatId, onSelectChat, isLoadingChats, isMenuOpen, onToggleMenu, onLogout, onProfile, onTogglePin }) => {
+const Sidebar = ({ user, chats, selectedChatId, onSelectChat, isLoadingChats, isMenuOpen, onToggleMenu, onLogout, onProfile, onTogglePin, onCreateChat }) => {
     const [searchQuery, setSearchQuery] = React.useState('');
+
+    const handleSelect = (chatId) => onSelectChat(chatId);
 
     const filteredChats = React.useMemo(() => {
         if (!Array.isArray(chats) || !searchQuery.trim()) return chats;
@@ -14,15 +13,15 @@ const Sidebar = ({ user, chats, selectedChatId, onSelectChat, isLoadingChats, is
         <div className="messenger-sidebar">
             <div className="sidebar-header">
                 <div className="sidebar-brand">
-                    <i className="bi bi-sun-fill"/>
+                    <i className="bi bi-sun-fill" />
                     <span>Sunrise</span>
                 </div>
                 <div className="sidebar-actions">
-                    <button className="sidebar-btn" title="Создать чат">
-                        <i className="bi bi-pencil-square"/>
+                    <button className="sidebar-btn" title="Создать чат" onClick={onCreateChat}>
+                        <i className="bi bi-pencil-square" />
                     </button>
                     <button className="sidebar-btn" title="Параметры">
-                        <i className="bi bi-sliders"/>
+                        <i className="bi bi-sliders" />
                     </button>
                 </div>
             </div>
@@ -34,9 +33,10 @@ const Sidebar = ({ user, chats, selectedChatId, onSelectChat, isLoadingChats, is
             <ChatList
                 chats={filteredChats}
                 selectedChatId={selectedChatId}
-                onSelectChat={onSelectChat}
+                onSelectChat={handleSelect}
                 isLoading={isLoadingChats}
                 onTogglePin={onTogglePin}
+                user={user}
             />
 
             <div className="sidebar-footer" style={{ position: 'relative' }}>

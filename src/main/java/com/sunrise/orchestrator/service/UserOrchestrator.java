@@ -13,10 +13,11 @@ import com.sunrise.db.service.LoginHistoryDbService;
 import com.sunrise.db.service.UserDbService;
 import com.sunrise.helpclass.mapper.OtherMapper;
 import com.sunrise.helpclass.mapper.UserMapper;
+import com.sunrise.orchestrator.event.EventRegistry;
 import com.sunrise.orchestrator.event.EventType;
 import com.sunrise.orchestrator.result.*;
 import com.sunrise.orchestrator.result.Dto.GlobalEvent;
-import com.sunrise.orchestrator.result.Dto.GlobalEventSync;
+import com.sunrise.orchestrator.result.Dto.UserGlobalEventSync;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -324,9 +325,9 @@ public class UserOrchestrator {
     private static final int MAX_DELTA_USER_EVENTS = 2000;
 
     @Transactional(readOnly = true)
-    public GlobalEventSync getSyncUser(long userId, long cursor) {
+    public UserGlobalEventSync getSyncUser(long userId, long cursor) {
         if (dbEventService.isUserSyncResetRequired(userId, cursor, MAX_DELTA_USER_EVENTS)) {
-            return new GlobalEventSync(Collections.emptyList(), false, true);
+            return new UserGlobalEventSync(Collections.emptyList(), false, true);
         } 
 
         List<UserEventResult> events = dbEventService.getUserEventsAfter(userId, cursor, 101); // +1
@@ -334,11 +335,11 @@ public class UserOrchestrator {
             .map(proj -> new Dto.GlobalEvent(
                 proj.getEventId(),
                 EventType.valueOf(proj.getEventType()),
-                dbEventService.deserializeEvent(proj.getEventType(), proj.getPayload()),
+                EventRegistry.deserialize(proj.getEventType(), proj.getPayload()),
                 proj.getCreatedAt()
             )).limit(100).toList();
 
-        return new GlobalEventSync(clientEvents, events.size() > 100, false);
+        return new UserGlobalEventSync(clientEvents, events.size() > 100, false);
     }
 
     @Transactional(readOnly = true)

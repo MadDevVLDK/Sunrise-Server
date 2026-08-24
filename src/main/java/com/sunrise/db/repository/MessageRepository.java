@@ -36,7 +36,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
-               m.readCount AS readCount,
+               (m.readCount > 0) AS isReadByAnyone,
                m.sentAt AS sentAt,
                m.updatedAt as updatedAt,
                m.deletedAt as deletedAt,
@@ -60,7 +60,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
-               m.readCount AS readCount,
+               (m.readCount > 0) AS isReadByAnyone,
                m.sentAt AS sentAt,
                m.updatedAt as updatedAt,
                m.deletedAt as deletedAt,
@@ -84,7 +84,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
-               m.readCount AS readCount,
+               (m.readCount > 0) AS isReadByAnyone,
                m.sentAt AS sentAt,
                m.updatedAt as updatedAt,
                m.deletedAt as deletedAt,
@@ -98,7 +98,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            WHERE m.chatId = :chatId
            ORDER BY m.id DESC
            """)
-    List<UserMessageResult> getMessagePageFirst(@Param("chatId") long chatId, @Param("userId") long userId, Pageable pageable);
+    List<UserMessageResult> getPageFirst(@Param("chatId") long chatId, @Param("userId") long userId, Pageable pageable);
 
     @Query("""
            SELECT
@@ -109,7 +109,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
-               m.readCount AS readCount,
+               (m.readCount > 0) AS isReadByAnyone,
                m.sentAt AS sentAt,
                m.updatedAt as updatedAt,
                m.deletedAt as deletedAt,
@@ -120,7 +120,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            INNER JOIN ChatMember member
                ON member.id.userId = m.senderId
                AND member.id.chatId = m.chatId
-           WHERE m.chatId = :chatId AND m.id < :cursor
+           WHERE m.chatId = :chatId AND m.id <= :cursor
            ORDER BY m.id DESC
            """)
     List<UserMessageResult> getPageBefore(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
@@ -134,7 +134,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
                member.updatedAt AS memberUpdatedAt,
                m.messageType AS messageType,
                m.text AS text,
-               m.readCount AS readCount,
+               (m.readCount > 0) AS isReadByAnyone,
                m.sentAt AS sentAt,
                m.updatedAt as updatedAt,
                m.deletedAt as deletedAt,
@@ -145,8 +145,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            INNER JOIN ChatMember member
                ON member.id.userId = m.senderId
                AND member.id.chatId = m.chatId
-           WHERE m.chatId = :chatId AND m.id > :cursor
-           ORDER BY m.id ASC
+           WHERE m.chatId = :chatId AND m.id >= :cursor
+           ORDER BY m.id DESC
            """)
     List<UserMessageResult> getPageAfter(@Param("chatId") long chatId, @Param("userId") long userId, @Param("cursor") long cursor, Pageable pageable);
 

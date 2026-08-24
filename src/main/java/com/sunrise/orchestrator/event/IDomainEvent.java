@@ -174,6 +174,7 @@ public interface IDomainEvent {
         long chatId,
         long userId,
         long upToMessageId,
+        int messagesReadCount,
         Instant readAt
     ) implements IDomainEvent {
         @Override public Instant getCreatedAt() { return readAt; }

@@ -1,7 +1,10 @@
 package com.sunrise.core.service;
 
 import com.sunrise.core.creation.CreateDto;
-import com.sunrise.core.result.*;
+import com.sunrise.helpclass.JwtUtil;
+import com.sunrise.helpclass.SnowflakeId;
+import com.sunrise.helpclass.exception.MyErrorCode;
+import com.sunrise.helpclass.exception.MyException;
 import com.sunrise.orchestrator.DataValidator;
 import com.sunrise.orchestrator.event.AsyncEvent;
 import com.sunrise.orchestrator.result.Dto;
@@ -10,9 +13,6 @@ import com.sunrise.orchestrator.service.UserOrchestrator;
 import com.sunrise.orchestrator.service.VerificationTokenOrchestrator;
 import com.sunrise.orchestrator.type.TokenType;
 import com.sunrise.web.email.EmailNotifier;
-import com.sunrise.helpclass.JwtUtil;
-import com.sunrise.helpclass.SnowflakeId;
-import com.sunrise.helpclass.ValidationException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -28,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
-
 
 @Slf4j
 @Service
@@ -46,272 +45,194 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
 
-
     @Transactional
-    public ResultOneArg<String> registerUser(@NonNull String username, @NonNull String name, @NonNull String email, @NonNull String password) {
-        try {
-            if (userOrchestrator.existsUserByUsername(username.trim())) {
-                throw new ValidationException("Username already exists");
-            }
-
-            if (userOrchestrator.existsUserByEmail(email.toLowerCase())) {
-                throw new ValidationException("Email already exists");
-            }
-
-            Instant createdAt = Instant.now();
-            CreateDto.User user = new CreateDto.User(
-                SnowflakeId.next(), username, name, email,
-                passwordEncoder.encode(password), createdAt
+    public String registerUser(@NonNull String username, @NonNull String name, @NonNull String email, @NonNull String password) {
+        if (userOrchestrator.existsUserByUsername(username.trim())) {
+            throw new MyException(
+                MyErrorCode.USERNAME_TAKEN, 
+                "Username already taken -> " + username
             );
-            userOrchestrator.saveUser(user);
+        }
 
-            // публикуем событие на сохранение токена
-            CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
-                SnowflakeId.next(), user.getId(), generateBase64String(),
-                TokenType.REGISTRATION, createdAt, 24 // 24 часа
+        if (userOrchestrator.existsUserByEmail(email.toLowerCase())) {
+            throw new MyException(
+                MyErrorCode.EMAIL_TAKEN, 
+                "Email already taken -> " + email
             );
-            eventPublisher.publishEvent(new AsyncEvent.SaveVerificationToken(verificationToken));
+        }
 
-            // отправляем подтверждение активации аккаунта на почту
-            emailNotifier.sendVerificationTokenMail(email, verificationToken.getTokenType(), verificationToken.getToken());
+        Instant createdAt = Instant.now();
+        CreateDto.User user = new CreateDto.User(
+            SnowflakeId.next(), username, name, email,
+            passwordEncoder.encode(password), createdAt
+        );
+        userOrchestrator.saveUser(user);
 
-            log.info("[🔧] ✅ User registered successfully --> {}", username);
-            return ResultOneArg.success("User registered successfully. Check your mail to activate your account!!!");
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to register user: {}", e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Registration failed for user {}: {}", username, e.getMessage());
-            return ResultOneArg.error("registerUser failed due to server error");
-        }
+        CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
+            SnowflakeId.next(), user.getId(), generateBase64String(),
+            TokenType.REGISTRATION, createdAt, 24
+        );
+        eventPublisher.publishEvent(new AsyncEvent.SaveVerificationToken(verificationToken));
+
+        emailNotifier.sendVerificationTokenMail(email, verificationToken.getTokenType(), verificationToken.getToken());
+
+        log.info("[🔧] ✅ User registered successfully --> {}", username);
+        return "User registered successfully. Check your mail to activate your account!!!";
     }
 
     @Transactional
-    public ResultOneArg<Dto.UserLogin> authenticateUser(@NonNull String username, @NonNull String password, HttpServletRequest httpRequest) {
-        try {
-            UserSecurity user = userOrchestrator.getActiveUserSecurityByUsername(username)
-                    .orElseThrow(() -> new ValidationException("Invalid username or password"));
+    public Dto.UserLogin authenticateUser(@NonNull String username, @NonNull String password, HttpServletRequest httpRequest) {
+        UserSecurity user = userOrchestrator.getActiveUserSecurityByUsername(username)
+            .orElseThrow(() -> new MyException(
+                MyErrorCode.INVALID_CREDENTIALS, 
+                "Invalid username or password -> " + username
+            ));
 
-            if (!passwordEncoder.matches(password, user.hashPassword())) {
-                throw new ValidationException("Invalid username or password");
-            }
-
-            // публикуем событие на сохранение истории логинов и обновление последнего логина
-            CreateDto.LoginHistory loginHistory = new CreateDto.LoginHistory(
-                SnowflakeId.next(), user.id(), extractClientIp(httpRequest), 
-                httpRequest.getHeader("User-Agent"), Instant.now()
+        if (!passwordEncoder.matches(password, user.hashPassword())) {
+            throw new MyException(
+                MyErrorCode.INVALID_CREDENTIALS, 
+                "Invalid username or password -> " + username
             );
-            eventPublisher.publishEvent(new AsyncEvent.SaveUserLoginHistory(username, loginHistory));
+        }
 
-            String token = jwtUtil.generateToken(user.id(), user.jwtVersion());
+        CreateDto.LoginHistory loginHistory = new CreateDto.LoginHistory(
+            SnowflakeId.next(), user.id(), extractClientIp(httpRequest),
+            httpRequest.getHeader("User-Agent"), Instant.now()
+        );
+        eventPublisher.publishEvent(new AsyncEvent.SaveUserLoginHistory(username, loginHistory));
 
-            log.info("[🔧] ✅ User logged in successfully --> {}", username);
-            return ResultOneArg.success(new Dto.UserLogin(token, jwtUtil.getTokenExpirationTime(token)));
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to authenticate user: {}", e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error on authentication for user {}: {}", username, e.getMessage());
-            return ResultOneArg.error("authenticateUser failed due to server error");
-        }
+        String token = jwtUtil.generateToken(user.id(), user.jwtVersion());
+
+        log.info("[🔧] ✅ User logged in successfully --> {}", username);
+        return new Dto.UserLogin(token, jwtUtil.getTokenExpirationTime(token));
     }
 
     @Transactional
-    public ResultNoArgs requestEmailUpdate(long userId) {
-        try {
-            UserSecurity user = userOrchestrator.getUserSecurity(userId)
-                    .orElseThrow(() -> new ValidationException("User not found"));
+    public void requestEmailUpdate(long userId) {
+        UserSecurity user = userOrchestrator.getUserSecurity(userId)
+            .orElseThrow(() -> new MyException(
+                MyErrorCode.USER_NOT_FOUND, 
+                "User not found -> " + userId
+            ));
 
-            // Генерация токена
-            String token = generateBase64String();
-            TokenType tokenType = TokenType.EMAIL_UPDATE;
-            Instant now = Instant.now();
-            CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
-                SnowflakeId.next(), userId, token, tokenType, now, 24 // 24 часа
+        String token = generateBase64String();
+        TokenType tokenType = TokenType.EMAIL_UPDATE;
+        Instant now = Instant.now();
+        CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
+            SnowflakeId.next(), userId, token, tokenType, now, 24
+        );
+        verificationTokenOrchestrator.saveVerificationToken(verificationToken);
+
+        emailNotifier.sendVerificationTokenMail(user.email(), tokenType, token);
+        log.info("[🔧] ✅ Email update token sent to user {}", userId);
+    }
+
+    @Transactional
+    public void requestPasswordUpdate(@NonNull String email) {
+        UserSecurity user = userOrchestrator.getActiveUserSecurityByEmail(email)
+            .orElseThrow(() -> new MyException(
+                MyErrorCode.USER_NOT_FOUND, 
+                "User with such email does not exist -> " + email
+            ));
+
+        String token = generateBase64String();
+        TokenType tokenType = TokenType.PASSWORD_UPDATE;
+        Instant now = Instant.now();
+        CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
+            SnowflakeId.next(), user.id(), token, tokenType, now, 1
+        );
+        verificationTokenOrchestrator.saveVerificationToken(verificationToken);
+
+        emailNotifier.sendVerificationTokenMail(user.email(), tokenType, token);
+        log.info("[🔧] ✅ Password reset token sent to {}", email);
+    }
+
+    @Transactional
+    public String confirmRegistrationToken(@NonNull String token) {
+        VerificationToken verificationToken = getAndValidateToken(token, TokenType.REGISTRATION);
+
+        long userId = verificationToken.userId();
+        Instant updatedAt = Instant.now();
+
+        userOrchestrator.enableUser(userId, updatedAt);
+        eventPublisher.publishEvent(new AsyncEvent.DeleteVerificationToken(token));
+
+        log.info("[🔧] ✅ Registration verified successfully for user {}", userId);
+        return "Registration successfully verified";
+    }
+
+    @Transactional
+    public String confirmEmailUpdateToken(@NonNull String token, @NonNull String email) {
+        VerificationToken verificationToken = getAndValidateToken(token, TokenType.EMAIL_UPDATE);
+
+        long userId = verificationToken.userId();
+
+        UserSecurity user = userOrchestrator.getActiveUserSecurity(userId)
+            .orElseThrow(() -> new MyException(
+                MyErrorCode.USER_NOT_ACTIVE, 
+                "User is not active for email update -> " + userId
+            ));
+
+        Instant updatedAt = Instant.now();
+        userOrchestrator.updateUserEmail(userId, user.email(), email, updatedAt);
+
+        eventPublisher.publishEvent(new AsyncEvent.DeleteVerificationToken(token));
+
+        log.info("[🔧] ✅ Email changed successfully for user {}", userId);
+        return "Email successfully changed";
+    }
+
+    @Transactional
+    public String confirmPasswordUpdateToken(@NonNull String token, @NonNull String password) {
+        VerificationToken verificationToken = getAndValidateToken(token, TokenType.PASSWORD_UPDATE);
+
+        long userId = verificationToken.userId();
+        validator.validateActiveUser(userId);
+
+        Instant updatedAt = Instant.now();
+        userOrchestrator.updateUserPassword(userId, password, updatedAt);
+
+        eventPublisher.publishEvent(new AsyncEvent.DeleteVerificationToken(token));
+
+        log.info("[🔧] ✅ Password changed successfully for user {}", userId);
+        return "Password successfully changed";
+    }
+
+    public String getActuatorToken(HttpServletRequest httpRequest) {
+        String adminUsername = "monitoring";
+        String token = jwtUtil.generateTokenForActuator(adminUsername, 3600L);
+        log.info("[🔧] ✅ Actuator token generated for monitoring");
+        return token;
+    }
+
+    // ===== PRIVATE =====
+
+    private VerificationToken getAndValidateToken(@NonNull String token, TokenType expectedType) {
+        if (token.trim().isEmpty()) {
+            throw new MyException(MyErrorCode.VALIDATION_ERROR, "Token cannot be empty");
+        }
+
+        VerificationToken verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
+            .orElseThrow(() -> new MyException(
+                MyErrorCode.VERIFICATION_TOKEN_NOT_FOUND,
+                "Verification token not found for type " + expectedType
+            ));
+
+        if (verificationToken.expiryDate().isBefore(Instant.now())) {
+            throw new MyException(
+                MyErrorCode.VERIFICATION_TOKEN_EXPIRED, 
+                "Verification token expired for user " + verificationToken.userId()
             );
-            verificationTokenOrchestrator.saveVerificationToken(verificationToken);
-
-            // Отправляем письмо на старый email
-            emailNotifier.sendVerificationTokenMail(user.email(), tokenType, token);
-            return ResultNoArgs.success();
         }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to send email update token: {}", e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error on sending token confirmation for email update: {}", e.getMessage());
-            return ResultNoArgs.error("requestEmailUpdate failed due to server error");
-        }
-    }
 
-    @Transactional
-    public ResultNoArgs requestPasswordUpdate(@NonNull String email) {
-        try {
-            UserSecurity user = userOrchestrator.getActiveUserSecurityByEmail(email)
-                    .orElseThrow(() -> new ValidationException("User with such email does not exist"));
-
-            // Генерация токена
-            String token = generateBase64String();
-            TokenType tokenType = TokenType.PASSWORD_UPDATE;
-            Instant now = Instant.now();
-            CreateDto.VerificationToken verificationToken = new CreateDto.VerificationToken(
-                SnowflakeId.next(), user.id(), token, tokenType, now, 1 // 1 час
+        if (verificationToken.tokenType() != expectedType) {
+            throw new MyException(
+                MyErrorCode.VERIFICATION_TOKEN_TYPE_MISMATCH,
+                "Expected token type " + expectedType + " but got " + verificationToken.tokenType()
             );
-            verificationTokenOrchestrator.saveVerificationToken(verificationToken);
-
-            // Отправляем письмо на старый email
-            emailNotifier.sendVerificationTokenMail(user.email(), tokenType, token);
-            return ResultNoArgs.success();
         }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to send password reset token: {}", e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error on sending token confirmation for password reset: {}", e.getMessage());
-            return ResultNoArgs.error("requestPasswordUpdate failed due to server error");
-        }
-    }
 
-    @Transactional
-    public ResultOneArg<String> confirmRegistrationToken(@NonNull String token) {
-        try {
-            if (token == null || token.trim().isEmpty()) {
-                throw new ValidationException("Token cannot be empty");
-            }
-
-            VerificationToken verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
-                    .orElseThrow(() -> new ValidationException("Invalid token"));
-
-            if (verificationToken.expiryDate().isBefore(Instant.now())) {
-                throw new ValidationException("Token expired");
-            } else if (verificationToken.tokenType() != TokenType.REGISTRATION) {
-                throw new ValidationException("Invalid token type");
-            }
-
-            long userId = verificationToken.userId();
-
-            // TODO: Надо проверку на то, не удаленный ли аккаунт
-            // validator.validateActiveUser(userId);
-
-            Instant updatedAt = Instant.now();
-
-            userOrchestrator.enableUser(userId, updatedAt);
-
-            // публикуем событие на удаление токена
-            eventPublisher.publishEvent(new AsyncEvent.DeleteVerificationToken(token));
-
-            log.info("[🔧] ✅ Registration verified successfully for user {}", userId);
-            return ResultOneArg.success("Registration successfully verified");
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to confirm registration token: {}", e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error on registration token confirmation: {}", e.getMessage());
-            return ResultOneArg.error("confirmRegistrationToken failed due to server error");
-        }
-    }
-
-    @Transactional
-    public ResultOneArg<String> confirmEmailUpdateToken(@NonNull String token, @NonNull String email) {
-        try {
-            if (token == null || token.trim().isEmpty()) {
-                throw new ValidationException("Token cannot be empty");
-            }
-
-            VerificationToken verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
-                    .orElseThrow(() -> new ValidationException("Invalid token"));
-
-            if (verificationToken.expiryDate().isBefore(Instant.now())) {
-                throw new ValidationException("Token expired");
-            } else if (verificationToken.tokenType() != TokenType.EMAIL_UPDATE) {
-                throw new ValidationException("Invalid token type");
-            }
-
-            long userId = verificationToken.userId();
-
-            UserSecurity user = userOrchestrator.getActiveUserSecurity(userId)
-                    .orElseThrow(() -> new ValidationException("User not found"));
-
-            Instant updatedAt = Instant.now();
-
-            userOrchestrator.updateUserEmail(userId, user.email(), email, updatedAt);
-
-            // публикуем событие на удаление токена
-            eventPublisher.publishEvent(new AsyncEvent.DeleteVerificationToken(token));
-
-            log.info("[🔧] ✅ Email changed successfully for user {}", userId);
-            return ResultOneArg.success("Email successfully changed");
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to confirm email change token: {}", e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error on email change token confirmation: {}", e.getMessage());
-            return ResultOneArg.error("confirmEmailUpdateToken failed due to server error");
-        }
-    }
-
-    @Transactional
-    public ResultOneArg<String> confirmPasswordUpdateToken(String token, String password) {
-        try {
-            if (token == null || token.trim().isEmpty()) {
-                throw new ValidationException("Token cannot be empty");
-            }
-
-            VerificationToken verificationToken = verificationTokenOrchestrator.getVerificationToken(token)
-                    .orElseThrow(() -> new ValidationException("Invalid token"));
-
-            if (verificationToken.expiryDate().isBefore(Instant.now())) {
-                throw new ValidationException("Token expired");
-            } else if (verificationToken.tokenType() != TokenType.PASSWORD_UPDATE) {
-                throw new ValidationException("Invalid token type");
-            }
-
-            long userId = verificationToken.userId();
-
-            validator.validateActiveUser(userId);
-
-            Instant updatedAt = Instant.now();
-
-            userOrchestrator.updateUserPassword(userId, password, updatedAt);
-
-            // публикуем событие на удаление токена
-            eventPublisher.publishEvent(new AsyncEvent.DeleteVerificationToken(token));
-
-            log.info("[🔧] ✅ Password changed successfully for user {}", userId);
-            return ResultOneArg.success("Password successfully changed");
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to confirm password change token: {}", e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error on password change token confirmation: {}", e.getMessage());
-            return ResultOneArg.error("confirmPasswordUpdateToken failed due to server error");
-        }
-    }
-
-    public ResultOneArg<String> getActuatorToken(HttpServletRequest httpRequest) {
-        try {
-            String adminUsername = "monitoring";
-            String token = jwtUtil.generateTokenForActuator(adminUsername, 3600L);
-
-            log.info("[🔧] ✅ Actuator token generated for monitoring");
-            return ResultOneArg.success(token);
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Failed to generate actuator token: {}", e.getMessage());
-            return ResultOneArg.error("Failed to generate token: " + e.getMessage());
-        }
+        return verificationToken;
     }
 
     private String extractClientIp(HttpServletRequest request) {
@@ -324,10 +245,10 @@ public class AuthService {
             return "unknown";
         }
     }
-    
+
     private static String generateBase64String() {
         SecureRandom random = new SecureRandom();
-        byte[] bytes = new byte[48]; // 48 bytes = 64 base64 characters
+        byte[] bytes = new byte[48];
         random.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }

@@ -1,7 +1,7 @@
 package com.sunrise.cache.entity;
 
 import java.time.Instant;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.sunrise.orchestrator.type.ChatType;
 import com.sunrise.orchestrator.type.MessageType;
@@ -77,7 +77,7 @@ public class Cache {
         MessageType messageType,
         long senderId,
         String text,
-        AtomicInteger readCount,
+        AtomicBoolean isReadByAnyone,
         Instant sentAt,
         Instant updatedAt,
         Instant deletedAt,

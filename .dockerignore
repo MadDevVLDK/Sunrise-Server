@@ -10,6 +10,6 @@ build/
 .idea/
 .vscode/
 DocumentationAPI.html
-init-sql/
+init-scripts/
 src/test/test-chats.sql
 bin/

@@ -58,7 +58,7 @@ public class WsEventListener {
             boolean noMoreSessions = !sessionRegistry.userHasSessions(userId);
             sessionRegistry.unregister(sessionId);
             if (noMoreSessions && userGlobalStatusKeeper.updateUserStatus(userId, "offline")) {
-                wsNotify.notifyUserStatusChange(userId, "offline");
+                wsNotify.notifyUserStatus(userId, "offline");
                 userGlobalStatusKeeper.removeUserActions(userId);  // только если пользователь полностью оффлайн
             }
             log.info("[🗝️] ❌ WebSocket disconnected: sessionId={}, userId={}", sessionId, userId);

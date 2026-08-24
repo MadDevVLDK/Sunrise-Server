@@ -1,6 +1,5 @@
 package com.sunrise.web.api.controller;
 
-import com.sunrise.core.result.ResultOneArg;
 import com.sunrise.core.service.AuthService;
 import com.sunrise.web.payload.ApiResponse;
 
@@ -19,14 +18,7 @@ public class ActuatorAuthController {
 
     @GetMapping("/token")
     public ResponseEntity<?> getActuatorToken(HttpServletRequest httpRequest) {
-        try {
-            ResultOneArg<String> result = authService.getActuatorToken(httpRequest);
-            
-            return result.isSuccess() ?
-                    ApiResponse.success(result.getResult()) :
-                    ApiResponse.error(result.getError());
-        } catch (Exception e) {
-            return ApiResponse.error("Ошибка при генерации токена: " + e.getMessage());
-        }
+        String token = authService.getActuatorToken(httpRequest);
+        return ApiResponse.success(token);
     }
 }

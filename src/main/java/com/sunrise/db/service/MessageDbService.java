@@ -68,7 +68,7 @@ public class MessageDbService {
             chatId, userId, cursor, limit, direction);
         
         if (cursor == null) {
-            return messageRepository.getMessagePageFirst(chatId, userId, PageRequest.of(0, limit));
+            return messageRepository.getPageFirst(chatId, userId, PageRequest.of(0, limit));
         }
         if (direction == Direction.FORWARD) {
             return messageRepository.getPageAfter(chatId, userId, cursor, PageRequest.of(0, limit));

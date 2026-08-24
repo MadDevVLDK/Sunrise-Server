@@ -10,7 +10,7 @@ public interface UserMessageResult {
     Instant getProfileUpdatedAt();
     Instant getMemberUpdatedAt();
     String getText();
-    Integer getReadCount();
+    Boolean getIsReadByAnyone();
     Instant getSentAt();
     Instant getUpdatedAt();
     Instant getDeletedAt();

@@ -1,0 +1,77 @@
+/* file: src/main/resources/static/css/toast-style.css */
+
+#toast-container {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 420px;
+}
+
+.sunrise-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 8px 32px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.08);
+    border-left: 4px solid transparent;
+    opacity: 0;
+    transform: translateX(-100%);
+    transition: opacity .3s ease, transform .3s ease;
+    min-width: 300px;
+    max-width: 420px;
+    pointer-events: auto;
+}
+.sunrise-toast.sunrise-toast-visible { opacity:1; transform:translateX(0); }
+.sunrise-toast.sunrise-toast-hiding  { opacity:0; transform:translateX(-100%); }
+
+/* ====== ТИПЫ ====== */
+.sunrise-toast-error   { border-left-color:#ff416c; background:linear-gradient(135deg,#fff5f5,#fff); }
+.sunrise-toast-error   .sunrise-toast-icon { color:#ff416c; }
+.sunrise-toast-success { border-left-color:#00b09b; background:linear-gradient(135deg,#f0fdf9,#fff); }
+.sunrise-toast-success .sunrise-toast-icon { color:#00b09b; }
+.sunrise-toast-info    { border-left-color:#3b82f6; background:linear-gradient(135deg,#eff6ff,#fff); }
+.sunrise-toast-info    .sunrise-toast-icon { color:#3b82f6; }
+.sunrise-toast-warning { border-left-color:#f59e0b; background:linear-gradient(135deg,#fffbeb,#fff); }
+.sunrise-toast-warning .sunrise-toast-icon { color:#f59e0b; }
+.sunrise-toast-loading { border-left-color:#FF8C00; background:linear-gradient(135deg,#fff8f0,#fff); }
+
+/* ====== ЭЛЕМЕНТЫ ====== */
+.sunrise-toast-icon { font-size:20px; flex-shrink:0; margin-top:1px; display:flex; align-items:center; }
+.sunrise-toast-body { flex:1; font-size:14px; line-height:1.5; color:#1e293b; word-wrap:break-word; }
+.sunrise-toast-close { background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer; padding:0; line-height:1; flex-shrink:0; transition:color .2s; }
+.sunrise-toast-close:hover { color:#1e293b; }
+
+/* ====== СПИННЕР ====== */
+.sunrise-toast-spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,140,0,.25);
+    border-top-color: #FF8C00;
+    border-radius: 50%;
+    animation: sunrise-toast-spin .7s linear infinite;
+}
+@keyframes sunrise-toast-spin {
+    to { 
+        transform: rotate(360deg); 
+    }
+}
+
+/* ====== МОБИЛЬНАЯ ====== */
+@media (max-width:480px) {
+    #toast-container { 
+        left:12px; 
+        right:12px; 
+        bottom:12px; 
+        max-width:none; 
+    }
+    .sunrise-toast { 
+        min-width:unset; 
+        max-width:none; 
+    }
+}

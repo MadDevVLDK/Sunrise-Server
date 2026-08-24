@@ -11,13 +11,10 @@ import java.util.Map;
 @Component
 public class EventRegistry {
 
-    private final ObjectMapper objectMapper;
-    private final Map<EventType, Class<? extends IDomainEvent>> eventTypeRegistry;
+    private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    private static final Map<EventType, Class<? extends IDomainEvent>> eventTypeRegistry = new EnumMap<>(EventType.class);
 
     public EventRegistry() {
-        this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-        this.eventTypeRegistry = new EnumMap<>(EventType.class);
-        
         // USER EVENTS
         eventTypeRegistry.put(EventType.USER_CHAT_CREATED, IDomainEvent.UserChatCreated.class);
         eventTypeRegistry.put(EventType.USER_CHAT_ADDED, IDomainEvent.UserChatAdded.class);
@@ -32,6 +29,7 @@ public class EventRegistry {
         eventTypeRegistry.put(EventType.CHAT_DELETED, IDomainEvent.ChatDeleted.class);
 
         // MESSAGE EVENTS
+        eventTypeRegistry.put(EventType.MESSAGE_CREATED_FULL, IDomainEvent.MessageCreatedFull.class);
         eventTypeRegistry.put(EventType.MESSAGE_CREATED, IDomainEvent.MessageCreated.class);
         eventTypeRegistry.put(EventType.MESSAGE_UPDATED, IDomainEvent.MessageUpdated.class);
         eventTypeRegistry.put(EventType.MESSAGE_DELETED, IDomainEvent.MessageDeleted.class);
@@ -45,7 +43,7 @@ public class EventRegistry {
         eventTypeRegistry.put(EventType.CHAT_MEMBER_ADMIN_UPDATED, IDomainEvent.ChatMemberAdminUpdated.class);
     }
 
-    public IDomainEvent deserialize(EventType type, String payload) {
+    public static IDomainEvent deserialize(EventType type, String payload) {
         Class<? extends IDomainEvent> eventClass = eventTypeRegistry.get(type);
         if (eventClass == null) {
             throw new IllegalArgumentException("Unknown event type: " + type);
@@ -58,7 +56,20 @@ public class EventRegistry {
         }
     }
 
-    public String serialize(IDomainEvent event) {
+    public static IDomainEvent deserialize(String type, String payload) {
+        Class<? extends IDomainEvent> eventClass = eventTypeRegistry.get(EventType.valueOf(type));
+        if (eventClass == null) {
+            throw new IllegalArgumentException("Unknown event type: " + type);
+        }
+        
+        try {
+            return objectMapper.readValue(payload, eventClass);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to deserialize event of type " + type, e);
+        }
+    }
+
+    public static String serialize(IDomainEvent event) {
         try {
             return objectMapper.writeValueAsString(event);
         } catch (Exception e) {
@@ -66,7 +77,7 @@ public class EventRegistry {
         }
     }
 
-    public EventType getEventType(IDomainEvent event) {
+    public static EventType getEventType(IDomainEvent event) {
         Class<?> eventClass = event.getClass();
         for (Map.Entry<EventType, Class<? extends IDomainEvent>> entry : eventTypeRegistry.entrySet()) {
             if (entry.getValue().equals(eventClass)) {
