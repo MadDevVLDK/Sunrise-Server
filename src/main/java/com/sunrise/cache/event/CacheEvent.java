@@ -2,6 +2,7 @@ package com.sunrise.cache.event;
 
 import com.sunrise.cache.entity.Cache.*;
 
+import java.util.Collection;
 import java.util.List;
 public final class CacheEvent {
 
@@ -41,9 +42,9 @@ public final class CacheEvent {
 
     public record MessageCreated(Message message) {}
     public record MessageSave(Message message) {}
-    public record MessagesSave(List<Message> messages) {}
+    public record MessagesSave(Collection<Message> messages) {}
     public record MessagesRecentIdsInit(long chatId) {}
-    public record MessagesReadCountIncremented(List<Long> messageIds) {}
+    public record MessagesMarkAsReadBatch(List<Long> messageIds) {}
     public record MessageInvalidated(long messageId) {}
 
 

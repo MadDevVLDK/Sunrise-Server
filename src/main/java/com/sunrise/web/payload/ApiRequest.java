@@ -31,7 +31,7 @@ public final class ApiRequest {
 
         @NotBlank(message = "Name is required")
         @Size(min = 4, max = 30, message = "Name must be between 4 and 30 characters")
-        @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Name must contain only letters, digits, and underscores")
+        @Pattern(regexp = "^[\\p{L}\\p{N}]+$", message = "Name must contain only letters and digits, without spaces")
         String name,
 
         @NotBlank(message = "Email is required")
@@ -52,7 +52,7 @@ public final class ApiRequest {
 
         @NotBlank(message = "Name is required")
         @Size(min = 4, max = 30, message = "Name must be between 4 and 30 characters")
-        @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Name must contain only letters, digits, and underscores")
+        @Pattern(regexp = "^[\\p{L}\\p{N}]+$", message = "Name must contain only letters and digits, without spaces")
         String name
     ) {}
 

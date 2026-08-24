@@ -11,7 +11,7 @@ services:
 
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-password}
-      DB_ADDRESS: ${DB_ADDRESS:-192.168.0.28:5435}
+      DB_ADDRESS: ${DB_ADDRESS:-192.168.0.8:5435}
       DB_NAME: ${DB_NAME:-messenger_db}
 
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
@@ -23,4 +23,4 @@ services:
       LOGGING_LEVEL_ORG_HIBERNATE_SQL: WARN
 
     ports:
-      - "${PORT_SERVER:-10610}:${SERVER_PORT:-10610}"
+      - "${SERVER_PORT:-10610}:${SERVER_PORT:-10610}"

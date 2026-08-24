@@ -2,10 +2,10 @@ package com.sunrise.db.service;
 
 import com.sunrise.db.repository.AppEventRepository;
 import com.sunrise.db.result.ChatEventResult;
+import com.sunrise.db.result.ChatSyncInfo;
 import com.sunrise.db.result.UserEventResult;
 import com.sunrise.helpclass.SnowflakeId;
 import com.sunrise.orchestrator.event.EventRegistry;
-import com.sunrise.orchestrator.event.EventType;
 import com.sunrise.orchestrator.event.IDomainEvent;
 
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,6 @@ import java.util.Map;
 public class EventDbService {
 
     private final AppEventRepository appEventRepository;
-    private final EventRegistry eventRegistry;
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
 
     @SneakyThrows
@@ -48,8 +47,8 @@ public class EventDbService {
         long eventId = SnowflakeId.next();
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("eventId", eventId)
-            .addValue("eventType", eventRegistry.getEventType(chatEvent).name())
-            .addValue("payload", eventRegistry.serialize(chatEvent))
+            .addValue("eventType", EventRegistry.getEventType(chatEvent).name())
+            .addValue("payload", EventRegistry.serialize(chatEvent))
             .addValue("createdAt", chatEvent.getCreatedAt().atOffset(ZoneOffset.UTC))
             .addValue("chatId", chatId);
 
@@ -72,8 +71,8 @@ public class EventDbService {
         long eventId = SnowflakeId.next();
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("eventId", eventId)
-            .addValue("eventType", eventRegistry.getEventType(userEvent).name())
-            .addValue("payload", eventRegistry.serialize(userEvent))
+            .addValue("eventType", EventRegistry.getEventType(userEvent).name())
+            .addValue("payload", EventRegistry.serialize(userEvent))
             .addValue("createdAt", userEvent.getCreatedAt().atOffset(ZoneOffset.UTC))
             .addValue("userId", userId);
 
@@ -105,8 +104,8 @@ public class EventDbService {
         long eventId = SnowflakeId.next();
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("eventId", eventId)
-            .addValue("eventType", eventRegistry.getEventType(usersEvent).name())
-            .addValue("payload", eventRegistry.serialize(usersEvent))
+            .addValue("eventType", EventRegistry.getEventType(usersEvent).name())
+            .addValue("payload", EventRegistry.serialize(usersEvent))
             .addValue("createdAt", usersEvent.getCreatedAt().atOffset(ZoneOffset.UTC))
             .addValue("userIds", userIds.toArray(Long[]::new));
 
@@ -122,7 +121,7 @@ public class EventDbService {
         );
     }
 
-    public Map<Long, Boolean> areChatSyncResetRequired(Map<Long, Long> chatToLastEventId, int maxDelta) {
+    public Map<Long, ChatSyncInfo> areChatSyncResetRequired(Map<Long, Long> chatToLastEventId, long userId, int maxDelta) {
         if (chatToLastEventId.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -131,25 +130,51 @@ public class EventDbService {
         Long[] lastEventIds = chatToLastEventId.values().toArray(new Long[0]);
         
         String sql = """
+            WITH cv AS (
+                SELECT unnest(:chatIds) AS chat_id, 
+                       unnest(:lastEventIds) AS last_event_id
+            ),
+            reset_status AS (
+                SELECT 
+                    cv.chat_id,
+                    (NOT EXISTS (SELECT 1 FROM app_events WHERE id = cv.last_event_id)
+                    OR EXISTS (SELECT 1 FROM chats_events ce2 
+                        WHERE ce2.chat_id = cv.chat_id AND ce2.event_id > cv.last_event_id
+                        HAVING COUNT(*) > :maxDelta)) AS reset_required
+                FROM cv
+            )
             SELECT 
-                cv.chat_id AS chatId,
-                NOT EXISTS (SELECT 1 FROM app_events WHERE id = cv.last_event_id)
-                    OR (SELECT COUNT(*) > :maxDelta 
-                        FROM chats_events ce2 
-                        WHERE ce2.chat_id = cv.chat_id
-                            AND ce2.event_id > cv.last_event_id) AS reset_required
-            FROM (SELECT unnest(:chatIds) AS chat_id, unnest(:lastEventIds) AS last_event_id) cv
+                rs.chat_id AS chatId,
+                rs.reset_required AS resetRequired,
+                ucr.last_read_message_id AS lastReadMsgByMe,
+                m.max_id AS lastReadMsgByAnyone
+            FROM reset_status rs
+            LEFT JOIN LATERAL (
+                SELECT last_read_message_id 
+                FROM user_chat_read_state 
+                WHERE user_id = :userId AND chat_id = rs.chat_id
+            ) ucr ON NOT rs.reset_required
+            LEFT JOIN LATERAL (
+                SELECT MAX(id) AS max_id 
+                FROM messages 
+                WHERE chat_id = rs.chat_id AND read_count > 0
+            ) m ON NOT rs.reset_required;
             """;
         
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("chatIds", chatIds)
             .addValue("lastEventIds", lastEventIds)
-            .addValue("maxDelta", maxDelta);
+            .addValue("maxDelta", maxDelta)
+            .addValue("userId", userId);
         
         return namedJdbcTemplate.query(sql, params, rs -> {
-            Map<Long, Boolean> map = new HashMap<>();
+            Map<Long, ChatSyncInfo> map = new HashMap<>();
             while (rs.next()) {
-                map.put(rs.getLong("chatId"), rs.getBoolean("reset_required"));
+                map.put(rs.getLong("chatId"), new ChatSyncInfo(
+                    rs.getBoolean("resetRequired"),
+                    rs.getLong("lastReadMsgByMe"),
+                    rs.getLong("lastReadMsgByAnyone")
+                ));
             }
             return map;
         });
@@ -176,10 +201,6 @@ public class EventDbService {
 
     public List<ChatEventResult> getChatEventsAfter(long chatId, long cursor, int limit) {
         return appEventRepository.findChatEventsAfter(chatId, cursor, limit);
-    }
-
-    public IDomainEvent deserializeEvent(String eventType, String payload) {
-        return eventRegistry.deserialize(EventType.valueOf(eventType), payload);
     }
 
     public record ChatEvent(long chatId, long eventId) { };

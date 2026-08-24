@@ -7,6 +7,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.sunrise.helpclass.exception.MyErrorCode;
+import com.sunrise.helpclass.exception.MyException;
 import com.sunrise.orchestrator.type.TokenType;
 
 @RequiredArgsConstructor
@@ -15,6 +17,7 @@ public class EmailNotifier {
 
     @Value("${app.mail.mail-address}")
     private String mailAddress;
+    
     @Value("${app.mail.base-url}")
     private String baseUrl;
 
@@ -30,7 +33,7 @@ public class EmailNotifier {
         switch (tokenType) {
             case REGISTRATION:
                 subject = "Подтверждение регистрации на Sunrise Messenger";
-                confirmUrl = baseUrl + "/auth/confirm-registration?token=" + token;
+                confirmUrl = baseUrl + "/forms/auth-confirmation/" + token + "/reg";
                 body = String.format("""
                 Здравствуйте!
                 
@@ -42,7 +45,7 @@ public class EmailNotifier {
                 break;
             case EMAIL_UPDATE:
                 subject = "Подтверждение смены email на Sunrise Messenger";
-                confirmUrl = baseUrl + "/auth/confirm-email-update.html?token=" + token;
+                confirmUrl = baseUrl + "/forms/auth-confirmation/" + token + "/email";
                 body = String.format("""
                 Здравствуйте!
                 
@@ -54,7 +57,7 @@ public class EmailNotifier {
                 break;
             case PASSWORD_UPDATE:
                 subject = "Сброс пароля на Sunrise Messenger";
-                confirmUrl = baseUrl + "/auth/confirm-password-reset?token=" + token;
+                confirmUrl = baseUrl + "/forms/auth-confirmation/" + token + "/password";
                 body = String.format("""
                 Здравствуйте!
                 
@@ -65,7 +68,7 @@ public class EmailNotifier {
                 """, confirmUrl);
                 break;
             default:
-                throw new IllegalArgumentException("Unknown token type");
+                throw new MyException(MyErrorCode.VERIFICATION_TOKEN_NOT_FOUND);
         }
 
         SimpleMailMessage email = new SimpleMailMessage();

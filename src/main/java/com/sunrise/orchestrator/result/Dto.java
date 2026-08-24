@@ -8,6 +8,7 @@ import com.sunrise.orchestrator.type.MessageType;
 import com.sunrise.orchestrator.type.TokenType;
 
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 
 public final class Dto {
@@ -31,7 +32,8 @@ public final class Dto {
         ChatMemberProfileFull opponent, // только для личных чатов
         int membersCount,
         Message lastMessage,
-        Long lastReadMessageId,
+        Long lastReadMessageIdByMe,
+        Long lastReadMessageIdByAnyone,
         int unreadCount,
         Instant updatedAt,
         Instant createdAt,
@@ -108,7 +110,7 @@ public final class Dto {
         Instant profileUpdatedAt,
         Instant memberUpdatedAt,
         String text,
-        int readCount,
+        boolean isReadByAnyone,
         Instant sentAt,
         Instant updatedAt,
         Instant deletedAt,
@@ -125,7 +127,7 @@ public final class Dto {
 
     public record UserLogin(
         String jwtToken, 
-        java.util.Date expiration
+        Date expiration
     ) { }
 
     public record UserProfileLight(
@@ -181,7 +183,15 @@ public final class Dto {
         Instant createdAt
     ) {}
 
-    public record GlobalEventSync(
+    public record ChatEventSync(
+        List<GlobalEvent> events,
+        boolean hasMore,
+        Long lastReadMsgByMe,
+        Long lastReadMsgByAnyone,
+        boolean isSyncRequired
+    ) {}
+
+    public record UserGlobalEventSync(
         List<GlobalEvent> events,
         boolean hasMore,
         boolean isSyncRequired

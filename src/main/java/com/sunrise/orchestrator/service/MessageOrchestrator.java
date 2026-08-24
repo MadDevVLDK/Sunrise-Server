@@ -20,6 +20,7 @@ import com.sunrise.db.service.UserDbService;
 import com.sunrise.db.service.EventDbService.ChatEvent;
 import com.sunrise.db.service.EventDbService.ChatUsersEvents;
 import com.sunrise.db.service.EventDbService.UserEvent;
+import com.sunrise.helpclass.SnowflakeId;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
 import com.sunrise.helpclass.mapper.MessageMapper;
 import com.sunrise.helpclass.mapper.OtherMapper;
@@ -133,15 +134,16 @@ public class MessageOrchestrator {
 
     @Transactional(propagation = MANDATORY)
     public boolean markMessagesUpToRead(long chatId, long userId, long upToMessageId, Instant readAt) {
-        List<Long> affectedMessageIds = dbMessageService.markMessagesUpToRead(chatId, userId, upToMessageId, readAt);
-        var chatEvent = new IDomainEvent.MessagesReadUpTo(
-            chatId, userId, upToMessageId, readAt
-        );
-        ChatEvent seq = eventDbService.saveChatEvent(
-            chatId, chatEvent
-        );
-        eventPublisher.publishEvent(new WsAppEvent.MessagesReadUpTo(seq, chatEvent));
-        eventPublisher.publishEvent(new CacheEvent.MessagesReadCountIncremented(affectedMessageIds));
+        List<Long> markedAsReadMessageIds = dbMessageService.markMessagesUpToRead(chatId, userId, upToMessageId, readAt);
+        if (markedAsReadMessageIds.size() > 0) {
+            eventPublisher.publishEvent(new WsAppEvent.MessagesReadUpTo(
+                new ChatEvent(chatId, SnowflakeId.next()), 
+                new IDomainEvent.MessagesReadUpTo(
+                    chatId, userId, upToMessageId, markedAsReadMessageIds.size(), readAt
+                )
+            ));
+            eventPublisher.publishEvent(new CacheEvent.MessagesMarkAsReadBatch(markedAsReadMessageIds));
+        }
         return true;
     }
 
@@ -222,6 +224,8 @@ public class MessageOrchestrator {
 
     @Transactional(readOnly = true)
     public Dto.MessagesPage getPage(long chatId, long userId, Long cursor, int limit, Direction direction) {
+        if (cursor == null) direction = Direction.BACKWARD;
+        
         // Проверяем наличие кеша последних ID для чата
         if (!cacheMessageService.hasRecentIds(chatId)) {
             // публикуем для обновления кеша после коммита
@@ -261,12 +265,13 @@ public class MessageOrchestrator {
         }
 
         Long nextCursor = null;
-        if (dbResult.size() == limit + 1) {
-            if (direction == Direction.FORWARD) {
-                dbResult = dbResult.subList(0, limit);
+        if (dbResult.size() > limit) {
+            dbResult = dbResult.subList(0, limit);
+            if (direction == Direction.BACKWARD) {
+                // Для старых сообщений (BACKWARD) следующий курсор = самый старый ID (последний в списке, т.к. порядок DESC)
                 nextCursor = dbResult.getLast().getId();
             } else {
-                dbResult = dbResult.subList(dbResult.size() - limit, dbResult.size());
+                // Для новых сообщений (FORWARD) следующий курсор = самый новый ID (первый в списке)
                 nextCursor = dbResult.getFirst().getId();
             }
         }
@@ -281,15 +286,22 @@ public class MessageOrchestrator {
             return new Dto.MessagesPage(result, null);
         }
 
+        // Определяем курсор и удаляем его из пагинации
+        Long nextCursor = null;
+        if (ids.size() > limit) {
+            ids = ids.subList(0, limit);          
+            if (direction == Direction.BACKWARD) {
+                nextCursor = ids.getLast();
+            } else {
+                nextCursor = ids.getFirst();
+            }
+        }
+
         // Получаем объекты сообщений (из кеша или БД)
-        List<Cache.Message> messages = loadMessagesFromCacheOrDb(ids);
-        
-        // Сортируем в соответствии с порядком ids (который уже правильный)
-        Map<Long, Cache.Message> messageMap = messages.stream()
-                .collect(Collectors.toMap(Cache.Message::id, Function.identity()));
+        Map<Long, Cache.Message> messages = loadMessagesFromCacheOrDb(ids);
                 
         List<Cache.Message> orderedMessages = ids.stream()
-                .map(messageMap::get)
+                .map(messages::get)
                 .filter(Objects::nonNull).toList();
 
         // Получаем senderId пользователей, чтобы позже их загрузить
@@ -313,52 +325,36 @@ public class MessageOrchestrator {
             result.add(MessageMapper.toUserDTO(msg, profileUpdatedAt, memberUpdatedAt));
         }
 
-        // Для направления FORWARD переворачиваем
-        if (direction == Direction.FORWARD) {
-            Collections.reverse(result);
-        }
-
-        // Определяем курсор и удаляем его из пагинации
-        Long nextCursor = null;
-        if (result.size() == limit + 1) {
-            if (direction == Direction.FORWARD) {
-                result = result.subList(0, limit);
-                nextCursor = result.getLast().id();
-            } else {
-                result = result.subList(result.size() - limit, result.size());
-                nextCursor = result.getFirst().id();
-            }
-        }
         return new Dto.MessagesPage(result, nextCursor);
     }
 
-    private List<Cache.Message> loadMessagesFromCacheOrDb(List<Long> ids) {
+    private Map<Long, Cache.Message> loadMessagesFromCacheOrDb(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
-            return Collections.emptyList();
+            return Collections.emptyMap();
         }
 
-        List<Cache.Message> result = new ArrayList<>(ids.size());
+        Map<Long, Cache.Message> result = new HashMap<>(ids.size());
         List<Long> missingIds = new ArrayList<>();
 
         for (Long id : ids) {
             cacheMessageService.get(id).ifPresentOrElse(
-                result::add,
+                (m) -> result.put(id, m),
                 () -> missingIds.add(id)
             );
         }
 
         if (!missingIds.isEmpty()) {
-            List<Cache.Message> cacheMessages = dbMessageService.getMessagesByIds(missingIds)
-                        .stream().map(m -> MessageMapper.toCache(m)).toList();
+            Map<Long, Cache.Message> cacheMessages = dbMessageService.getMessagesByIds(missingIds)
+                        .stream().map(MessageMapper::toCache).collect(Collectors.toMap(Cache.Message::id, Function.identity()));
 
             if (!cacheMessages.isEmpty()){
                 // публикуем для обновления кеша после коммита
                 eventPublisher.publishEvent(
-                    new CacheEvent.MessagesSave(cacheMessages)
+                    new CacheEvent.MessagesSave(cacheMessages.values())
                 );
             }
 
-            result.addAll(cacheMessages);
+            result.putAll(cacheMessages);
         }
         return result;
     }

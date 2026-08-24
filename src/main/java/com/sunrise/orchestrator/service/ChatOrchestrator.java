@@ -15,11 +15,12 @@ import com.sunrise.db.service.EventDbService.ChatUsersEvents;
 import com.sunrise.db.service.EventDbService.UserEvent;
 import com.sunrise.helpclass.mapper.ChatMapper;
 import com.sunrise.helpclass.mapper.ChatMemberMapper;
+import com.sunrise.orchestrator.event.EventRegistry;
 import com.sunrise.orchestrator.event.EventType;
 import com.sunrise.orchestrator.event.IDomainEvent;
 import com.sunrise.orchestrator.result.*;
+import com.sunrise.orchestrator.result.Dto.ChatEventSync;
 import com.sunrise.orchestrator.result.Dto.GlobalEvent;
-import com.sunrise.orchestrator.result.Dto.GlobalEventSync;
 import com.sunrise.web.payload.ApiRequest;
 import com.sunrise.web.payload.ApiRequest.ChatSyncUnit;
 import com.sunrise.web.websocket.event.WsAppEvent;
@@ -270,9 +271,10 @@ public class ChatOrchestrator {
     }
 
     private static final int MAX_DELTA_EVENTS = 2000;
+    private static final int CHUNK_SIZE_EVENTS = 200;
 
     @Transactional(readOnly = true)
-    public Map<Long, GlobalEventSync> getSyncChats(List<ChatSyncUnit> cursors) {
+    public Map<Long, ChatEventSync> getSyncChats(List<ChatSyncUnit> cursors, long userId) {
         if (cursors.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -280,25 +282,35 @@ public class ChatOrchestrator {
         Map<Long, Long> chatToLastEventId = cursors.stream()
             .collect(Collectors.toMap(ApiRequest.ChatSyncUnit::chatId, ApiRequest.ChatSyncUnit::lastEventId));
         
-        Map<Long, Boolean> resetMap = dbEventService.areChatSyncResetRequired(chatToLastEventId, MAX_DELTA_EVENTS);
-        Map<Long, GlobalEventSync> result = new HashMap<>();
+        Map<Long, ChatSyncInfo> resetMap = dbEventService.areChatSyncResetRequired(chatToLastEventId, userId, MAX_DELTA_EVENTS);
+        Map<Long, ChatEventSync> result = new HashMap<>();
         for (ChatSyncUnit cursor : cursors) {
             long chatId = cursor.chatId();
-            if (resetMap.getOrDefault(chatId, true)) {
-                result.put(chatId, new GlobalEventSync(Collections.emptyList(), false, true));
+            ChatSyncInfo syncChatInfo = resetMap.get(chatId);
+            if (syncChatInfo.syncIsRequired()) {
+                result.put(chatId, new ChatEventSync(Collections.emptyList(), false, null, null, true));
                 continue;
             }
             
-            List<ChatEventResult> events = dbEventService.getChatEventsAfter(chatId, cursor.lastEventId(), 101); // +1
+            List<ChatEventResult> events = dbEventService.getChatEventsAfter(chatId, cursor.lastEventId(), CHUNK_SIZE_EVENTS + 1); 
             List<GlobalEvent> clientEvents = events.stream()
                 .map(proj -> new Dto.GlobalEvent(
                     proj.getEventId(),
                     EventType.valueOf(proj.getEventType()),
-                    dbEventService.deserializeEvent(proj.getEventType(), proj.getPayload()),
+                    EventRegistry.deserialize(proj.getEventType(), proj.getPayload()),
                     proj.getCreatedAt()
-                )).limit(100).toList();
+                )).limit(CHUNK_SIZE_EVENTS).toList();
             
-            result.put(chatId, new GlobalEventSync(clientEvents, events.size() > 100, false));
+            result.put(
+                chatId,
+                new ChatEventSync(
+                    clientEvents, 
+                    events.size() > CHUNK_SIZE_EVENTS, 
+                    syncChatInfo.lastReadMsgByMe(), 
+                    syncChatInfo.lastReadMsgByAnyone(), 
+                    false
+                )
+            );
         }
         return result;
     }

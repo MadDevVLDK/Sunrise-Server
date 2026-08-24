@@ -11,12 +11,14 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentSkipListSet;
+
 
 @Slf4j
 @Service
@@ -44,16 +46,16 @@ public class MessageCacheService {
         log.debug("[⚡] ✉️ Saved message {} in cache (chat={}, sender={})", copy.id(), copy.chatId(), copy.senderId());
     }
 
-    public void saveBatch(List<Message> messages) {
+    public void saveBatch(Collection<Message> messages) {
         for (Message message : messages) {
             messageCache.put(message.id(), MessageMapper.copy(message));
         }
         log.debug("[⚡] ✉️ Batch saved {} messages to cache", messages.size());
     }
 
-    public void incrementReadCountBatch(List<Long> messageIds) {
+    public void markAsReadBatch(List<Long> messageIds) {
         for (long messageId : messageIds) {
-            getLink(messageId).ifPresent(msg -> msg.readCount().incrementAndGet());
+            getLink(messageId).ifPresent(msg -> msg.isReadByAnyone().set(true));
         }
         log.debug("[⚡] ✉️ Batch incremented readCount for {} messages to cache", messageIds.size());
     }
@@ -100,22 +102,17 @@ public class MessageCacheService {
         NavigableSet<Long> set = recentMessagesIdsCache.getIfPresent(chatId);
         if (set == null) return Collections.emptyList();
 
-        if (direction == Direction.FORWARD) { // FORWARD
-            if (cursor == null) {
-                // Начало пагинации вперёд — самые новые сообщения
-                return set.stream().limit(limit).toList();
-            } else {
-                // Получаем элементы строго больше курсора (более новые), сохраняя порядок убывания
-                return set.tailSet(cursor, false).stream().limit(limit).toList();
-            }
-        } else { // BACKWARD
-            if (cursor == null) {
-                // Начало пагинации назад — тоже самые новые (по умолчанию)
-                return set.stream().limit(limit).toList();
-            } else {
-                // Получаем элементы строго меньше курсора (более старые)
-                return set.headSet(cursor, false).stream().limit(limit).toList();
-            }
+        if (cursor == null) {
+            // Первая страница: самые новые (наибольшие ID) в порядке убывания
+            return set.stream().limit(limit).toList();
+        }
+
+        if (direction == Direction.FORWARD) {
+            // FORWARD: ID > cursor (более новые) в порядке убывания (от новых к старым)
+            return set.headSet(cursor, true).stream().limit(limit).toList();
+        } else {
+            // BACKWARD: ID < cursor (более старые) в порядке убывания
+            return set.tailSet(cursor, true).stream().limit(limit).toList();
         }
     }
 

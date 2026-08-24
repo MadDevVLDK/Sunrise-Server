@@ -1,18 +1,20 @@
 package com.sunrise.web.api.controller;
 
+import com.sunrise.core.service.AuthService;
+import com.sunrise.helpclass.exception.MyException;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import com.sunrise.core.result.ResultOneArg;
-import com.sunrise.core.service.AuthService;
-
+@Slf4j
 @RequiredArgsConstructor
-@Controller // Не менять, потому что html работать не будет
+@Controller
 @RequestMapping("/forms/auth-confirmation/{token}")
 public class ConfirmationController {
 
@@ -20,12 +22,15 @@ public class ConfirmationController {
 
     @GetMapping("/reg")
     public String confirmRegistration(@PathVariable("token") @Size(min = 64, max = 64) String token, Model model) {
-
-        ResultOneArg<String> result = authService.confirmRegistrationToken(token);
-
-        model.addAttribute("isSuccess", result.isSuccess());
-        model.addAttribute("message", result.getResult());
-
+        try {
+            String message = authService.confirmRegistrationToken(token);
+            model.addAttribute("isSuccess", true);
+            model.addAttribute("message", message);
+        } catch (MyException e) {
+            log.warn("[📝] Registration confirmation failed: code={}, message={}", e.getCode(), e.getMessage());
+            model.addAttribute("isSuccess", false);
+            model.addAttribute("message", e.getMessage());
+        }
         return "confirm-registration";
     }
 
@@ -35,14 +40,20 @@ public class ConfirmationController {
         model.addAttribute("submitted", false);
         return "confirm-email-update";
     }
-    
+
     @PostMapping("/email")
     public String confirmEmailUpdate(@PathVariable("token") @Size(min = 64, max = 64) String token,
                                      @RequestParam("email") @NotBlank @Email String email,
                                      Model model) {
-        ResultOneArg<String> result = authService.confirmEmailUpdateToken(token, email);
-        model.addAttribute("isSuccess", result.isSuccess());
-        model.addAttribute("message", result.getResult());
+        try {
+            String message = authService.confirmEmailUpdateToken(token, email);
+            model.addAttribute("isSuccess", true);
+            model.addAttribute("message", message);
+        } catch (MyException e) {
+            log.warn("[📝] Email update confirmation failed: code={}, message={}", e.getCode(), e.getMessage());
+            model.addAttribute("isSuccess", false);
+            model.addAttribute("message", e.getMessage());
+        }
         model.addAttribute("submitted", true);
         return "confirm-email-update";
     }
@@ -53,14 +64,20 @@ public class ConfirmationController {
         model.addAttribute("submitted", false);
         return "confirm-password-update";
     }
-    
+
     @PostMapping("/password")
     public String confirmPasswordUpdate(@PathVariable("token") @Size(min = 64, max = 64) String token,
                                         @RequestParam("password") @NotBlank @Size(min = 8, max = 30) String password,
                                         Model model) {
-        ResultOneArg<String> result = authService.confirmPasswordUpdateToken(token, password);
-        model.addAttribute("isSuccess", result.isSuccess());
-        model.addAttribute("message", result.getResult());
+        try {
+            String message = authService.confirmPasswordUpdateToken(token, password);
+            model.addAttribute("isSuccess", true);
+            model.addAttribute("message", message);
+        } catch (MyException e) {
+            log.warn("[📝] Password update confirmation failed: code={}, message={}", e.getCode(), e.getMessage());
+            model.addAttribute("isSuccess", false);
+            model.addAttribute("message", e.getMessage());
+        }
         model.addAttribute("submitted", true);
         return "confirm-password-update";
     }

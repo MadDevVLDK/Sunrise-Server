@@ -275,9 +275,9 @@ public class CacheEventListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onMessageReadCountUpdated(MessagesReadCountIncremented event) {
+    public void onMessageMarkAsReadBatch(MessagesMarkAsReadBatch event) {
         try {
-            messageCache.incrementReadCountBatch(event.messageIds());
+            messageCache.markAsReadBatch(event.messageIds());
         } catch (Exception e) {
             log.error("[⚡] ❌ Failed to increment readCount for messages: {}", e.getMessage());
         }

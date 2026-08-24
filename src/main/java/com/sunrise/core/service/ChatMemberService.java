@@ -1,13 +1,10 @@
 package com.sunrise.core.service;
 
 import com.sunrise.core.creation.CreateDto;
-import com.sunrise.core.result.ResultNoArgs;
-import com.sunrise.core.result.ResultOneArg;
 import com.sunrise.orchestrator.DataValidator;
 import com.sunrise.orchestrator.result.Dto.*;
 import com.sunrise.orchestrator.service.ChatMemberOrchestrator;
 import com.sunrise.orchestrator.service.ChatOrchestrator;
-import com.sunrise.helpclass.ValidationException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,223 +28,121 @@ public class ChatMemberService {
 
     private final DataValidator validator;
 
-
     @Transactional
-    public ResultNoArgs addOrRestoreChatMember(long chatId, long inviterId, long opponentId) {
-        try {
-            validator.validateCanAddChatMember(chatId, inviterId, opponentId);
+    public void addOrRestoreChatMember(long chatId, long inviterId, long opponentId) {
+        validator.validateCanAddChatMember(chatId, inviterId, opponentId);
 
-            CreateDto.ChatMember member = new CreateDto.ChatMember(
-                chatId, opponentId, Instant.now(), false
-            );
+        CreateDto.ChatMember member = new CreateDto.ChatMember(
+            chatId, opponentId, Instant.now(), false
+        );
 
-            boolean isUpdated = chatMemberOrchestrator.saveOrRestore(member);
-            if (isUpdated) {
-                log.info("[🔧] ✅ User {} added user {} to group chat {}", inviterId, opponentId, chatId);
-            }
-            return ResultNoArgs.success();
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to add member to chat {}: {}", chatId, e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error adding member to chat {}: {}", chatId, e.getMessage());
-            return ResultNoArgs.error("AddGroupMember failed due to server error");
+        boolean isUpdated = chatMemberOrchestrator.saveOrRestore(member);
+        if (isUpdated) {
+            log.info("[🔧] ✅ User {} added user {} to group chat {}", inviterId, opponentId, chatId);
         }
     }
 
     @Transactional
-    public ResultNoArgs addOrRestoreChatMembers(long chatId, long inviterId, @NonNull Set<Long> usersToAdd) {
-        try {
-            validator.validateCanAddChatMembers(chatId, inviterId, usersToAdd);
+    public void addOrRestoreChatMembers(long chatId, long inviterId, @NonNull Set<Long> usersToAdd) {
+        validator.validateCanAddChatMembers(chatId, inviterId, usersToAdd);
 
-            Instant createdAt = Instant.now();
+        Instant createdAt = Instant.now();
 
-            List<CreateDto.ChatMember> members = new ArrayList<>(usersToAdd.size() + 1);
-            for (long userId : usersToAdd){
-                members.add(new CreateDto.ChatMember(chatId, userId, createdAt, false));
-            }
-
-            Long[] addedIds = chatMemberOrchestrator.saveOrRestoreBatch(chatId, members);
-            if (addedIds.length > 0) {
-                log.info("[🔧] ✅ User {} added {} users to chat {}", inviterId, addedIds.length, chatId);
-            }
-            return ResultNoArgs.success();
+        List<CreateDto.ChatMember> members = new ArrayList<>(usersToAdd.size() + 1);
+        for (long userId : usersToAdd) {
+            members.add(new CreateDto.ChatMember(chatId, userId, createdAt, false));
         }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to add members to chat {}: {}", chatId, e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error adding members to chat {}: {}", chatId, e.getMessage());
-            return ResultNoArgs.error("AddGroupMember failed due to server error");
+
+        Long[] addedIds = chatMemberOrchestrator.saveOrRestoreBatch(chatId, members);
+        if (addedIds.length > 0) {
+            log.info("[🔧] ✅ User {} added {} users to chat {}", inviterId, addedIds.length, chatId);
         }
     }
 
     @Transactional
-    public ResultNoArgs updateChatMemberInfo(long chatId, long adminId, long userToUpdateId, @NonNull String tag) {
-        try {
-            validator.validateCanUpdateChatMemberInfo(chatId, adminId, userToUpdateId);
+    public void updateChatMemberInfo(long chatId, long adminId, long userToUpdateId, @NonNull String tag) {
+        validator.validateCanUpdateChatMemberInfo(chatId, adminId, userToUpdateId);
 
-            Instant updatedAt = Instant.now();
-            boolean isUpdated = chatMemberOrchestrator.updateProfile(chatId, adminId, tag, updatedAt);
-            if (isUpdated) {
-                log.info("[🔧] ✅ Updated member info for user {} by admin {} in chat {}", userToUpdateId, adminId, chatId);
-            }
-            return ResultNoArgs.success();
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to update member info for user {} by admin {} in chat {}: {}", userToUpdateId, adminId, chatId, e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error updating member info for user {} by admin {} in chat {}: {}", userToUpdateId, adminId, chatId, e.getMessage());
-            return ResultNoArgs.error("updateChatMemberInfo failed due to server error");
+        Instant updatedAt = Instant.now();
+        boolean isUpdated = chatMemberOrchestrator.updateProfile(chatId, adminId, tag, updatedAt);
+        if (isUpdated) {
+            log.info("[🔧] ✅ Updated member info for user {} by admin {} in chat {}", userToUpdateId, adminId, chatId);
         }
     }
 
     @Transactional
-    public ResultNoArgs updateChatMemberAdminRight(long chatId, long adminId, long userToUpdateId, boolean isAdmin) {
-        try {
-            validator.validateCanUpdateChatMemberRights(chatId, adminId, userToUpdateId);
+    public void updateChatMemberAdminRight(long chatId, long adminId, long userToUpdateId, boolean isAdmin) {
+        validator.validateCanUpdateChatMemberRights(chatId, adminId, userToUpdateId);
 
-            Instant updatedAt = Instant.now();
-            boolean isUpdated = chatMemberOrchestrator.updateAdminRights(chatId, userToUpdateId, isAdmin, updatedAt);
-            if (isUpdated) {
-                log.info("[🔧] ✅ Updated admin rights for user {} by admin {} in group chat {}", userToUpdateId, adminId, chatId);
-            }            
-            return ResultNoArgs.success();
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to update admin rights for user {} by admin {} in group chat {}: {}", userToUpdateId, adminId, chatId, e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error updating admin rights for user {} by admin {} in group chat {}: {}", userToUpdateId, adminId, chatId, e.getMessage());
-            return ResultNoArgs.error("updateChatMemberAdminRight failed due to server error");
+        Instant updatedAt = Instant.now();
+        boolean isUpdated = chatMemberOrchestrator.updateAdminRights(chatId, userToUpdateId, isAdmin, updatedAt);
+        if (isUpdated) {
+            log.info("[🔧] ✅ Updated admin rights for user {} by admin {} in group chat {}", userToUpdateId, adminId, chatId);
         }
     }
 
     @Transactional
-    public ResultNoArgs updateSelfChatSettings(long chatId, long userId, boolean isPinned) {
-        try {
-            validator.validateActiveChatMemberInActiveChat(chatId, userId);
+    public void updateSelfChatSettings(long chatId, long userId, boolean isPinned) {
+        validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            Instant updatedAt = Instant.now();
-            boolean isUpdated = chatMemberOrchestrator.updateSettings(chatId, userId, isPinned, updatedAt);
-            if (isUpdated) {
-                log.info("[🔧] ✅ Updated self settings for user {} in chat {}", userId, chatId);
-            }
-            return ResultNoArgs.success();
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to update member info for user {} in chat {}: {}", userId, chatId, e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error updating member info for user {} in chat {}: {}", userId, chatId, e.getMessage());
-            return ResultNoArgs.error("updateChatMemberInfo failed due to server error");
+        Instant updatedAt = Instant.now();
+        boolean isUpdated = chatMemberOrchestrator.updateSettings(chatId, userId, isPinned, updatedAt);
+        if (isUpdated) {
+            log.info("[🔧] ✅ Updated self settings for user {} in chat {}", userId, chatId);
         }
     }
 
     @Transactional
-    public ResultNoArgs kickChatMember(long chatId, long adminId, long userToKickId) {
-        try {
-            validator.validateCanKickChatMember(chatId, adminId, userToKickId);
+    public void kickChatMember(long chatId, long adminId, long userToKickId) {
+        validator.validateCanKickChatMember(chatId, adminId, userToKickId);
 
-            Instant updatedAt = Instant.now();
-            boolean isUpdated = chatMemberOrchestrator.remove(chatId, userToKickId, updatedAt);
-            if (isUpdated) {
-                log.info("[🔧] ✅ User {} kicked from chat {} by user {}", userToKickId, chatId, adminId);
-            }
-            return ResultNoArgs.success();
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to kick user {} from chat {}: {}", userToKickId, chatId, e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error kicking user {} from chat {}: {}", userToKickId, chatId, e.getMessage());
-            return ResultNoArgs.error("kickChatMember failed due to server error");
+        Instant updatedAt = Instant.now();
+        boolean isUpdated = chatMemberOrchestrator.remove(chatId, userToKickId, updatedAt);
+        if (isUpdated) {
+            log.info("[🔧] ✅ User {} kicked from chat {} by user {}", userToKickId, chatId, adminId);
         }
     }
 
     @Transactional
-    public ResultNoArgs leaveChat(long chatId, long userId) {
-        try {
-            ChatSecurity chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);
-            Instant updatedAt = Instant.now();
-            if (chat.chatType().isPersonal()) {
-                if (chat.membersCount() > 1) {
-                    // Удаляем пользователя из чата
-                    boolean isUpdated = chatMemberOrchestrator.remove(chatId, userId, updatedAt);
-                    if (isUpdated) {
-                        log.info("[🔧] ✅ User {} left group chat {}", userId, chatId);
-                    }
-                } else {
-                    // Удаляем чат
-                    boolean isUpdated = chatOrchestrator.delete(chatId, updatedAt);
-                    if (isUpdated) {
-                        log.info("[🔧] ✅ Last admin {} left group chat {}, chat deleted", userId, chatId);
-                    }                    
+    public void leaveChat(long chatId, long userId) {
+        ChatSecurity chat = validator.validateActiveUserInActiveChatAndGetChat(chatId, userId);
+        Instant updatedAt = Instant.now();
+
+        if (chat.chatType().isPersonal()) {
+            if (chat.membersCount() > 1) {
+                boolean isUpdated = chatMemberOrchestrator.remove(chatId, userId, updatedAt);
+                if (isUpdated) {
+                    log.info("[🔧] ✅ User {} left group chat {}", userId, chatId);
                 }
             } else {
-                // Удаляем личный чат
                 boolean isUpdated = chatOrchestrator.delete(chatId, updatedAt);
                 if (isUpdated) {
-                    log.info("[🔧] ✅ User {} deleted personal chat {}", userId, chatId);
+                    log.info("[🔧] ✅ Last admin {} left group chat {}, chat deleted", userId, chatId);
                 }
             }
-            return ResultNoArgs.success();
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to leave chat {}: {}", chatId, e.getMessage());
-            return ResultNoArgs.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error leaving chat {}: {}", chatId, e.getMessage());
-            return ResultNoArgs.error("LeaveChat failed due to server error");
+        } else {
+            boolean isUpdated = chatOrchestrator.delete(chatId, updatedAt);
+            if (isUpdated) {
+                log.info("[🔧] ✅ User {} deleted personal chat {}", userId, chatId);
+            }
         }
     }
 
     @Transactional(readOnly = true)
-    public ResultOneArg<ChatMembersPage> getChatMemberPage(long chatId, long userId, Long cursor, int limit) {
-        try {
-            validator.validateActiveChatMemberInActiveChat(chatId, userId);
+    public ChatMembersPage getChatMemberPage(long chatId, long userId, Long cursor, int limit) {
+        validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            ChatMembersPage chatMembers = chatMemberOrchestrator.getPage(chatId, cursor, limit);
-
-            log.debug("[🔧] ✅ User {} got {} members of chat {}", userId, chatMembers.chatMembers().size(), chatId);
-            return ResultOneArg.success(chatMembers);
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to get chat {} members: {}", chatId, e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error getting chat {} members: {}", chatId, e.getMessage());
-            return ResultOneArg.error("getChatMembers failed due to server error");
-        }
+        ChatMembersPage chatMembers = chatMemberOrchestrator.getPage(chatId, cursor, limit);
+        log.debug("[🔧] ✅ User {} got {} members of chat {}", userId, chatMembers.chatMembers().size(), chatId);
+        return chatMembers;
     }
-    
+
     @Transactional(readOnly = true)
-    public ResultOneArg<List<ChatMemberProfile>> getChatMemberByIds(long chatId, long userId, Set<Long> userIds) {
-        try {
-            validator.validateActiveChatMemberInActiveChat(chatId, userId);
+    public List<ChatMemberProfile> getChatMemberByIds(long chatId, long userId, Set<Long> userIds) {
+        validator.validateActiveChatMemberInActiveChat(chatId, userId);
 
-            List<ChatMemberProfile> chatMembers = chatMemberOrchestrator.getProfilesByIds(chatId, userIds);
-
-            log.debug("[🔧] ✅ User {} got {} members by ids of chat {}", userId, userIds.size(), chatId);
-            return ResultOneArg.success(chatMembers);
-        }
-        catch (ValidationException e) {
-            log.warn("[🔧] ☝️ Failed to get chat {} members by ids: {}", chatId, e.getMessage());
-            return ResultOneArg.error(e.getMessage());
-        }
-        catch (Exception e) {
-            log.error("[🔧] ⚠️ Error getting chat {} members by ids: {}", chatId, e.getMessage());
-            return ResultOneArg.error("getChatMemberByIds failed due to server error");
-        }
+        List<ChatMemberProfile> chatMembers = chatMemberOrchestrator.getProfilesByIds(chatId, userIds);
+        log.debug("[🔧] ✅ User {} got {} members by ids of chat {}", userId, userIds.size(), chatId);
+        return chatMembers;
     }
 }

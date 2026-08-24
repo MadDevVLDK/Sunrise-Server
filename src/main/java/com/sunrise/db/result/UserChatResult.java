@@ -13,7 +13,8 @@ public interface UserChatResult {
     Long getCreatedBy();
     Instant getDeletedAt();
     Boolean getIsDeleted();
-    Long getLastReadMessageId();
+    Long getLastReadMessageIdByMe();
+    Long getLastReadMessageIdByAnyone();
     Integer getUnreadCount();
 
 
@@ -25,8 +26,7 @@ public interface UserChatResult {
     Instant getMsgMemberUpdatedAt();
     String getMsgMessageType();
     String getMsgText();
-    Integer getMsgReadCount();
-    Boolean getMsgIsReadByUser();
+    Boolean getMsgIsReadByAnyone();
     Instant getMsgSentAt();
     Instant getMsgUpdatedAt();
     Instant getMsgDeletedAt();

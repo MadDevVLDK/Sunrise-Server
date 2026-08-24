@@ -4,21 +4,21 @@ services:
     image: postgres:17
     container_name: sunrise-postgres
     environment:
-      POSTGRES_DB: ${DB_NAME:-messenger_db}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
     ports:
-      - "${POSTGRES_PORT:-5435}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-sql:/docker-entrypoint-initdb.d/
+      - ./init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-messenger_db}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d messenger_db"]
       interval: 15s
       timeout: 10s
       retries: 3
     restart:
-      on-failure:2
+      on-failure:1
     networks:
       - sunrise-net
 
@@ -46,7 +46,7 @@ services:
       LOGGING_LEVEL_ORG_HIBERNATE_SQL: WARN
 
     ports:
-      - "${PORT_SERVER:-10610}:${SERVER_PORT:-10610}"
+      - "${SERVER_PORT:-10610}:${SERVER_PORT:-10610}"
     depends_on:
       postgres:
         condition: service_healthy

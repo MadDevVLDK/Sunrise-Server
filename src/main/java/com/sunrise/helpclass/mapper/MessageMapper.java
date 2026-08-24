@@ -3,7 +3,7 @@ package com.sunrise.helpclass.mapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.sunrise.cache.entity.*;
 import com.sunrise.core.creation.*;
@@ -27,7 +27,7 @@ public class MessageMapper {
             message.messageType(),
             message.senderId(),
             message.text(),
-            message.readCount(),
+            message.isReadByAnyone(),
             message.sentAt(),
             message.updatedAt(),
             message.deletedAt(),
@@ -44,7 +44,7 @@ public class MessageMapper {
             message.getMessageType(),
             message.getSenderId(),
             message.getText(),
-            new AtomicInteger(message.getReadCount()),
+            new AtomicBoolean(message.getReadCount() >= 1),
             message.getSentAt(),
             message.getUpdatedAt(),
             message.getDeletedAt(),
@@ -61,7 +61,7 @@ public class MessageMapper {
             MessageType.valueOf(message.getMessageType()),
             message.getSenderId(),
             message.getText(),
-            new AtomicInteger(message.getReadCount()),
+            new AtomicBoolean(message.getIsReadByAnyone()),
             message.getSentAt(),
             message.getUpdatedAt(),
             message.getDeletedAt(),
@@ -88,7 +88,7 @@ public class MessageMapper {
             message.getMessageType(),
             message.getSenderId(),
             message.getText(),
-            new AtomicInteger(message.getReadCount()),
+            new AtomicBoolean(message.getReadCount() >= 1),
             message.getSentAt(),
             message.getUpdatedAt(),
             message.getDeletedAt(),
@@ -105,7 +105,7 @@ public class MessageMapper {
             message.getSenderId(),
             message.getMessageType(),
             message.getText(),
-            message.getReadCount(),
+            0,
             message.getSentAt(),
             message.getUpdatedAt(),
             message.getDeletedAt(),
@@ -124,7 +124,7 @@ public class MessageMapper {
             profileUpdatedAt,
             memberUpdatedAt,
             message.text(),
-            message.readCount().get(),
+            message.isReadByAnyone().get(),
             message.sentAt(),
             message.updatedAt(),
             message.deletedAt(),
@@ -142,7 +142,7 @@ public class MessageMapper {
             message.getProfileUpdatedAt(),
             message.getMemberUpdatedAt(),
             message.getText(),
-            message.getReadCount(),
+            message.getIsReadByAnyone(),
             message.getSentAt(),
             message.getUpdatedAt(),
             message.getDeletedAt(),
@@ -161,7 +161,7 @@ public class MessageMapper {
             chat.getMsgProfileUpdatedAt(),
             chat.getMsgMemberUpdatedAt(),
             chat.getMsgText(),
-            chat.getMsgReadCount(),
+            chat.getMsgIsReadByAnyone(),
             chat.getMsgSentAt(),
             chat.getMsgUpdatedAt(),
             chat.getMsgDeletedAt(),
